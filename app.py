@@ -238,13 +238,14 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
             - Include doubt and uncertainty: "I think", "maybe", "I'm not sure but..."
             - Add friend reactions: "my roommate thinks I'm crazy", "told my mom and she..."
             
-            STORY STRUCTURE (300-350 words ONLY):
-            1. Hook: Something shocking that happened to you personally
-            2. Context: Why you were doing this (class project, boredom, curiosity)
-            3. The experience: What actually happened with vivid details
-            4. The realization: Your mind-blown moment with genuine emotion
-            5. Impact: How this changed your perspective on life/future
-            6. Question: Ask readers what they think or if they've experienced similar
+            STORY STRUCTURE (50-150 words ONLY - NO PARAGRAPHS):
+            Write as continuous text with no line breaks or paragraphs. Every sentence should flow directly into the next without any spacing or paragraph breaks. Keep it short and punchy:
+            1. Hook: Something shocking that happened
+            2. Context: Why you were doing this 
+            3. The experience: What happened with vivid details
+            4. The realization: Your mind-blown moment
+            5. Impact: How this changed your perspective
+            6. Question: Ask readers what they think
             
             Make this feel like you're texting your best friend about something incredible that just happened. Be vulnerable, excited, and completely authentic.
             
