@@ -260,7 +260,7 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="primary", use_container_wid
             style = random.choice(VIRAL_STYLES)
             
             # Initialize model
-            model = genai.GenerativeModel('gemini-pro')
+            model = genai.GenerativeModel('gemini-2.0-flash-lite')
             
             # Ultra-humanized prompt with strong anti-AI detection barriers
             story_prompt = f"""
