@@ -2,7 +2,6 @@ import streamlit as st
 import google.generativeai as genai
 import random
 import time
-import pyperclip
 
 # Configure Streamlit page
 st.set_page_config(
@@ -11,23 +10,9 @@ st.set_page_config(
     layout="wide"
 )
 
-# Custom CSS for copy buttons and styling
+# Custom CSS for better styling
 st.markdown("""
 <style>
-.copy-btn {
-    background-color: #6c7b7f;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    margin-top: 5px;
-    font-weight: bold;
-}
-.copy-btn:hover {
-    background-color: #8a9ba0;
-}
 .content-box {
     background-color: #2a2d31;
     padding: 15px;
@@ -217,126 +202,6 @@ def add_human_imperfections(text):
     
     return text
 
-def create_copy_button(text, button_id, rows=1):
-    """Create a robust copy button that actually works in Streamlit"""
-    import uuid
-    unique_id = f"{button_id}_{str(uuid.uuid4())[:8]}"
-    
-    # Escape text for JavaScript
-    escaped_text = text.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace("'", "\\'").replace('"', '\\"').replace('`', '\\`')
-    
-    button_html = f"""
-    <div class="content-box">
-        <div style="background-color: #2a2d31; border: 1px solid #3e4248; border-radius: 5px; padding: 10px; margin-bottom: 10px;">
-            <pre style="color: #ffffff; font-family: inherit; font-size: 14px; white-space: pre-wrap; word-wrap: break-word; margin: 0; background: none; border: none;">{text}</pre>
-        </div>
-        <button id="btn_{unique_id}" onclick="robustCopy_{unique_id}()" style="background-color: #6c7b7f; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">📋 Copy</button>
-        
-        <!-- Hidden textarea for fallback -->
-        <textarea id="hidden_{unique_id}" style="position: absolute; left: -9999px; opacity: 0; height: 1px; width: 1px;">{text}</textarea>
-    </div>
-    
-    <script>
-    function robustCopy_{unique_id}() {{
-        const textToCopy = `{escaped_text}`;
-        const button = document.getElementById('btn_{unique_id}');
-        const hiddenTextarea = document.getElementById('hidden_{unique_id}');
-        
-        let copySuccess = false;
-        
-        // Method 1: Modern Clipboard API
-        if (navigator.clipboard && window.isSecureContext) {{
-            navigator.clipboard.writeText(textToCopy).then(() => {{
-                showSuccess_{unique_id}(button);
-            }}).catch(() => {{
-                // Fallback to method 2
-                fallbackCopy_{unique_id}(hiddenTextarea, button);
-            }});
-        }} else {{
-            // Fallback to method 2
-            fallbackCopy_{unique_id}(hiddenTextarea, button);
-        }}
-    }}
-    
-    function fallbackCopy_{unique_id}(textarea, button) {{
-        try {{
-            // Focus and select the hidden textarea
-            textarea.style.display = 'block';
-            textarea.focus();
-            textarea.select();
-            textarea.setSelectionRange(0, 99999);
-            
-            // Execute copy command
-            const successful = document.execCommand('copy');
-            textarea.style.display = 'none';
-            
-            if (successful) {{
-                showSuccess_{unique_id}(button);
-            }} else {{
-                // Method 3: Manual selection fallback
-                manualCopy_{unique_id}(button);
-            }}
-        }} catch (err) {{
-            console.error('Copy failed:', err);
-            manualCopy_{unique_id}(button);
-        }}
-    }}
-    
-    function manualCopy_{unique_id}(button) {{
-        // Create a temporary div with the text
-        const tempDiv = document.createElement('div');
-        tempDiv.style.position = 'fixed';
-        tempDiv.style.left = '-999999px';
-        tempDiv.style.top = '-999999px';
-        tempDiv.textContent = `{escaped_text}`;
-        document.body.appendChild(tempDiv);
-        
-        // Select the text
-        const range = document.createRange();
-        range.selectNodeContents(tempDiv);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
-        
-        try {{
-            const successful = document.execCommand('copy');
-            document.body.removeChild(tempDiv);
-            selection.removeAllRanges();
-            
-            if (successful) {{
-                showSuccess_{unique_id}(button);
-            }} else {{
-                button.innerHTML = '❌ Copy Failed';
-                button.style.backgroundColor = '#8B4513';
-                setTimeout(() => {{
-                    button.innerHTML = '📋 Copy';
-                    button.style.backgroundColor = '#6c7b7f';
-                }}, 2000);
-            }}
-        }} catch (err) {{
-            document.body.removeChild(tempDiv);
-            selection.removeAllRanges();
-            button.innerHTML = '❌ Copy Failed';
-            button.style.backgroundColor = '#8B4513';
-            setTimeout(() => {{
-                button.innerHTML = '📋 Copy';
-                button.style.backgroundColor = '#6c7b7f';
-            }}, 2000);
-        }}
-    }}
-    
-    function showSuccess_{unique_id}(button) {{
-        button.innerHTML = '✅ Copied!';
-        button.style.backgroundColor = '#4a6741';
-        setTimeout(() => {{
-            button.innerHTML = '📋 Copy';
-            button.style.backgroundColor = '#6c7b7f';
-        }}, 2000);
-    }}
-    </script>
-    """
-    return button_html
-
 # Main App
 st.title("🚀 ⚡ INSTANT TECH STORY GENERATOR")
 st.markdown("**One-click viral tech stories that make money** • No inputs needed • 100% Human-like • Maximum engagement")
@@ -444,7 +309,7 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
             
             disclaimer = random.choice(disclaimers)
             
-            # Display results with copy buttons
+            # Display results with HTML textboxes
             st.success("✅ Ultra-human viral story generated! Ready to copy-paste to Milyin")
             
             col1, col2 = st.columns([1, 1])
@@ -453,19 +318,19 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
                 st.subheader("📝 Generated Content")
                 
                 st.markdown("**1. TITLE:**")
-                st.markdown(create_copy_button(title, "title_text"), unsafe_allow_html=True)
+                st.text_area("Title", title, height=50, key="title_box", label_visibility="collapsed")
                 
                 st.markdown("**2. STORY (300-350 words):**")
-                st.markdown(create_copy_button(story, "story_text", 10), unsafe_allow_html=True)
+                st.text_area("Story", story, height=400, key="story_box", label_visibility="collapsed")
                 
             with col2:
                 st.subheader("📋 Additional Fields")
                 
                 st.markdown("**3. DESCRIPTION:**")
-                st.markdown(create_copy_button(description, "desc_text", 3), unsafe_allow_html=True)
+                st.text_area("Description", description, height=100, key="desc_box", label_visibility="collapsed")
                 
                 st.markdown("**4. DISCLAIMER:**")
-                st.markdown(create_copy_button(disclaimer, "disclaimer_text", 2), unsafe_allow_html=True)
+                st.text_area("Disclaimer", disclaimer, height=80, key="disclaimer_box", label_visibility="collapsed")
                 
                 # Stats
                 word_count = len(story.split())
@@ -562,7 +427,7 @@ st.markdown(
     <div style='text-align: center; color: #666;'>
         <p><strong>⚡ FASTEST • MOST HUMAN • MAXIMUM ENGAGEMENT</strong></p>
         <p>Built for serious content creators who want to make money fast 🚀💰</p>
-        <p><em>Now with instant copy buttons and 98% human authenticity score</em></p>
+        <p><em>Now with simple copy-paste textboxes for instant workflow</em></p>
     </div>
     """, 
     unsafe_allow_html=True
