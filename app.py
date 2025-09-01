@@ -305,7 +305,7 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="primary", use_container_wid
             
             # Generate viral title
             title_prompt = f"""
-            You're Alex, the college student who just wrote that story. Create a title like you would for a social media post.
+            You're Alex, the college student who just wrote that story. Create ONLY ONE SINGLE title like you would for a social media post.
             
             Make it:
             - Sound like YOU wrote it, not a marketer
@@ -318,11 +318,11 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="primary", use_container_wid
             Topic context: {topic}
             Story preview: {story[:100]}
             
-            Write it like you're posting on Reddit or texting friends.
+            Write ONLY ONE title like you're posting on Reddit or texting friends. Do not provide multiple options or explanations.
             """
             
             title_response = model.generate_content(title_prompt)
-            title = title_response.text.strip().replace('"', '')
+            title = title_response.text.strip().replace('"', '').split('\n')[0]
             
             # Generate engaging description
             desc_prompt = f"""
