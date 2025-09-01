@@ -217,31 +217,57 @@ def add_human_imperfections(text):
     
     return text
 
-def create_copy_button(text, button_id):
-    """Create a copy button with JavaScript"""
+def create_copy_button(text, button_id, rows=1):
+    """Create a copy button that works in Streamlit"""
+    # Clean the text for display
+    clean_text = text.replace('"', '&quot;').replace("'", "&#39;").replace('\n', '\\n')
+    
     button_html = f"""
     <div class="content-box">
-        <textarea readonly style="width:100%; height:auto; border:none; background:transparent; resize:none; outline:none; color:#ffffff;" rows="1" id="{button_id}">{text}</textarea>
-        <button class="copy-btn" onclick="copyToClipboard('{button_id}')">📋 Copy</button>
+        <textarea readonly style="width:100%; height:auto; border:none; background:transparent; resize:none; outline:none; color:#ffffff; font-family: inherit; font-size: 14px;" rows="{rows}" id="{button_id}">{text}</textarea>
+        <button class="copy-btn" onclick="copyText_{button_id}()">📋 Copy</button>
     </div>
     
     <script>
-    function copyToClipboard(elementId) {{
-        const element = document.getElementById(elementId);
-        element.select();
-        element.setSelectionRange(0, 99999);
-        document.execCommand('copy');
+    function copyText_{button_id}() {{
+        const textarea = document.getElementById('{button_id}');
+        const text = `{clean_text}`;
         
-        // Visual feedback
-        const btn = element.nextElementSibling;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '✅ Copied!';
-        btn.style.backgroundColor = '#4a6741';
-        
-        setTimeout(() => {{
-            btn.innerHTML = originalText;
-            btn.style.backgroundColor = '#6c7b7f';
-        }}, 2000);
+        // Use the modern clipboard API if available
+        if (navigator.clipboard) {{
+            navigator.clipboard.writeText(text).then(function() {{
+                showCopySuccess_{button_id}();
+            }}).catch(function() {{
+                fallbackCopy_{button_id}(textarea);
+            }});
+        }} else {{
+            fallbackCopy_{button_id}(textarea);
+        }}
+    }}
+    
+    function fallbackCopy_{button_id}(textarea) {{
+        textarea.select();
+        textarea.setSelectionRange(0, 99999);
+        try {{
+            document.execCommand('copy');
+            showCopySuccess_{button_id}();
+        }} catch(err) {{
+            console.error('Copy failed:', err);
+        }}
+    }}
+    
+    function showCopySuccess_{button_id}() {{
+        const btn = document.querySelector('[onclick="copyText_{button_id}()"]');
+        if (btn) {{
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '✅ Copied!';
+            btn.style.backgroundColor = '#4a6741';
+            
+            setTimeout(() => {{
+                btn.innerHTML = originalText;
+                btn.style.backgroundColor = '#6c7b7f';
+            }}, 2000);
+        }}
     }}
     </script>
     """
@@ -366,16 +392,16 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
                 st.markdown(create_copy_button(title, "title_text"), unsafe_allow_html=True)
                 
                 st.markdown("**2. STORY (300-350 words):**")
-                st.markdown(create_copy_button(story, "story_text"), unsafe_allow_html=True)
+                st.markdown(create_copy_button(story, "story_text", 10), unsafe_allow_html=True)
                 
             with col2:
                 st.subheader("📋 Additional Fields")
                 
                 st.markdown("**3. DESCRIPTION:**")
-                st.markdown(create_copy_button(description, "desc_text"), unsafe_allow_html=True)
+                st.markdown(create_copy_button(description, "desc_text", 3), unsafe_allow_html=True)
                 
                 st.markdown("**4. DISCLAIMER:**")
-                st.markdown(create_copy_button(disclaimer, "disclaimer_text"), unsafe_allow_html=True)
+                st.markdown(create_copy_button(disclaimer, "disclaimer_text", 2), unsafe_allow_html=True)
                 
                 # Stats
                 word_count = len(story.split())
