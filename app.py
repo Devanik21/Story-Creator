@@ -15,7 +15,7 @@ st.set_page_config(
 st.markdown("""
 <style>
 .copy-btn {
-    background-color: #ff4b4b;
+    background-color: #6c7b7f;
     color: white;
     border: none;
     padding: 8px 16px;
@@ -26,14 +26,14 @@ st.markdown("""
     font-weight: bold;
 }
 .copy-btn:hover {
-    background-color: #ff6b6b;
+    background-color: #8a9ba0;
 }
 .content-box {
-    background-color: #1e1e1e;
+    background-color: #2a2d31;
     padding: 15px;
     border-radius: 10px;
     margin: 10px 0;
-    border: 1px solid #333;
+    border: 1px solid #3e4248;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -217,30 +217,120 @@ def add_human_imperfections(text):
     
     return text
 
-def create_copy_button(text, button_id):
-    """Create a copy button with JavaScript"""
+def create_copy_button(text, button_id, rows=1):
+    """Create a robust copy button that actually works in Streamlit"""
+    import uuid
+    unique_id = f"{button_id}_{str(uuid.uuid4())[:8]}"
+    
+    # Escape text for JavaScript
+    escaped_text = text.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('\t', '\\t').replace("'", "\\'").replace('"', '\\"').replace('`', '\\`')
+    
     button_html = f"""
     <div class="content-box">
-        <textarea readonly style="width:100%; height:auto; border:none; background:transparent; resize:none; outline:none; color:#ffffff;" rows="1" id="{button_id}">{text}</textarea>
-        <button class="copy-btn" onclick="copyToClipboard('{button_id}')">📋 Copy</button>
+        <div style="background-color: #2a2d31; border: 1px solid #3e4248; border-radius: 5px; padding: 10px; margin-bottom: 10px;">
+            <pre style="color: #ffffff; font-family: inherit; font-size: 14px; white-space: pre-wrap; word-wrap: break-word; margin: 0; background: none; border: none;">{text}</pre>
+        </div>
+        <button id="btn_{unique_id}" onclick="robustCopy_{unique_id}()" style="background-color: #6c7b7f; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold;">📋 Copy</button>
+        
+        <!-- Hidden textarea for fallback -->
+        <textarea id="hidden_{unique_id}" style="position: absolute; left: -9999px; opacity: 0; height: 1px; width: 1px;">{text}</textarea>
     </div>
     
     <script>
-    function copyToClipboard(elementId) {{
-        const element = document.getElementById(elementId);
-        element.select();
-        element.setSelectionRange(0, 99999);
-        document.execCommand('copy');
+    function robustCopy_{unique_id}() {{
+        const textToCopy = `{escaped_text}`;
+        const button = document.getElementById('btn_{unique_id}');
+        const hiddenTextarea = document.getElementById('hidden_{unique_id}');
         
-        // Visual feedback
-        const btn = element.nextElementSibling;
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '✅ Copied!';
-        btn.style.backgroundColor = '#28a745';
+        let copySuccess = false;
         
+        // Method 1: Modern Clipboard API
+        if (navigator.clipboard && window.isSecureContext) {{
+            navigator.clipboard.writeText(textToCopy).then(() => {{
+                showSuccess_{unique_id}(button);
+            }}).catch(() => {{
+                // Fallback to method 2
+                fallbackCopy_{unique_id}(hiddenTextarea, button);
+            }});
+        }} else {{
+            // Fallback to method 2
+            fallbackCopy_{unique_id}(hiddenTextarea, button);
+        }}
+    }}
+    
+    function fallbackCopy_{unique_id}(textarea, button) {{
+        try {{
+            // Focus and select the hidden textarea
+            textarea.style.display = 'block';
+            textarea.focus();
+            textarea.select();
+            textarea.setSelectionRange(0, 99999);
+            
+            // Execute copy command
+            const successful = document.execCommand('copy');
+            textarea.style.display = 'none';
+            
+            if (successful) {{
+                showSuccess_{unique_id}(button);
+            }} else {{
+                // Method 3: Manual selection fallback
+                manualCopy_{unique_id}(button);
+            }}
+        }} catch (err) {{
+            console.error('Copy failed:', err);
+            manualCopy_{unique_id}(button);
+        }}
+    }}
+    
+    function manualCopy_{unique_id}(button) {{
+        // Create a temporary div with the text
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'fixed';
+        tempDiv.style.left = '-999999px';
+        tempDiv.style.top = '-999999px';
+        tempDiv.textContent = `{escaped_text}`;
+        document.body.appendChild(tempDiv);
+        
+        // Select the text
+        const range = document.createRange();
+        range.selectNodeContents(tempDiv);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        
+        try {{
+            const successful = document.execCommand('copy');
+            document.body.removeChild(tempDiv);
+            selection.removeAllRanges();
+            
+            if (successful) {{
+                showSuccess_{unique_id}(button);
+            }} else {{
+                button.innerHTML = '❌ Copy Failed';
+                button.style.backgroundColor = '#8B4513';
+                setTimeout(() => {{
+                    button.innerHTML = '📋 Copy';
+                    button.style.backgroundColor = '#6c7b7f';
+                }}, 2000);
+            }}
+        }} catch (err) {{
+            document.body.removeChild(tempDiv);
+            selection.removeAllRanges();
+            button.innerHTML = '❌ Copy Failed';
+            button.style.backgroundColor = '#8B4513';
+            setTimeout(() => {{
+                button.innerHTML = '📋 Copy';
+                button.style.backgroundColor = '#6c7b7f';
+            }}, 2000);
+        }}
+    }}
+    
+    function showSuccess_{unique_id}(button) {{
+        button.innerHTML = '✅ Copied!';
+        button.style.backgroundColor = '#4a6741';
         setTimeout(() => {{
-            btn.innerHTML = originalText;
-            btn.style.backgroundColor = '#ff4b4b';
+            button.innerHTML = '📋 Copy';
+            button.style.backgroundColor = '#6c7b7f';
         }}, 2000);
     }}
     </script>
@@ -252,7 +342,7 @@ st.title("🚀 ⚡ INSTANT TECH STORY GENERATOR")
 st.markdown("**One-click viral tech stories that make money** • No inputs needed • 100% Human-like • Maximum engagement")
 
 # The magic button
-if st.button("🎯 GENERATE VIRAL TECH STORY", type="primary", use_container_width=True):
+if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_width=True):
     with st.spinner("🧠 Crafting your ultra-human viral story... ⚡"):
         try:
             # Randomly select topic and style
@@ -305,7 +395,7 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="primary", use_container_wid
             
             # Generate viral title
             title_prompt = f"""
-            You're Alex, the college student who just wrote that story. Create a title like you would for a social media post.
+            You're Alex, the college student who just wrote that story. Create ONLY ONE SINGLE title like you would for a social media post.
             
             Make it:
             - Sound like YOU wrote it, not a marketer
@@ -318,11 +408,11 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="primary", use_container_wid
             Topic context: {topic}
             Story preview: {story[:100]}
             
-            Write it like you're posting on Reddit or texting friends.
+            Write ONLY ONE title like you're posting on Reddit or texting friends. Do not provide multiple options or explanations.
             """
             
             title_response = model.generate_content(title_prompt)
-            title = title_response.text.strip().replace('"', '')
+            title = title_response.text.strip().replace('"', '').split('\n')[0]
             
             # Generate engaging description
             desc_prompt = f"""
@@ -366,16 +456,16 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="primary", use_container_wid
                 st.markdown(create_copy_button(title, "title_text"), unsafe_allow_html=True)
                 
                 st.markdown("**2. STORY (300-350 words):**")
-                st.markdown(create_copy_button(story, "story_text"), unsafe_allow_html=True)
+                st.markdown(create_copy_button(story, "story_text", 10), unsafe_allow_html=True)
                 
             with col2:
                 st.subheader("📋 Additional Fields")
                 
                 st.markdown("**3. DESCRIPTION:**")
-                st.markdown(create_copy_button(description, "desc_text"), unsafe_allow_html=True)
+                st.markdown(create_copy_button(description, "desc_text", 3), unsafe_allow_html=True)
                 
                 st.markdown("**4. DISCLAIMER:**")
-                st.markdown(create_copy_button(disclaimer, "disclaimer_text"), unsafe_allow_html=True)
+                st.markdown(create_copy_button(disclaimer, "disclaimer_text", 2), unsafe_allow_html=True)
                 
                 # Stats
                 word_count = len(story.split())
