@@ -29,11 +29,11 @@ st.markdown("""
     background-color: #ff6b6b;
 }
 .content-box {
-    background-color: #f0f2f6;
+    background-color: #1e1e1e;
     padding: 15px;
     border-radius: 10px;
     margin: 10px 0;
-    border: 1px solid #ddd;
+    border: 1px solid #333;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -221,7 +221,7 @@ def create_copy_button(text, button_id):
     """Create a copy button with JavaScript"""
     button_html = f"""
     <div class="content-box">
-        <textarea readonly style="width:100%; height:auto; border:none; background:transparent; resize:none; outline:none;" rows="1" id="{button_id}">{text}</textarea>
+        <textarea readonly style="width:100%; height:auto; border:none; background:transparent; resize:none; outline:none; color:#ffffff;" rows="1" id="{button_id}">{text}</textarea>
         <button class="copy-btn" onclick="copyToClipboard('{button_id}')">📋 Copy</button>
     </div>
     
