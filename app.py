@@ -168,9 +168,9 @@ VIRAL_STYLES = [
 
 # Human imperfections and authenticity markers
 HUMAN_MARKERS = [
-    "tbh", "ngl", "like", "literally", "honestly", "basically", "kinda", "sorta",
-    "I mean", "you know", "right?", "lol", "omg", "wtf", "damn", "shit",
-    "anyway", "so yeah", "but whatever", "I guess", "maybe", "probably"
+    "tbh", "ngl", "like", "honestly", "basically", "kinda", "sorta",
+    "I mean", "you know", "right?", "anyway", "so yeah", "but whatever", 
+    "I guess", "maybe", "probably", "pretty much", "kind of", "sort of"
 ]
 
 TYPOS_AND_ERRORS = [
@@ -224,19 +224,22 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
             Write this as YOUR personal story with the voice of: {style}
             
             CRITICAL HUMAN AUTHENTICITY REQUIREMENTS:
-            - Write EXACTLY like a real 20-year-old college student would text their friends
-            - Use incomplete thoughts, run-on sentences, and natural speech patterns
+            - Write like a calm, thoughtful person sharing an interesting experience
+            - Use natural, conversational language without excessive excitement
+            - NO EMOJIS anywhere in the content
             - Include personal details: your dorm, classes, friends' names, specific locations
-            - Add genuine emotions and reactions: "I was literally shaking", "my mind was blown"
-            - Use conversational filler words: "like", "you know", "I mean", "honestly"
+            - Add genuine but calm reactions: "I was surprised", "it was pretty incredible"
+            - Use conversational words naturally: "like", "you know", "I mean", "honestly"
             - Include small contradictions and course corrections: "wait no, actually..."
-            - Add personal asides in parentheses: "(don't judge me)", "(this sounds crazy but...)"
-            - Use varied sentence lengths: some super short. Others that go on and on because you're excited and can't stop talking.
+            - Add personal asides in parentheses: "(don't judge me)", "(this sounds weird but...)"
+            - Use varied sentence lengths: some short. Others longer when explaining details.
             - Include specific times/dates: "last Tuesday", "around 3am", "during my econ class"
-            - Add relatable struggles: procrastination, broke college life, relationship drama
-            - Use casual grammar mistakes and informal language
+            - Add relatable struggles: procrastination, broke college life, everyday problems
+            - Use casual but not overly informal language
             - Include doubt and uncertainty: "I think", "maybe", "I'm not sure but..."
             - Add friend reactions: "my roommate thinks I'm crazy", "told my mom and she..."
+            - Keep tone conversational but not hyper or overly excited
+            - Avoid overusing slang - use it sparingly and naturally
             
             STORY STRUCTURE (50-150 words ONLY - NO PARAGRAPHS):
             Write as continuous text with no line breaks or paragraphs. Every sentence should flow directly into the next without any spacing or paragraph breaks. Keep it short and punchy:
@@ -247,9 +250,9 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
             5. Impact: How this changed your perspective
             6. Question: Ask readers what they think
             
-            Make this feel like you're texting your best friend about something incredible that just happened. Be vulnerable, excited, and completely authentic.
+            Make this feel like you're having a normal conversation with a friend about something interesting that happened. Be genuine, thoughtful, and naturally curious without being over-the-top.
             
-            DO NOT use any AI-like phrases, formal language, or structured writing. This is your real lived experience.
+            DO NOT use any emojis, excessive slang, or overly excited language. This is your real lived experience told in a calm, natural way.
             """
             
             # Generate story
@@ -321,7 +324,7 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
                 st.markdown("**1. TITLE:**")
                 st.code(title, language="text")
                 
-                st.markdown("**2. STORY (300-350 words):**")
+                st.markdown("**2. STORY (50-150 words):**")
                 st.code(story, language="text")
                 
             with col2:
@@ -361,7 +364,7 @@ with st.expander("💡 ULTRA-HUMAN VIRAL STRATEGY"):
     **🚀 For Maximum Money-Making Success:**
     
     **📝 Content Strategy:**
-    • **Shorter is better** - 300-350 words hit the sweet spot
+    • **Shorter is better** - 50-150 words hit the sweet spot
     • **Personal stories** outperform technical explanations 10:1
     • **Include failures** - people love authentic struggles
     • **Use real emotions** - vulnerability = virality
