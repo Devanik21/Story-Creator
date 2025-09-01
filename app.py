@@ -309,7 +309,7 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
             
             disclaimer = random.choice(disclaimers)
             
-            # Display results with HTML textboxes
+            # Display results with code boxes
             st.success("✅ Ultra-human viral story generated! Ready to copy-paste to Milyin")
             
             col1, col2 = st.columns([1, 1])
@@ -318,19 +318,19 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
                 st.subheader("📝 Generated Content")
                 
                 st.markdown("**1. TITLE:**")
-                st.text_area("Title", title, height=50, key="title_box", label_visibility="collapsed")
+                st.code(title, language="text")
                 
                 st.markdown("**2. STORY (300-350 words):**")
-                st.text_area("Story", story, height=400, key="story_box", label_visibility="collapsed")
+                st.code(story, language="text")
                 
             with col2:
                 st.subheader("📋 Additional Fields")
                 
                 st.markdown("**3. DESCRIPTION:**")
-                st.text_area("Description", description, height=100, key="desc_box", label_visibility="collapsed")
+                st.code(description, language="text")
                 
                 st.markdown("**4. DISCLAIMER:**")
-                st.text_area("Disclaimer", disclaimer, height=80, key="disclaimer_box", label_visibility="collapsed")
+                st.code(disclaimer, language="text")
                 
                 # Stats
                 word_count = len(story.split())
