@@ -15,7 +15,7 @@ st.set_page_config(
 st.markdown("""
 <style>
 .copy-btn {
-    background-color: #ff4b4b;
+    background-color: #6c7b7f;
     color: white;
     border: none;
     padding: 8px 16px;
@@ -26,14 +26,14 @@ st.markdown("""
     font-weight: bold;
 }
 .copy-btn:hover {
-    background-color: #ff6b6b;
+    background-color: #8a9ba0;
 }
 .content-box {
-    background-color: #1e1e1e;
+    background-color: #2a2d31;
     padding: 15px;
     border-radius: 10px;
     margin: 10px 0;
-    border: 1px solid #333;
+    border: 1px solid #3e4248;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -236,11 +236,11 @@ def create_copy_button(text, button_id):
         const btn = element.nextElementSibling;
         const originalText = btn.innerHTML;
         btn.innerHTML = '✅ Copied!';
-        btn.style.backgroundColor = '#28a745';
+        btn.style.backgroundColor = '#4a6741';
         
         setTimeout(() => {{
             btn.innerHTML = originalText;
-            btn.style.backgroundColor = '#ff4b4b';
+            btn.style.backgroundColor = '#6c7b7f';
         }}, 2000);
     }}
     </script>
@@ -252,7 +252,7 @@ st.title("🚀 ⚡ INSTANT TECH STORY GENERATOR")
 st.markdown("**One-click viral tech stories that make money** • No inputs needed • 100% Human-like • Maximum engagement")
 
 # The magic button
-if st.button("🎯 GENERATE VIRAL TECH STORY", type="primary", use_container_width=True):
+if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_width=True):
     with st.spinner("🧠 Crafting your ultra-human viral story... ⚡"):
         try:
             # Randomly select topic and style
