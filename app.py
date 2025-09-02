@@ -240,7 +240,7 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
             - Keep tone reflective, curious, and naturally human
             - Sound like someone sharing a quiet realization or gentle discovery
             
-            STORY STRUCTURE (50-150 words ONLY - NO PARAGRAPHS):
+            STORY STRUCTURE (10-50 words ONLY - NO PARAGRAPHS):
             Write as continuous text with no line breaks or paragraphs. Every sentence should flow directly into the next without any spacing or paragraph breaks. Keep it short and punchy:
             1. Hook: Something shocking that happened
             2. Context: Why you were doing this 
@@ -323,7 +323,7 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
                 st.markdown("**1. TITLE:**")
                 st.code(title, language="text")
                 
-                st.markdown("**2. STORY (50-150 words):**")
+                st.markdown("**2. STORY (10-50 words):**")
                 st.code(story, language="text")
                 
             with col2:
@@ -363,7 +363,7 @@ with st.expander("💡 ULTRA-HUMAN VIRAL STRATEGY"):
     **🚀 For Maximum Money-Making Success:**
     
     **📝 Content Strategy:**
-    • **Shorter is better** - 50-150 words hit the sweet spot
+    • **Shorter is better** - 10-50 words hit the sweet spot
     • **Personal stories** outperform technical explanations 10:1
     • **Include failures** - people love authentic struggles
     • **Use real emotions** - vulnerability = virality
