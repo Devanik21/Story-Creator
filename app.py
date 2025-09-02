@@ -222,7 +222,7 @@ def generate_single_story():
         style = random.choice(VIRAL_STYLES)
         
         # Initialize model
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemma-3-1b-it')
         
         # Ultra-humanized prompt with strong anti-AI detection barriers
         story_prompt = f"""
