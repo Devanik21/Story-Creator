@@ -355,9 +355,9 @@ def generate_five_stories():
     progress_bar = st.progress(0)
     status_text = st.empty()
     
-    for i in range(5):
-        status_text.text(f"🧠 Generating story {i+1}/5... ⚡")
-        progress_bar.progress((i + 1) / 5)
+    for i in range(3):
+        status_text.text(f"🧠 Generating story {i+1}/3... ⚡")
+        progress_bar.progress((i + 1) / 3)
         
         story_data = generate_single_story()
         if story_data:
@@ -366,7 +366,7 @@ def generate_five_stories():
         # Small delay to prevent API rate limiting
         time.sleep(1)
     
-    status_text.text("✅ All 5 stories generated successfully!")
+    status_text.text("✅ All 3 stories generated successfully!")
     progress_bar.progress(1.0)
     time.sleep(1)
     status_text.empty()
