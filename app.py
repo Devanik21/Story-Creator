@@ -264,7 +264,11 @@ def generate_single_story():
         
         # Generate story
         story_response = model.generate_content(story_prompt)
-        story = story_response.text
+        story = story_response.text.strip()
+        
+        if not story:
+            st.error(f"❌ Story generation failed - empty response for topic: {topic}")
+            return None
         
         # Add human imperfections
         story = add_human_imperfections(story)
@@ -290,6 +294,9 @@ def generate_single_story():
         title_response = model.generate_content(title_prompt)
         title = title_response.text.strip().replace('"', '').split('\n')[0]
         
+        if not title:
+            title = f"My experience with {topic.split()[0].lower()}"
+        
         # Generate engaging description
         desc_prompt = f"""
         You're Alex. Write a 2-3 sentence description like you would for a social media post caption.
@@ -309,6 +316,9 @@ def generate_single_story():
         desc_response = model.generate_content(desc_prompt)
         description = desc_response.text.strip()
         
+        if not description:
+            description = "Just sharing something interesting I discovered recently. Made me think differently about technology."
+        
         # Generate authentic disclaimer
         disclaimers = [
             "This is just my personal experience and thoughts. I'm still figuring this stuff out tbh.",
@@ -321,7 +331,7 @@ def generate_single_story():
         disclaimer = random.choice(disclaimers)
         word_count = len(story.split())
         
-        return {
+        story_data = {
             'title': title,
             'story': story,
             'description': description,
@@ -330,7 +340,13 @@ def generate_single_story():
             'word_count': word_count
         }
         
+        # Debug: Show what was generated
+        st.write(f"✅ Generated story {len(st.session_state.generated_stories) + 1}: {title[:30]}...")
+        
+        return story_data
+        
     except Exception as e:
+        st.error(f"❌ Error generating story: {str(e)}")
         return None
 
 def generate_five_stories():
