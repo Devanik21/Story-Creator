@@ -168,9 +168,8 @@ VIRAL_STYLES = [
 
 # Human imperfections and authenticity markers
 HUMAN_MARKERS = [
-    "tbh", "ngl", "like", "honestly", "basically", "kinda", "sorta",
-    "I mean", "you know", "right?", "anyway", "so yeah", "but whatever", 
-    "I guess", "maybe", "probably", "pretty much", "kind of", "sort of"
+    "I think", "maybe", "probably", "it seems like", "I guess", "perhaps",
+    "you know", "I mean", "well", "actually", "sort of", "kind of", "pretty much"
 ]
 
 TYPOS_AND_ERRORS = [
@@ -224,22 +223,22 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
             Write this as YOUR personal story with the voice of: {style}
             
             CRITICAL HUMAN AUTHENTICITY REQUIREMENTS:
-            - Write like a calm, thoughtful person sharing an interesting experience
-            - Use natural, conversational language without excessive excitement
+            - Write like a gentle, thoughtful person reflecting on an interesting experience
+            - Use soft, natural language that feels warm and genuine
             - NO EMOJIS anywhere in the content
-            - Include personal details: your dorm, classes, friends' names, specific locations
-            - Add genuine but calm reactions: "I was surprised", "it was pretty incredible"
-            - Use conversational words naturally: "like", "you know", "I mean", "honestly"
-            - Include small contradictions and course corrections: "wait no, actually..."
-            - Add personal asides in parentheses: "(don't judge me)", "(this sounds weird but...)"
-            - Use varied sentence lengths: some short. Others longer when explaining details.
-            - Include specific times/dates: "last Tuesday", "around 3am", "during my econ class"
-            - Add relatable struggles: procrastination, broke college life, everyday problems
-            - Use casual but not overly informal language
-            - Include doubt and uncertainty: "I think", "maybe", "I'm not sure but..."
-            - Add friend reactions: "my roommate thinks I'm crazy", "told my mom and she..."
-            - Keep tone conversational but not hyper or overly excited
-            - Avoid overusing slang - use it sparingly and naturally
+            - Include subtle personal details: classes, everyday situations, quiet moments
+            - Add gentle reactions: "I found it fascinating", "it made me wonder", "I was curious"
+            - Use thoughtful words naturally: "I think", "maybe", "it seems", "perhaps"
+            - Include quiet observations: "I noticed", "it occurred to me", "I realized"
+            - Add gentle asides in parentheses: "(which surprised me)", "(I hadn't expected that)"
+            - Use flowing, natural sentence rhythm - not choppy or forced
+            - Include everyday contexts: "during lunch", "walking to class", "before bed"
+            - Add relatable, gentle struggles: studying late, quiet curiosity, simple discoveries
+            - Use conversational but thoughtful language
+            - Include gentle uncertainty: "I'm not entirely sure", "it might be", "I wondered if"
+            - Add soft social reactions: "my friend mentioned", "I told my sister and she thought"
+            - Keep tone reflective, curious, and naturally human
+            - Sound like someone sharing a quiet realization or gentle discovery
             
             STORY STRUCTURE (50-150 words ONLY - NO PARAGRAPHS):
             Write as continuous text with no line breaks or paragraphs. Every sentence should flow directly into the next without any spacing or paragraph breaks. Keep it short and punchy:
@@ -288,13 +287,13 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
             You're Alex. Write a 2-3 sentence description like you would for a social media post caption.
             
             Make it:
-            - Sound like you're talking to friends
-            - Personal and relatable
-            - Create curiosity without being clickbaity
-            - Include a genuine emotion or reaction
-            - End with a question or call for engagement
+            - Sound like you're talking to a friend naturally
+            - Personal and relatable but not overly emotional
+            - Create curiosity without being dramatic
+            - Include a genuine but calm reaction
+            - End with a thoughtful question or observation
             
-            Keep it casual and authentic like you're sharing something cool that happened to you.
+            Keep it casual and authentic like you're sharing something interesting that happened to you. NO EMOJIS.
             
             Story context: {story}
             """
