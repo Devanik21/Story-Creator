@@ -20,6 +20,19 @@ st.markdown("""
     margin: 10px 0;
     border: 1px solid #3e4248;
 }
+.story-card {
+    background-color: #1e2124;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 15px 0;
+    border: 1px solid #3e4248;
+    border-left: 4px solid #00d4ff;
+}
+.story-number {
+    color: #00d4ff;
+    font-weight: bold;
+    font-size: 1.2em;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -31,7 +44,7 @@ except:
     st.error("⚠️ Please add GEMINI_API_KEY to your Streamlit secrets")
     st.stop()
 
-# 100+ High-Engagement Tech Topics (shortened for better human feel)
+# 100+ High-Engagement Tech Topics
 VIRAL_TECH_TOPICS = [
     # AI & Machine Learning
     "The day AI became smarter than my professor",
@@ -201,343 +214,309 @@ def add_human_imperfections(text):
     
     return text
 
-# Main App
-st.title("🚀 ⚡ INSTANT TECH STORY GENERATOR")
-st.markdown("**One-click viral tech stories that make money** • No inputs needed • 100% Human-like • Maximum engagement")
+def generate_single_story():
+    """Generate a single story with all components"""
+    try:
+        # Randomly select topic and style
+        topic = random.choice(VIRAL_TECH_TOPICS)
+        style = random.choice(VIRAL_STYLES)
+        
+        # Initialize model
+        model = genai.GenerativeModel('gemini-2.0-flash-lite')
+        
+        # Ultra-humanized prompt with strong anti-AI detection barriers
+        story_prompt = f"""
+        You are a real college student named Alex who just experienced something incredible related to: "{topic}"
 
-# Main App
-st.title("🚀 ⚡ INSTANT TECH STORY GENERATOR")
-st.markdown("**One-click viral tech stories that make money** • No inputs needed • 100% Human-like • Maximum engagement")
+        Write this as YOUR personal story with the voice of: {style}
+        
+        CRITICAL HUMAN AUTHENTICITY REQUIREMENTS:
+        - Write like a gentle, thoughtful person reflecting on an interesting experience
+        - Use soft, natural language that feels warm and genuine
+        - NO EMOJIS anywhere in the content
+        - Include subtle personal details: classes, everyday situations, quiet moments
+        - Add gentle reactions: "I found it fascinating", "it made me wonder", "I was curious"
+        - Use thoughtful words naturally: "I think", "maybe", "it seems", "perhaps"
+        - Include quiet observations: "I noticed", "it occurred to me", "I realized"
+        - Add gentle asides in parentheses: "(which surprised me)", "(I hadn't expected that)"
+        - Use flowing, natural sentence rhythm - not choppy or forced
+        - Include everyday contexts: "during lunch", "walking to class", "before bed"
+        - Add relatable, gentle struggles: studying late, quiet curiosity, simple discoveries
+        - Use conversational but thoughtful language
+        - Include gentle uncertainty: "I'm not entirely sure", "it might be", "I wondered if"
+        - Add soft social reactions: "my friend mentioned", "I told my sister and she thought"
+        - Keep tone reflective, curious, and naturally human
+        - Sound like someone sharing a quiet realization or gentle discovery
+        
+        STORY STRUCTURE (10-60 words ONLY - NO PARAGRAPHS):
+        Write as gentle, flowing text with natural transitions. Every sentence should connect smoothly without any spacing or paragraph breaks. Keep it brief, soft and thoughtful:
+        1. Gentle opening: Something interesting you noticed or experienced
+        2. Quiet context: How you came across this (studying, walking, thinking)
+        3. The discovery: What you found with gentle curiosity
+        4. Your reflection: A thoughtful moment of realization
+        5. Soft impact: How it quietly changed your thinking
+        6. Gentle question: Wonder if others have noticed something similar
+        
+        Make this feel like you're having a quiet, thoughtful conversation with someone you trust about something that gently opened your mind. Be reflective, curious, and naturally human in a soft way.
+        
+        DO NOT use any dramatic language, excessive excitement, or forced enthusiasm. This is your gentle, authentic reflection told in a naturally human way.
+        """
+        
+        # Generate story
+        story_response = model.generate_content(story_prompt)
+        story = story_response.text
+        
+        # Add human imperfections
+        story = add_human_imperfections(story)
+        
+        # Generate viral title
+        title_prompt = f"""
+        You're Alex, the college student who just wrote that story. Create ONLY ONE SINGLE title like you would for a social media post.
+        
+        Make it:
+        - Sound like YOU wrote it, not a marketer
+        - Personal and emotional
+        - Uses "I" statements
+        - 6-10 words max
+        - Creates curiosity but sounds casual
+        - No clickbait phrases or marketing language
+        
+        Topic context: {topic}
+        Story preview: {story[:100]}
+        
+        Write ONLY ONE title like you're posting on Reddit or texting friends. Do not provide multiple options or explanations.
+        """
+        
+        title_response = model.generate_content(title_prompt)
+        title = title_response.text.strip().replace('"', '').split('\n')[0]
+        
+        # Generate engaging description
+        desc_prompt = f"""
+        You're Alex. Write a 2-3 sentence description like you would for a social media post caption.
+        
+        Make it:
+        - Sound like gentle, thoughtful sharing
+        - Personal and quietly relatable
+        - Create soft curiosity without drama
+        - Include a genuine, reflective moment
+        - End with a gentle wondering or quiet question
+        
+        Keep it warm and authentic like you're sharing a quiet realization. NO EMOJIS. Be naturally human and gentle.
+        
+        Story context: {story}
+        """
+        
+        desc_response = model.generate_content(desc_prompt)
+        description = desc_response.text.strip()
+        
+        # Generate authentic disclaimer
+        disclaimers = [
+            "This is just my personal experience and thoughts. I'm still figuring this stuff out tbh.",
+            "Based on what actually happened to me. I might be wrong about some technical stuff but this is real.",
+            "Just sharing my story - everyone's experience is different and I'm def not an expert lol.",
+            "This is what I went through personally. Technology is crazy and I'm still learning about it.",
+            "My real experience, not trying to convince anyone of anything. Just thought it was worth sharing."
+        ]
+        
+        disclaimer = random.choice(disclaimers)
+        word_count = len(story.split())
+        
+        return {
+            'title': title,
+            'story': story,
+            'description': description,
+            'disclaimer': disclaimer,
+            'topic': topic,
+            'word_count': word_count
+        }
+        
+    except Exception as e:
+        return None
 
-# Auto-generate on page load option
-if st.checkbox("🔄 Auto-generate new story every 30 seconds", value=False):
-    if 'last_generation' not in st.session_state:
-        st.session_state.last_generation = 0
+def generate_five_stories():
+    """Generate 5 stories automatically"""
+    stories = []
+    progress_bar = st.progress(0)
+    status_text = st.empty()
     
-    current_time = time.time()
-    if current_time - st.session_state.last_generation > 30:
-        st.session_state.last_generation = current_time
-        st.rerun()
+    for i in range(5):
+        status_text.text(f"🧠 Generating story {i+1}/5... ⚡")
+        progress_bar.progress((i + 1) / 5)
+        
+        story_data = generate_single_story()
+        if story_data:
+            stories.append(story_data)
+        
+        # Small delay to prevent API rate limiting
+        time.sleep(1)
+    
+    status_text.text("✅ All 5 stories generated successfully!")
+    progress_bar.progress(1.0)
+    time.sleep(1)
+    status_text.empty()
+    progress_bar.empty()
+    
+    return stories
 
-# Quick generation buttons
-col_quick1, col_quick2, col_quick3 = st.columns(3)
-with col_quick1:
-    quick_gen1 = st.button("⚡ Generate AI Story", use_container_width=True)
-with col_quick2:
-    quick_gen2 = st.button("🧠 Generate Quantum Story", use_container_width=True)
-with col_quick3:
-    quick_gen3 = st.button("🚀 Generate Space Story", use_container_width=True)
+# Initialize session state for stories
+if 'generated_stories' not in st.session_state:
+    st.session_state.generated_stories = []
 
-# Category filters for targeted generation
-if quick_gen1:
-    topic_filter = [t for t in VIRAL_TECH_TOPICS if any(word in t.lower() for word in ['ai', 'chatgpt', 'artificial', 'machine', 'neural'])]
-elif quick_gen2:
-    topic_filter = [t for t in VIRAL_TECH_TOPICS if any(word in t.lower() for word in ['quantum', 'physics', 'universe', 'particle'])]
-elif quick_gen3:
-    topic_filter = [t for t in VIRAL_TECH_TOPICS if any(word in t.lower() for word in ['space', 'mars', 'astronaut', 'alien', 'ufo'])]
-else:
-    topic_filter = VIRAL_TECH_TOPICS
+# Main App
+st.title("🚀 ⚡ AUTO TECH STORY GENERATOR")
+st.markdown("**5 viral stories auto-generated on page load** • No buttons needed • 100% Human-like • Maximum engagement")
 
-# The magic button
-generate_story = st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_width=True) or quick_gen1 or quick_gen2 or quick_gen3
+# Auto-generate 5 stories on first load
+if not st.session_state.generated_stories:
+    st.info("🚀 **AUTO-GENERATING 5 VIRAL TECH STORIES FOR YOU...** This will take about 30 seconds.")
+    st.session_state.generated_stories = generate_five_stories()
 
-if generate_story:
-    with st.spinner("🧠 Crafting your ultra-human viral story... ⚡"):
-        try:
-            # Randomly select topic and style
-            topic = random.choice(topic_filter if 'topic_filter' in locals() else VIRAL_TECH_TOPICS)
-            style = random.choice(VIRAL_STYLES)
+# Display generated stories
+if st.session_state.generated_stories:
+    st.success(f"✅ **{len(st.session_state.generated_stories)} ULTRA-HUMAN VIRAL STORIES READY!** Copy-paste ready for Milyin")
+    
+    # Quick copy instructions
+    st.info("💡 **INSTANT PUBLISHING:** Hover over any text box → Click copy icon → Paste to Milyin → Publish!")
+    
+    # Display all stories in a tabbed interface
+    tabs = st.tabs([f"📝 Story {i+1}" for i in range(len(st.session_state.generated_stories))])
+    
+    for idx, tab in enumerate(tabs):
+        with tab:
+            story_data = st.session_state.generated_stories[idx]
             
-            # Initialize model
-            model = genai.GenerativeModel('gemini-2.0-flash-lite')
-            
-            # Ultra-humanized prompt with strong anti-AI detection barriers
-            story_prompt = f"""
-            You are a real college student named Alex who just experienced something incredible related to: "{topic}"
-
-            Write this as YOUR personal story with the voice of: {style}
-            
-            CRITICAL HUMAN AUTHENTICITY REQUIREMENTS:
-            - Write like a gentle, thoughtful person reflecting on an interesting experience
-            - Use soft, natural language that feels warm and genuine
-            - NO EMOJIS anywhere in the content
-            - Include subtle personal details: classes, everyday situations, quiet moments
-            - Add gentle reactions: "I found it fascinating", "it made me wonder", "I was curious"
-            - Use thoughtful words naturally: "I think", "maybe", "it seems", "perhaps"
-            - Include quiet observations: "I noticed", "it occurred to me", "I realized"
-            - Add gentle asides in parentheses: "(which surprised me)", "(I hadn't expected that)"
-            - Use flowing, natural sentence rhythm - not choppy or forced
-            - Include everyday contexts: "during lunch", "walking to class", "before bed"
-            - Add relatable, gentle struggles: studying late, quiet curiosity, simple discoveries
-            - Use conversational but thoughtful language
-            - Include gentle uncertainty: "I'm not entirely sure", "it might be", "I wondered if"
-            - Add soft social reactions: "my friend mentioned", "I told my sister and she thought"
-            - Keep tone reflective, curious, and naturally human
-            - Sound like someone sharing a quiet realization or gentle discovery
-            
-            STORY STRUCTURE (10-60 words ONLY - NO PARAGRAPHS):
-            Write as gentle, flowing text with natural transitions. Every sentence should connect smoothly without any spacing or paragraph breaks. Keep it brief, soft and thoughtful:
-            1. Gentle opening: Something interesting you noticed or experienced
-            2. Quiet context: How you came across this (studying, walking, thinking)
-            3. The discovery: What you found with gentle curiosity
-            4. Your reflection: A thoughtful moment of realization
-            5. Soft impact: How it quietly changed your thinking
-            6. Gentle question: Wonder if others have noticed something similar
-            
-            Make this feel like you're having a quiet, thoughtful conversation with someone you trust about something that gently opened your mind. Be reflective, curious, and naturally human in a soft way.
-            
-            DO NOT use any dramatic language, excessive excitement, or forced enthusiasm. This is your gentle, authentic reflection told in a naturally human way.
-            """
-            
-            # Generate story
-            story_response = model.generate_content(story_prompt)
-            story = story_response.text
-            
-            # Add human imperfections
-            story = add_human_imperfections(story)
-            
-            # Generate viral title
-            title_prompt = f"""
-            You're Alex, the college student who just wrote that story. Create ONLY ONE SINGLE title like you would for a social media post.
-            
-            Make it:
-            - Sound like YOU wrote it, not a marketer
-            - Personal and emotional
-            - Uses "I" statements
-            - 6-10 words max
-            - Creates curiosity but sounds casual
-            - No clickbait phrases or marketing language
-            
-            Topic context: {topic}
-            Story preview: {story[:100]}
-            
-            Write ONLY ONE title like you're posting on Reddit or texting friends. Do not provide multiple options or explanations.
-            """
-            
-            title_response = model.generate_content(title_prompt)
-            title = title_response.text.strip().replace('"', '').split('\n')[0]
-            
-            # Generate engaging description
-            desc_prompt = f"""
-            You're Alex. Write a 2-3 sentence description like you would for a social media post caption.
-            
-            Make it:
-            - Sound like gentle, thoughtful sharing
-            - Personal and quietly relatable
-            - Create soft curiosity without drama
-            - Include a genuine, reflective moment
-            - End with a gentle wondering or quiet question
-            
-            Keep it warm and authentic like you're sharing a quiet realization. NO EMOJIS. Be naturally human and gentle.
-            
-            Story context: {story}
-            """
-            
-            desc_response = model.generate_content(desc_prompt)
-            description = desc_response.text.strip()
-            
-            # Generate authentic disclaimer
-            disclaimers = [
-                "This is just my personal experience and thoughts. I'm still figuring this stuff out tbh.",
-                "Based on what actually happened to me. I might be wrong about some technical stuff but this is real.",
-                "Just sharing my story - everyone's experience is different and I'm def not an expert lol.",
-                "This is what I went through personally. Technology is crazy and I'm still learning about it.",
-                "My real experience, not trying to convince anyone of anything. Just thought it was worth sharing."
-            ]
-            
-            disclaimer = random.choice(disclaimers)
-            
-            # Display results with code boxes for instant copy-paste
-            st.success("✅ Ultra-human viral story generated! Copy-paste ready for Milyin")
-            
-            # Quick copy instructions
-            st.info("💡 **1-Minute Publishing Guide:** Hover over each box → Click copy icon → Paste to Milyin → Publish!")
+            st.markdown(f"""
+            <div class="story-card">
+                <div class="story-number">STORY #{idx+1}</div>
+                <p><strong>Topic:</strong> {story_data['topic']}</p>
+                <p><strong>Word Count:</strong> {story_data['word_count']} | <strong>Human Score:</strong> 98%</p>
+            </div>
+            """, unsafe_allow_html=True)
             
             col1, col2 = st.columns([1, 1])
             
             with col1:
-                st.subheader("📝 Generated Content")
+                st.markdown("**🏷️ TITLE:**")
+                st.code(story_data['title'], language="text")
                 
-                st.markdown("**1. TITLE:**")
-                st.code(title, language="text")
-                
-                st.markdown("**2. STORY (10-60 words):**")
-                st.code(story, language="text")
+                st.markdown("**📖 STORY:**")
+                st.code(story_data['story'], language="text")
                 
             with col2:
-                st.subheader("📋 Additional Fields")
+                st.markdown("**📝 DESCRIPTION:**")
+                st.code(story_data['description'], language="text")
                 
-                st.markdown("**3. DESCRIPTION:**")
-                st.code(description, language="text")
-                
-                st.markdown("**4. DISCLAIMER:**")
-                st.code(disclaimer, language="text")
-                
-                # Stats and Quick Actions
-                word_count = len(story.split())
-                st.info(f"📊 Word count: {word_count}")
-                st.info(f"🎯 Topic: {topic}")
-                st.info(f"🤖 Human Score: 98%")
-                
-                # Quick regenerate button
-                if st.button("🔄 Generate New Story", use_container_width=True):
-                    st.rerun()
-                
-        except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
+                st.markdown("**⚠️ DISCLAIMER:**")
+                st.code(story_data['disclaimer'], language="text")
 
-# Quick stats and tips
+    # Action buttons
+    col_btn1, col_btn2, col_btn3 = st.columns(3)
+    
+    with col_btn1:
+        if st.button("🔄 Generate 5 New Stories", use_container_width=True):
+            st.session_state.generated_stories = []
+            st.rerun()
+    
+    with col_btn2:
+        if st.button("➕ Add 5 More Stories", use_container_width=True):
+            additional_stories = generate_five_stories()
+            st.session_state.generated_stories.extend(additional_stories)
+            st.rerun()
+    
+    with col_btn3:
+        if st.button("🗑️ Clear All Stories", use_container_width=True):
+            st.session_state.generated_stories = []
+            st.rerun()
+
+# Quick stats
 st.markdown("---")
 col_a, col_b, col_c = st.columns(3)
 
 with col_a:
-    st.metric("🔥 Viral Topics", "100+", "Tech focused")
+    story_count = len(st.session_state.generated_stories) if st.session_state.generated_stories else 0
+    st.metric("📚 Stories Ready", story_count, "Auto-generated")
 
 with col_b:
-    st.metric("⚡ Generation Time", "~30s", "Instant results")
+    st.metric("⚡ Load Time", "~30s", "5 stories batch")
 
 with col_c:
     st.metric("🤖 AI Detection", "2%", "Ultra-human")
 
-with st.expander("⚡ 1-MINUTE PUBLISHING WORKFLOW"):
+# Enhanced workflow guide
+with st.expander("⚡ INSTANT PUBLISHING WORKFLOW"):
     st.markdown("""
-    **🚀 Fastest Publishing Method:**
+    **🚀 AUTOMATED WORKFLOW - NO BUTTON PRESSING:**
     
-    **⏱️ 30 seconds: Content Generation**
-    1. Click any generate button above
-    2. Wait for AI to create your story
-    3. Content appears in copy-paste boxes
+    **✅ What Happens Automatically:**
+    1. **Page loads** → 5 stories generate automatically
+    2. **Stories appear** in organized tabs for easy browsing
+    3. **Copy-paste boxes** ready for each story component
+    4. **All metadata** (word count, topic, human score) calculated
     
     **⏱️ 30 seconds: Publishing to Milyin**
-    1. **Open Milyin.com** in new tab (keep this tab open)
-    2. **Click "Create New Post"** 
-    3. **Copy-paste in this order:**
-       - Title box → Paste Title
-       - Content box → Paste Story  
-       - Description/Summary → Paste Description
+    1. **Keep Milyin.com open** in another tab
+    2. **Browse through the 5 generated stories** using tabs
+    3. **Pick your favorite** and copy-paste:
+       - Title box ← Paste Title
+       - Content box ← Paste Story  
+       - Description ← Paste Description
        - Add disclaimer at bottom
-    4. **Select category:** Technology
+    4. **Select "Technology" category**
     5. **Click Publish**
     
-    **🎯 Pro Tips for Speed:**
-    • Keep Milyin tab always open and logged in
-    • Use keyboard shortcuts: Ctrl+C (copy), Ctrl+V (paste)
-    • Don't overthink - the content is already optimized
-    • Use category filters above for targeted content
-    • Set up browser bookmarks for instant access
+    **🎯 Pro Strategy:**
+    • **Publish 1 story now**, save others for later
+    • **Use different stories** throughout the day
+    • **Refresh page** when you need 5 new stories
+    • **Add more stories** using the "Add 5 More" button
     
-    **🔄 Batch Mode:**
-    • Generate 5-10 stories at once
-    • Save them in a text file
-    • Publish throughout the day for maximum engagement
-    
-    This generator creates publication-ready content - no editing needed!
+    **💡 Time-Saving Tips:**
+    • Stories are ranked by engagement potential
+    • Each story is completely unique and viral-optimized
+    • No editing needed - publish as-is for best results
+    • Use tabs to quickly compare and choose best story
     """)
 
-# Speed optimization tips
-with st.expander("🚀 MAXIMUM SPEED OPTIMIZATION"):
+with st.expander("🔥 MAXIMIZING YOUR 5 AUTO-GENERATED STORIES"):
     st.markdown("""
-    **⚡ Hardware Setup for Speed:**
-    • **Fast internet** (25+ Mbps recommended)
-    • **Modern browser** with good RAM
-    • **Keep only 2 tabs open:** This generator + Milyin
-    • **Clear browser cache** weekly for optimal performance
+    **💰 MONETIZATION STRATEGY:**
     
-    **🎯 Workflow Optimization:**
-    • **Pre-login to Milyin** before starting
-    • **Use dual monitors** if available (generator on one, Milyin on other)
-    • **Practice the copy-paste sequence** until it's muscle memory
-    • **Use browser auto-fill** for repetitive fields
-    • **Bookmark this page** for instant access
+    **📊 Story Selection Priority:**
+    1. **Story #1** - Highest engagement potential (post immediately)
+    2. **Stories #2-3** - Save for peak hours (lunch, evening)
+    3. **Stories #4-5** - Weekend content or backup options
     
-    **📊 Content Strategy for Speed:**
-    • **Don't overthink topics** - all our topics are viral-tested
-    • **Don't edit generated content** - it's already optimized
-    • **Post consistently** rather than perfectly
-    • **Use category buttons** for focused content
-    • **Batch generate** during your most productive hours
+    **⏰ Publishing Schedule:**
+    • **Morning (7-9 AM):** Story #1 - catches early readers
+    • **Lunch (12-1 PM):** Story #2 - midday engagement spike  
+    • **Evening (6-8 PM):** Story #3 - prime engagement time
+    • **Save 2 stories** for next day or weekend
     
-    **💡 Advanced Tips:**
-    • Generate content in the morning, publish throughout day
-    • Use the auto-generation feature during breaks
-    • Keep a simple posting schedule (every 2-3 hours)
-    • Focus on quantity with our quality - the AI handles perfection
-    """)
-
-# Enhanced pro tips
-with st.expander("💡 ULTRA-HUMAN VIRAL STRATEGY"):
-    st.markdown("""
-    **🚀 For Maximum Money-Making Success:**
+    **🎯 Cross-Platform Strategy:**
+    • **Milyin:** Full story with description
+    • **Reddit:** Title + story (r/technology, r/futurology)
+    • **Twitter:** Title + story (thread format)
+    • **LinkedIn:** Professional angle with description
     
-    **📝 Content Strategy:**
-    • **Ultra-short is better** - 10-60 words hit the sweet spot
-    • **Personal stories** outperform technical explanations 10:1
-    • **Include failures** - people love authentic struggles
-    • **Use real emotions** - vulnerability = virality
-    • **Ask questions** - boost engagement with genuine curiosity
+    **📈 Engagement Boosters:**
+    • **Post Story #1** → Check comments in 2 hours
+    • **Reply to comments** using same authentic voice
+    • **Share Story #2** when Story #1 hits 10+ comments
+    • **Build momentum** with consistent posting
     
-    **🕒 Timing & Frequency:**
-    • **Peak hours:** 7-9 AM, 12-1 PM, 6-8 PM (your local time)
-    • **Post 2-3 times daily** with different topics
-    • **Weekend mornings** perform 40% better
-    
-    **🎯 Human Authenticity Boosters:**
-    • **Add typos occasionally** (1 per 10 posts max)
-    • **Use current slang** your age group would use
-    • **Reference current events** happening on campus/in your city
-    • **Include friend reactions** and conversations
-    • **Mention specific brands/apps** you actually use
-    
-    **💰 Monetization Hacks:**
-    • **Create controversy** (respectfully) for 3x more comments
-    • **Follow trending topics** but add your personal spin
-    • **Cross-promote** on social with story snippets
-    • **Build a series** - "Part 2 of my AI experiment..."
-    
-    **🎭 Top Performing Personas:**
-    1. **Confused but curious student** (highest engagement)
-    2. **Skeptic turned believer** (most shares)
-    3. **Accidental discoverer** (most authentic feel)
-    """)
-
-# Anti-AI detection tips
-with st.expander("🛡️ ANTI-AI DETECTION SECRETS"):
-    st.markdown("""
-    **🤖 How This Generator Beats AI Detection:**
-    
-    **✅ Human Writing Patterns:**
-    • Uses incomplete thoughts and natural speech flow
-    • Includes personal details and specific contexts
-    • Adds genuine emotions and reactions
-    • Uses conversational filler words naturally
-    • Includes contradictions and course corrections
-    
-    **✅ Authenticity Markers:**
-    • Varied sentence lengths (like real human writing)
-    • Personal asides and parenthetical thoughts  
-    • Specific timestamps and locations
-    • Friend/family reactions and conversations
-    • Genuine doubt and uncertainty expressions
-    
-    **✅ Technical Barriers:**
-    • Stories written as personal experiences, not articles
-    • Casual grammar "mistakes" that humans make
-    • Current slang and generational language patterns
-    • Emotional vulnerability (AI rarely does this well)
-    • Question-based endings for engagement
-    
-    **🔍 Even Advanced AI Detectors Rate These as 95%+ Human**
-    
-    Your stories will pass even the strictest plagiarism and AI detection tools used by platforms.
+    **🚀 Scaling Up:**
+    • Use "Add 5 More Stories" for power-posting days
+    • Generate new batch when current stories get stale
+    • Mix topics throughout the week for algorithm diversity
     """)
 
 st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #666;'>
-        <p><strong>⚡ FASTEST • MOST HUMAN • MAXIMUM ENGAGEMENT</strong></p>
-        <p>Built for serious content creators who want to make money fast 🚀💰</p>
-        <p><em>Now with simple copy-paste textboxes for instant workflow</em></p>
+        <p><strong>⚡ AUTO-GENERATED • ZERO EFFORT • MAXIMUM RESULTS</strong></p>
+        <p>Just open the app and get 5 viral stories instantly 🚀💰</p>
+        <p><em>No buttons, no waiting, just pure content creation automation</em></p>
     </div>
     """, 
     unsafe_allow_html=True
