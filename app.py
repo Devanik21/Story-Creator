@@ -205,12 +205,47 @@ def add_human_imperfections(text):
 st.title("🚀 ⚡ INSTANT TECH STORY GENERATOR")
 st.markdown("**One-click viral tech stories that make money** • No inputs needed • 100% Human-like • Maximum engagement")
 
+# Main App
+st.title("🚀 ⚡ INSTANT TECH STORY GENERATOR")
+st.markdown("**One-click viral tech stories that make money** • No inputs needed • 100% Human-like • Maximum engagement")
+
+# Auto-generate on page load option
+if st.checkbox("🔄 Auto-generate new story every 30 seconds", value=False):
+    if 'last_generation' not in st.session_state:
+        st.session_state.last_generation = 0
+    
+    current_time = time.time()
+    if current_time - st.session_state.last_generation > 30:
+        st.session_state.last_generation = current_time
+        st.rerun()
+
+# Quick generation buttons
+col_quick1, col_quick2, col_quick3 = st.columns(3)
+with col_quick1:
+    quick_gen1 = st.button("⚡ Generate AI Story", use_container_width=True)
+with col_quick2:
+    quick_gen2 = st.button("🧠 Generate Quantum Story", use_container_width=True)
+with col_quick3:
+    quick_gen3 = st.button("🚀 Generate Space Story", use_container_width=True)
+
+# Category filters for targeted generation
+if quick_gen1:
+    topic_filter = [t for t in VIRAL_TECH_TOPICS if any(word in t.lower() for word in ['ai', 'chatgpt', 'artificial', 'machine', 'neural'])]
+elif quick_gen2:
+    topic_filter = [t for t in VIRAL_TECH_TOPICS if any(word in t.lower() for word in ['quantum', 'physics', 'universe', 'particle'])]
+elif quick_gen3:
+    topic_filter = [t for t in VIRAL_TECH_TOPICS if any(word in t.lower() for word in ['space', 'mars', 'astronaut', 'alien', 'ufo'])]
+else:
+    topic_filter = VIRAL_TECH_TOPICS
+
 # The magic button
-if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_width=True):
+generate_story = st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_width=True) or quick_gen1 or quick_gen2 or quick_gen3
+
+if generate_story:
     with st.spinner("🧠 Crafting your ultra-human viral story... ⚡"):
         try:
             # Randomly select topic and style
-            topic = random.choice(VIRAL_TECH_TOPICS)
+            topic = random.choice(topic_filter if 'topic_filter' in locals() else VIRAL_TECH_TOPICS)
             style = random.choice(VIRAL_STYLES)
             
             # Initialize model
@@ -312,8 +347,11 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
             
             disclaimer = random.choice(disclaimers)
             
-            # Display results with code boxes
-            st.success("✅ Ultra-human viral story generated! Ready to copy-paste to Milyin")
+            # Display results with code boxes for instant copy-paste
+            st.success("✅ Ultra-human viral story generated! Copy-paste ready for Milyin")
+            
+            # Quick copy instructions
+            st.info("💡 **1-Minute Publishing Guide:** Hover over each box → Click copy icon → Paste to Milyin → Publish!")
             
             col1, col2 = st.columns([1, 1])
             
@@ -335,11 +373,15 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
                 st.markdown("**4. DISCLAIMER:**")
                 st.code(disclaimer, language="text")
                 
-                # Stats
+                # Stats and Quick Actions
                 word_count = len(story.split())
                 st.info(f"📊 Word count: {word_count}")
                 st.info(f"🎯 Topic: {topic}")
                 st.info(f"🤖 Human Score: 98%")
+                
+                # Quick regenerate button
+                if st.button("🔄 Generate New Story", use_container_width=True):
+                    st.rerun()
                 
         except Exception as e:
             st.error(f"❌ Error: {str(e)}")
@@ -356,6 +398,71 @@ with col_b:
 
 with col_c:
     st.metric("🤖 AI Detection", "2%", "Ultra-human")
+
+with st.expander("⚡ 1-MINUTE PUBLISHING WORKFLOW"):
+    st.markdown("""
+    **🚀 Fastest Publishing Method:**
+    
+    **⏱️ 30 seconds: Content Generation**
+    1. Click any generate button above
+    2. Wait for AI to create your story
+    3. Content appears in copy-paste boxes
+    
+    **⏱️ 30 seconds: Publishing to Milyin**
+    1. **Open Milyin.com** in new tab (keep this tab open)
+    2. **Click "Create New Post"** 
+    3. **Copy-paste in this order:**
+       - Title box → Paste Title
+       - Content box → Paste Story  
+       - Description/Summary → Paste Description
+       - Add disclaimer at bottom
+    4. **Select category:** Technology
+    5. **Click Publish**
+    
+    **🎯 Pro Tips for Speed:**
+    • Keep Milyin tab always open and logged in
+    • Use keyboard shortcuts: Ctrl+C (copy), Ctrl+V (paste)
+    • Don't overthink - the content is already optimized
+    • Use category filters above for targeted content
+    • Set up browser bookmarks for instant access
+    
+    **🔄 Batch Mode:**
+    • Generate 5-10 stories at once
+    • Save them in a text file
+    • Publish throughout the day for maximum engagement
+    
+    This generator creates publication-ready content - no editing needed!
+    """)
+
+# Speed optimization tips
+with st.expander("🚀 MAXIMUM SPEED OPTIMIZATION"):
+    st.markdown("""
+    **⚡ Hardware Setup for Speed:**
+    • **Fast internet** (25+ Mbps recommended)
+    • **Modern browser** with good RAM
+    • **Keep only 2 tabs open:** This generator + Milyin
+    • **Clear browser cache** weekly for optimal performance
+    
+    **🎯 Workflow Optimization:**
+    • **Pre-login to Milyin** before starting
+    • **Use dual monitors** if available (generator on one, Milyin on other)
+    • **Practice the copy-paste sequence** until it's muscle memory
+    • **Use browser auto-fill** for repetitive fields
+    • **Bookmark this page** for instant access
+    
+    **📊 Content Strategy for Speed:**
+    • **Don't overthink topics** - all our topics are viral-tested
+    • **Don't edit generated content** - it's already optimized
+    • **Post consistently** rather than perfectly
+    • **Use category buttons** for focused content
+    • **Batch generate** during your most productive hours
+    
+    **💡 Advanced Tips:**
+    • Generate content in the morning, publish throughout day
+    • Use the auto-generation feature during breaks
+    • Keep a simple posting schedule (every 2-3 hours)
+    • Focus on quantity with our quality - the AI handles perfection
+    """)
 
 # Enhanced pro tips
 with st.expander("💡 ULTRA-HUMAN VIRAL STRATEGY"):
