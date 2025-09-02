@@ -240,18 +240,18 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
             - Keep tone reflective, curious, and naturally human
             - Sound like someone sharing a quiet realization or gentle discovery
             
-            STORY STRUCTURE (10-50 words ONLY - NO PARAGRAPHS):
-            Write as continuous text with no line breaks or paragraphs. Every sentence should flow directly into the next without any spacing or paragraph breaks. Keep it short and punchy:
-            1. Hook: Something shocking that happened
-            2. Context: Why you were doing this 
-            3. The experience: What happened with vivid details
-            4. The realization: Your mind-blown moment
-            5. Impact: How this changed your perspective
-            6. Question: Ask readers what they think
+            STORY STRUCTURE (10-60 words ONLY - NO PARAGRAPHS):
+            Write as gentle, flowing text with natural transitions. Every sentence should connect smoothly without any spacing or paragraph breaks. Keep it brief, soft and thoughtful:
+            1. Gentle opening: Something interesting you noticed or experienced
+            2. Quiet context: How you came across this (studying, walking, thinking)
+            3. The discovery: What you found with gentle curiosity
+            4. Your reflection: A thoughtful moment of realization
+            5. Soft impact: How it quietly changed your thinking
+            6. Gentle question: Wonder if others have noticed something similar
             
-            Make this feel like you're having a normal conversation with a friend about something interesting that happened. Be genuine, thoughtful, and naturally curious without being over-the-top.
+            Make this feel like you're having a quiet, thoughtful conversation with someone you trust about something that gently opened your mind. Be reflective, curious, and naturally human in a soft way.
             
-            DO NOT use any emojis, excessive slang, or overly excited language. This is your real lived experience told in a calm, natural way.
+            DO NOT use any dramatic language, excessive excitement, or forced enthusiasm. This is your gentle, authentic reflection told in a naturally human way.
             """
             
             # Generate story
@@ -287,13 +287,13 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
             You're Alex. Write a 2-3 sentence description like you would for a social media post caption.
             
             Make it:
-            - Sound like you're talking to a friend naturally
-            - Personal and relatable but not overly emotional
-            - Create curiosity without being dramatic
-            - Include a genuine but calm reaction
-            - End with a thoughtful question or observation
+            - Sound like gentle, thoughtful sharing
+            - Personal and quietly relatable
+            - Create soft curiosity without drama
+            - Include a genuine, reflective moment
+            - End with a gentle wondering or quiet question
             
-            Keep it casual and authentic like you're sharing something interesting that happened to you. NO EMOJIS.
+            Keep it warm and authentic like you're sharing a quiet realization. NO EMOJIS. Be naturally human and gentle.
             
             Story context: {story}
             """
@@ -323,7 +323,7 @@ if st.button("🎯 GENERATE VIRAL TECH STORY", type="secondary", use_container_w
                 st.markdown("**1. TITLE:**")
                 st.code(title, language="text")
                 
-                st.markdown("**2. STORY (10-50 words):**")
+                st.markdown("**2. STORY (10-60 words):**")
                 st.code(story, language="text")
                 
             with col2:
@@ -363,7 +363,7 @@ with st.expander("💡 ULTRA-HUMAN VIRAL STRATEGY"):
     **🚀 For Maximum Money-Making Success:**
     
     **📝 Content Strategy:**
-    • **Shorter is better** - 10-50 words hit the sweet spot
+    • **Ultra-short is better** - 10-60 words hit the sweet spot
     • **Personal stories** outperform technical explanations 10:1
     • **Include failures** - people love authentic struggles
     • **Use real emotions** - vulnerability = virality
