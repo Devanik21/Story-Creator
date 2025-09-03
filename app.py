@@ -2,7 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import random
 import time
-
+ 
 # Configure Streamlit page
 st.set_page_config( 
     page_title="⚡ Instant Tech Story Generator",
