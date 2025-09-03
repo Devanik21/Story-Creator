@@ -4,7 +4,7 @@ import random
 import time
 
 # Configure Streamlit page
-st.set_page_config(
+st.set_page_config( 
     page_title="⚡ Instant Tech Story Generator",
     page_icon="🚀",
     layout="wide"
