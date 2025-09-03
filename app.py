@@ -7,7 +7,7 @@ import time
 st.set_page_config( 
     page_title="⚡ Instant Tech Story Generator",
     page_icon="🚀",
-    layout="wide"
+    layout="wide" 
 )
 
 # Custom CSS for better styling
