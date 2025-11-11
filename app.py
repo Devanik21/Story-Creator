@@ -219,6 +219,10 @@ class ComponentGene:
     sense_minerals: float = 0.0 # Ability to sense 'minerals'
     sense_temp: float = 0.0     # Ability to sense 'temperature'
     
+    # --- NEW 2.1: Environmental Engineering ---
+    # Defines what substance this component releases into the grid on death.
+    environmental_effect: Dict[str, float] = field(default_factory=dict)
+
     # --- Aesthetics ---
     color: str = "#888888"      # Visual representation
 
@@ -358,6 +362,9 @@ class GridCell:
     minerals: float = 0.0
     water: float = 0.0
     temperature: float = 0.0
+
+    # --- NEW 2.1: Evolved Resources ---
+    dynamic_resources: Dict[str, float] = field(default_factory=dict)
     
     # --- Occupancy ---
     organism_id: Optional[str] = None
@@ -437,6 +444,7 @@ class UniverseGrid:
                 cell.minerals = self.resource_map['minerals'][x, y]
                 cell.water = self.resource_map['water'][x, y]
                 cell.temperature = self.resource_map['temperature'][x, y]
+                cell.dynamic_resources = {} # Initialize empty
                 
     def get_cell(self, x, y) -> Optional[GridCell]:
         if 0 <= x < self.width and 0 <= y < self.height:
@@ -456,8 +464,20 @@ class UniverseGrid:
 
     def update(self):
         """Update the environment (e.g., resource diffusion)."""
-        # (Simplified for this example)
-        pass # In a full sim, this would diffuse resources, etc.
+        # --- NEW 2.1: Diffuse dynamic resources ---
+        diffusion_rate = self.settings.get('resource_diffusion_rate', 0.01)
+        if diffusion_rate <= 0: return
+
+        # Create a temporary copy of resources to calculate diffusion from
+        temp_resources = [[cell.dynamic_resources.copy() for cell in row] for row in self.grid]
+
+        for x in range(self.width):
+            for y in range(self.height):
+                for resource, value in temp_resources[x][y].items():
+                    neighbors = self.get_neighbors(x, y)
+                    for neighbor_cell in neighbors:
+                        self.grid[neighbor_cell.x][neighbor_cell.y].dynamic_resources[resource] = self.grid[neighbor_cell.x][neighbor_cell.y].dynamic_resources.get(resource, 0.0) + value * diffusion_rate / len(neighbors)
+                    self.grid[x][y].dynamic_resources[resource] -= value * diffusion_rate
 
 # ========================================================
 #
@@ -598,6 +618,12 @@ class Phenotype:
                     'neighbor_count_self': sum(1 for n in neighbors if n.organism_id == self.id),
                     'neighbor_count_other': sum(1 for n in neighbors if n.organism_id is not None and n.organism_id != self.id),
                 }
+
+                # --- NEW 2.1: Add dynamic resources to context ---
+                for resource_name, resource_value in grid_cell.dynamic_resources.items():
+                    # Make the key compatible with the rule engine, e.g., 'env_evolved_toxin'
+                    context_key = f"env_evolved_{resource_name.lower()}"
+                    context[context_key] = resource_value
                 
                 # --- NEW 2.0: Add dynamic senses to context ---
                 # This is where meta-innovated senses would be populated
@@ -656,7 +682,13 @@ class Phenotype:
         if grid_cell:
             grid_cell.organism_id = None
             grid_cell.cell_type = None
-            # TODO: Release cell's stored energy/minerals back to grid?
+            # --- NEW 2.1: Niche Construction ---
+            # Release the cell's environmental effect into the grid upon death.
+            effect = self.cells[(x,y)].component.environmental_effect
+            if effect:
+                for resource, amount in effect.items():
+                    grid_cell.dynamic_resources[resource] = grid_cell.dynamic_resources.get(resource, 0.0) + amount
+                    st.session_state.add_dynamic_resource_to_senses(resource)
 
     def check_conditions(self, rule: RuleGene, context: Dict, cell: OrganismCell, neighbors: List[GridCell]) -> bool:
         """Rule-matching engine for the GRN."""
@@ -792,6 +824,15 @@ class Phenotype:
             gain += comp.photosynthesis * grid_cell.light
             gain += comp.chemosynthesis * grid_cell.minerals
             gain += comp.thermosynthesis * grid_cell.temperature
+
+            # --- NEW 2.1: Interact with Evolved Resources ---
+            # Organisms can now evolve to consume (or be harmed by) new substances.
+            # We'll model this by checking for a matching 'chemosynthesis'-like property.
+            for resource, value in grid_cell.dynamic_resources.items():
+                # e.g., if resource is 'slime', check for 'chemosynthesis_slime' property on the component
+                interaction_prop = f"chemosynthesis_{resource.lower()}"
+                if hasattr(comp, interaction_prop):
+                    gain += getattr(comp, interaction_prop) * value
             
             # Cap gain by storage
             gain = min(gain, comp.energy_storage if comp.energy_storage > 0 else 1.0)
@@ -854,6 +895,12 @@ class Phenotype:
             self.total_energy_production += comp.photosynthesis * grid_cell.light
             self.total_energy_production += comp.chemosynthesis * grid_cell.minerals
             self.total_energy_production += comp.thermosynthesis * grid_cell.temperature
+
+            # --- NEW 2.1: Account for evolved resource production in summary ---
+            for resource, value in grid_cell.dynamic_resources.items():
+                interaction_prop = f"chemosynthesis_{resource.lower()}"
+                if hasattr(comp, interaction_prop):
+                    self.total_energy_production += getattr(comp, interaction_prop) * value
             
 
 # ========================================================
@@ -1178,6 +1225,15 @@ def innovate_component(genotype: Optional[Genotype], settings: Dict, force_base:
             val = np.clip(base_val + bias, 0, 5.0)
             setattr(new_comp, prop, val)
 
+    # --- NEW 2.1: Chance to add an Environmental Effect ---
+    if random.random() < settings.get('environmental_effect_innovation_rate', 0.1):
+        effect_name = f"{random.choice(['spore', 'slime', 'crystal', 'gas', 'toxin'])}_{random.randint(0,99)}"
+        effect_magnitude = random.uniform(0.1, 1.0) * (1 if random.random() > 0.2 else -1) # 20% chance of being negative (toxic)
+        new_comp.environmental_effect = {effect_name: effect_magnitude}
+        # Also, give it a small chance to evolve the ability to *consume* this new resource itself
+        if random.random() < 0.1:
+             setattr(new_comp, f"chemosynthesis_{effect_name.lower()}", random.uniform(0.1, 0.5))
+
     # --- Final cleanup ---
     new_comp.mass = np.clip(new_comp.mass, 0.1, 5.0)
     
@@ -1198,7 +1254,7 @@ def meta_innovate_condition_source(settings: Dict):
         new_sense = f"sense_{random.choice(sense_targets)}_{random.choice(sense_types)}_{random.choice(sense_scopes)}"
         
         if new_sense not in st.session_state.evolvable_condition_sources:
-            st.session_state.evolvable_condition_sources.append(new_sense)
+            st.session_state.add_dynamic_resource_to_senses(new_sense, is_new_sense_type=True)
             st.toast(f"🧠 Meta-Innovation! Life has evolved a new sense: **{new_sense}**", icon="🧬")
 
 
@@ -1573,6 +1629,16 @@ def main():
             'neighbor_count_empty', 'neighbor_count_self', 'neighbor_count_other',
             'self_type' # Added for differentiation
         ]
+
+        # NEW 2.1: Helper function to add new senses without duplicates
+        def add_dynamic_resource_to_senses(resource_name, is_new_sense_type=False):
+            if is_new_sense_type:
+                st.session_state.evolvable_condition_sources.append(resource_name)
+            else:
+                sense_key = f"env_evolved_{resource_name.lower()}"
+                if sense_key not in st.session_state.evolvable_condition_sources:
+                    st.session_state.evolvable_condition_sources.append(sense_key)
+        st.session_state.add_dynamic_resource_to_senses = add_dynamic_resource_to_senses
         
         st.session_state.state_loaded = True
 
@@ -1602,6 +1668,16 @@ def main():
             'neighbor_count_empty', 'neighbor_count_self', 'neighbor_count_other',
             'self_type'
         ]
+    
+    if 'add_dynamic_resource_to_senses' not in st.session_state:
+        def add_dynamic_resource_to_senses(resource_name, is_new_sense_type=False):
+            if is_new_sense_type:
+                st.session_state.evolvable_condition_sources.append(resource_name)
+            else:
+                sense_key = f"env_evolved_{resource_name.lower()}"
+                if sense_key not in st.session_state.evolvable_condition_sources:
+                    st.session_state.evolvable_condition_sources.append(sense_key)
+        st.session_state.add_dynamic_resource_to_senses = add_dynamic_resource_to_senses
 
     # ===============================================
     # --- THE "GOD-PANEL" SIDEBAR (MASSIVE EXPANSION) ---
@@ -1730,6 +1806,7 @@ def main():
         s['innovation_rate'] = st.slider("Rule Innovation Rate (σ)", 0.01, 0.5, s.get('innovation_rate', 0.05), 0.01, help="Rate of creating new GRN rules.")
         s['component_innovation_rate'] = st.slider("Component Innovation Rate (α)", 0.0, 0.1, s.get('component_innovation_rate', 0.01), 0.001, help="Rate of inventing new chemical components.")
         # --- NEW 2.0 ---
+        s['environmental_effect_innovation_rate'] = st.slider("Niche Construction Innovation Rate", 0.0, 0.5, s.get('environmental_effect_innovation_rate', 0.1), 0.01, help="Rate of components evolving to change the environment.")
         s['meta_innovation_rate'] = st.slider("Meta-Innovation Rate (Sensor)", 0.0, 0.01, s.get('meta_innovation_rate', 0.005), 0.0001, help="Rate of inventing new *types* of senses.")
         s['max_rule_conditions'] = st.slider("Max Rule Conditions", 1, 5, s.get('max_rule_conditions', 3), 1)
 
@@ -2023,7 +2100,7 @@ def main():
             for genotype in population:
                 # Re-initialize grid for each organism to have a "fresh" start
                 # (In a true ecosystem sim, they'd compete on the *same* grid)
-                organism_grid = UniverseGrid(s) 
+                organism_grid = UniverseGrid(s) # Fresh grid for development
                 individual_fitness = evaluate_fitness(genotype, organism_grid, s)
                 genotype.individual_fitness = individual_fitness # Store pre-adjustment fitness
                 genotype.fitness = individual_fitness # Start with individual fitness
@@ -2113,7 +2190,7 @@ def main():
                 # --- Landscape Shift ---
                 # This invalidates old fitness scores by changing the environment.
                 # We can simulate this by re-initializing the main grid object.
-                universe_grid = UniverseGrid(s)
+                st.session_state.universe_grid = UniverseGrid(s)
                 st.toast("The environment has been radically altered! Resource maps have shifted.", icon="🌍")
 
                 # --- Trigger Hypermutation Period ---
@@ -2270,6 +2347,9 @@ def main():
                 
             progress_container.progress((gen + 1) / s.get('num_generations', 200))
         
+        # --- After loop, run final grid update for visualization ---
+        st.session_state.universe_grid.update()
+
         st.session_state.current_population = population
         status_text.markdown("### ✅ Evolution Complete! Results saved.")
         
