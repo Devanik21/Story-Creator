@@ -348,48 +348,38 @@ def crossover(parent1: Genome, parent2: Genome) -> Genome:
     """Combines genetic material from two parents."""
     child = parent1.copy()
     
-    # Organ crossover
+    # Organ crossover: Average properties of matching organs
     p2_organs = {o.id: o for o in parent2.organs}
-    for i, child_organ in enumerate(child.organs):
+    for child_organ in child.organs:
         if child_organ.id in p2_organs and random.random() < 0.5:
             p2_organ = p2_organs[child_organ.id]
             child_organ.size = (child_organ.size + p2_organ.size) / 2
             child_organ.efficiency = (child_organ.efficiency + p2_organ.efficiency) / 2
 
     # Pathway crossover (NEAT-style)
-    p1_paths = {(p.source, p.target) for p in parent1.pathways}
-    p2_paths_map = {(p.source, p.target): p for p in parent2.pathways}
-    
-    child.pathways = []
-    all_path_keys = p1_paths.union(p2_paths_map.keys())
-
-    for key in all_path_keys:
-        from_p1 = key in p1_paths
-        from_p2 = key in p2_paths_map
-        
-        if from_p1 and from_p2:
-            chosen_path = p1_paths_map[key] if random.random() > 0.5 else p2_paths_map[key] # Requires building a p1_paths_map
-            child.pathways.append(chosen_path)
-        elif from_p1 and not from_p2: # Disjoint from parent 1
-             child.pathways.append(p1_paths_map[key]) # Requires p1_paths_map
-        elif not from_p1 and from_p2: # Disjoint from parent 2
-             child.pathways.append(p2_paths_map[key])
-    
-    # This part had a small bug, needs p1_paths_map. Correcting it...
     p1_paths_map = {(p.source, p.target): p for p in parent1.pathways}
+    p2_paths_map = {(p.source, p.target): p for p in parent2.pathways}
     child.pathways = []
+    
+    # Get all unique pathways from both parents
     all_path_keys = p1_paths_map.keys() | p2_paths_map.keys()
     
     for key in all_path_keys:
         in_p1 = key in p1_paths_map
         in_p2 = key in p2_paths_map
+
         if in_p1 and in_p2:
-            chosen = p1_paths_map[key] if random.random() > 0.5 else p2_paths_map[key]
-            child.pathways.append(PathwayGene(**asdict(chosen)))
-        elif in_p1 and not in_p2 and parent1.survival_fitness >= parent2.survival_fitness: # Inherit disjoint from fitter parent
-             child.pathways.append(PathwayGene(**asdict(p1_paths_map[key])))
-        elif not in_p1 and in_p2 and parent2.survival_fitness > parent1.survival_fitness:
-             child.pathways.append(PathwayGene(**asdict(p2_paths_map[key])))
+            # Matching gene: inherit randomly from either parent
+            chosen_path_data = p1_paths_map[key] if random.random() > 0.5 else p2_paths_map[key]
+            child.pathways.append(PathwayGene(**asdict(chosen_path_data)))
+        elif in_p1 and not in_p2:
+            # Disjoint gene from parent 1: inherit if parent 1 is fitter
+            if parent1.survival_fitness >= parent2.survival_fitness:
+                 child.pathways.append(PathwayGene(**asdict(p1_paths_map[key])))
+        elif not in_p1 and in_p2:
+            # Disjoint gene from parent 2: inherit if parent 2 is fitter
+            if parent2.survival_fitness > parent1.survival_fitness:
+                 child.pathways.append(PathwayGene(**asdict(p2_paths_map[key])))
     
     return child
 
@@ -531,7 +521,15 @@ def main():
 
     if not check_password():
         st.stop()
-    
+
+    # --- Robust State Initialization ---
+    if 'population' not in st.session_state:
+        st.session_state.population = None
+    if 'history' not in st.session_state:
+        st.session_state.history = []
+    if 'organ_types' not in st.session_state:
+        st.session_state.organ_types = ['MetabolicCore', 'Membrane', 'Photoreceptor', 'StructuralGirder', 'NeuralGanglion', 'ChemoReceptor', 'Actuator']
+
     # Header
     st.markdown("<h1 style='text-align: center;'>🌌 Universe Sandbox AI 🚀</h1>", unsafe_allow_html=True)
     st.markdown("<h3 style='text-align: center;'>An Engine for Infinite Emergence</h3>", unsafe_allow_html=True)
@@ -573,8 +571,6 @@ def main():
         enable_cataclysms = st.checkbox("Enable Cataclysms (Mass Extinctions)")
         cataclysm_probability = st.slider("Cataclysm Probability", 0.0, 0.1, 0.01)
 
-    # ... We can add literally hundreds more controls here from the GENEVO template ...
-    
     # Store settings in a Universe object
     universe = Universe(
         gravity=gravity, temperature=temperature, radiation_level=radiation_level,
@@ -585,52 +581,36 @@ def main():
 
     # --- Main Evolution Logic ---
     if st.sidebar.button("▶️ RUN SIMULATION", type="primary"):
-        
-        # Initialization
-        # This is the correct place to initialize or reset the simulation state.
-        # It ensures that every time a new simulation is started, the state is fresh.
         st.session_state.population = [initialize_lifeform() for _ in range(population_size)]
         st.session_state.history = []
-        # Initialize organ_types from the first lifeform for the mutation function to use.
-        st.session_state.organ_types = [o.organ_type for o in st.session_state.population[0].organs]
-
+        
         status_placeholder = st.empty()
         progress_bar = st.progress(0)
         
-        # Evolution Loop
         for gen in range(num_generations):
             status_placeholder.markdown(f"### Generation {gen+1}/{num_generations}...")
             
-            # Defensive check inside the loop as well, in case of app re-runs or state loss.
-            if 'population' not in st.session_state or not st.session_state.population:
-                st.warning(f"Population lost at generation {gen}. Re-initializing.")
-                st.session_state.population = [initialize_lifeform() for _ in range(population_size)]
             population = st.session_state.population
             
-            # 1. Survival Simulation (Fitness Evaluation)
             for lifeform in population:
                 survival_simulation(lifeform, universe)
             
-            # Record history
             for lf in population:
                  st.session_state.history.append({
-                    'generation': gen,
-                    'lineage_id': lf.lineage_id,
-                    'form_id': 1, # Simplified for now
-                    'survival_fitness': lf.survival_fitness,
-                    'energy_balance': lf.energy_balance,
-                    'structural_integrity': lf.structural_integrity,
-                    'mobility': lf.mobility,
-                    'total_mass': sum(o.size for o in lf.organs),
-                    'cognitive_complexity': sum(o.size for o in lf.organs if 'Neural' in o.organ_type),
+                    'generation': gen, 'lineage_id': lf.lineage_id, 'form_id': 1, # Simplified for now
+                    'survival_fitness': lf.survival_fitness, 'energy_balance': lf.energy_balance,
+                    'structural_integrity': lf.structural_integrity, 'mobility': lf.mobility,
+                    'total_mass': sum(o.size for o in lf.organs), 'cognitive_complexity': sum(o.size for o in lf.organs if 'Neural' in lf.organ_type),
                  })
 
-            # 2. Selection
             population.sort(key=lambda x: x.survival_fitness, reverse=True)
             num_survivors = int(len(population) * selection_pressure)
-            survivors = population[:num_survivors]
+            survivors = population[:num_survivors] if num_survivors > 1 else [population[0]]
 
-            # 3. Reproduction
+            if not survivors:
+                st.error("EXTINCTION EVENT! Population could not survive. Reseeding...")
+                survivors = [initialize_lifeform() for _ in range(2)]
+
             offspring = []
             while len(offspring) < population_size - len(survivors):
                 p1 = random.choice(survivors)
@@ -646,32 +626,29 @@ def main():
         status_placeholder.markdown("### ✅ Evolution Complete!")
     
     # --- Display Results ---
-    if 'history' in st.session_state and st.session_state.history:
+    if st.session_state.history:
         st.markdown("---")
         st.header("🔭 Cosmic Observatory: Results & Analysis")
         
         history_df = pd.DataFrame(st.session_state.history)
-        population = st.session_state.population
-        
-        # Dashboard
         st.plotly_chart(create_evolution_dashboard(history_df), use_container_width=True)
-        
-        st.markdown("---")
-        st.subheader("🏆 Champion Lifeforms of the Final Epoch")
-        
-        population.sort(key=lambda x: x.survival_fitness, reverse=True)
-        
-        cols = st.columns(3)
-        for i, lifeform in enumerate(population[:3]):
-            with cols[i]:
-                st.markdown(f"#### Rank {i+1}: {lifeform.lineage_id}")
-                st.metric("Survival Fitness", f"{lifeform.survival_fitness:.4f}")
-                st.plotly_chart(visualize_lifeform_3d(lifeform), use_container_width=True)
-                with st.expander("View Stats"):
-                    st.metric("Energy Balance", f"{lifeform.energy_balance:.2f}")
-                    st.metric("Structural Integrity", f"{lifeform.structural_integrity:.2f}")
-                    st.metric("Mobility", f"{lifeform.mobility:.2f}")
 
-
-if __name__ == "__main__":
-    main()
+        if st.session_state.population:
+            population = st.session_state.population
+            st.markdown("---")
+            st.subheader("🏆 Champion Lifeforms of the Final Epoch")
+            
+            population.sort(key=lambda x: x.survival_fitness, reverse=True)
+            
+            cols = st.columns(min(3, len(population)))
+            for i, lifeform in enumerate(population[:3]):
+                with cols[i]:
+                    st.markdown(f"#### Rank {i+1}: {lifeform.lineage_id}")
+                    st.metric("Survival Fitness", f"{lifeform.survival_fitness:.4f}")
+                    st.plotly_chart(visualize_lifeform_3d(lifeform), use_container_width=True)
+                    with st.expander("View Stats"):
+                        st.metric("Energy Balance", f"{lifeform.energy_balance:.2f}")
+                        st.metric("Structural Integrity", f"{lifeform.structural_integrity:.2f}")
+                        st.metric("Mobility", f"{lifeform.mobility:.2f}")
+    else:
+        st.info("Set the fundamental constants of your universe in the sidebar and click 'RUN SIMULATION' to begin the emergence of life.")
