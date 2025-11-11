@@ -2416,20 +2416,26 @@ def main():
                         with col4:
                             st.markdown("##### **Genetic Regulatory Network (GRN Rules)**")
                             if individual.rule_genes:
-                                for rule in individual.rule_genes:
-                                    cond_str = " AND ".join([f"{c['source']} {c['operator']} {c['target_value']:.1f}" for c in rule.conditions])
-                                    if not cond_str: cond_str = "ALWAYS"
-                                    st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql')
+                                # This single loop replaces the two previous, buggy loops.
                                 for i, rule in enumerate(individual.rule_genes):
                                     cond_parts = []
                                     for c in rule.conditions:
                                         target_val = c['target_value']
-                                        val_str = f"{target_val:.1f}" if isinstance(target_val, (int, float)) else f"'{target_val}'"
+                                        
+                                        # This logic correctly handles floats, ints, AND strings
+                                        if isinstance(target_val, (int, float)):
+                                            val_str = f"{target_val:.1f}"
+                                        else:
+                                            # Put non-numeric values (like component names) in quotes
+                                            val_str = f"'{target_val}'" 
+                                        
                                         cond_parts.append(f"{c['source']} {c['operator']} {val_str}")
+                                    
                                     cond_str = " AND ".join(cond_parts) if cond_parts else "ALWAYS"
-                                    st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql', key=f"rule_{individual.id}_{i}")
-                                    # The key needs to be unique across the entire app run for this expander
+                                    
+                                    # Create a unique key for Streamlit to prevent errors
                                     unique_key = f"elite_rule_{individual.id}_{i}"
+                                    
                                     st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql', key=unique_key)
                             else:
                                 st.info("No GRN rules.")
