@@ -1491,29 +1491,57 @@ def main():
     universe_presets_table = db.table('universe_presets') # For "Personal Universe"
 
     # --- Load previous state (Reused from GENEVO) ---
-    # NEW 2.0: Initialize universe_presets if it doesn't exist.
-    if 'universe_presets' not in st.session_state:
-        st.session_state.universe_presets = {doc['name']: doc['settings'] for doc in universe_presets_table.all()}
-
     if 'state_loaded' not in st.session_state:
-        saved_settings = settings_table.get(doc_id=1)
-        st.session_state.settings = saved_settings if saved_settings else {}
+        # --- Initialize ALL session state keys on first load ---
+        st.session_state.settings = settings_table.get(doc_id=1) or {}
         
         saved_results = results_table.get(doc_id=1)
         if saved_results:
             st.session_state.history = saved_results.get('history', [])
             st.session_state.evolutionary_metrics = saved_results.get('evolutionary_metrics', [])
-            st.session_state.current_population = None 
             st.toast("Loaded previous session data.", icon="💾")
         else:
             st.session_state.history = []
             st.session_state.evolutionary_metrics = []
-            st.session_state.current_population = None
             
-        # NEW 2.0: Load universe presets
-        # This is now handled by the initialization check above to prevent race conditions.
+        st.session_state.current_population = None
+        st.session_state.universe_presets = {doc['name']: doc['settings'] for doc in universe_presets_table.all()}
+        
+        # NEW 2.0: Initialize evolvable condition sources
+        st.session_state.evolvable_condition_sources = [
+            'self_energy', 'self_age', 'env_light', 'env_minerals', 'env_temp',
+            'neighbor_count_empty', 'neighbor_count_self', 'neighbor_count_other',
+            'self_type' # Added for differentiation
+        ]
         
         st.session_state.state_loaded = True
+
+    # --- Robustness checks for all required keys on *every* run ---
+    # This prevents errors if you update the code or clear state partially
+    
+    if 'settings' not in st.session_state:
+        st.session_state.settings = settings_table.get(doc_id=1) or {}
+        
+    if 'history' not in st.session_state:
+        st.session_state.history = []
+        
+    if 'evolutionary_metrics' not in st.session_state:
+        st.session_state.evolutionary_metrics = []
+        
+    if 'current_population' not in st.session_state:
+        st.session_state.current_population = None
+        
+    if 'universe_presets' not in st.session_state:
+        # This check will fix your exact 'universe_presets' AttributeError
+        st.session_state.universe_presets = {doc['name']: doc['settings'] for doc in universe_presets_table.all()}
+        
+    if 'evolvable_condition_sources' not in st.session_state:
+        # This fixes the latent bug with 'evolvable_condition_sources'
+        st.session_state.evolvable_condition_sources = [
+            'self_energy', 'self_age', 'env_light', 'env_minerals', 'env_temp',
+            'neighbor_count_empty', 'neighbor_count_self', 'neighbor_count_other',
+            'self_type'
+        ]
 
     # ===============================================
     # --- THE "GOD-PANEL" SIDEBAR (MASSIVE EXPANSION) ---
@@ -1887,11 +1915,7 @@ def main():
             st.toast(f"Using fixed random seed: {s.get('random_seed', 42)}", icon="🎲")
             
         # --- NEW 2.0: Initialize evolvable condition sources ---
-        st.session_state.evolvable_condition_sources = [
-            'self_energy', 'self_age', 'env_light', 'env_minerals', 'env_temp',
-            'neighbor_count_empty', 'neighbor_count_self', 'neighbor_count_other',
-            'self_type' # Added for differentiation
-        ]
+        
             
         # --- Initialize Population ---
         population = []
