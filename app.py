@@ -247,6 +247,7 @@ class RuleGene:
     
     probability: float = 1.0 # Chance this rule fires if conditions are met
     priority: int = 0        # Execution order (higher fires first)
+    is_disabled: bool = False # <-- ADD THIS
 
 @dataclass
 class Genotype:
@@ -613,6 +614,8 @@ class Phenotype:
 
                 
                 for rule in self.genotype.rule_genes:
+                    if rule.is_disabled:
+                        continue
                     if random.random() > rule.probability:
                         continue
                         
@@ -756,6 +759,24 @@ class Phenotype:
                     self.grid.get_cell(cell.x, cell.y).cell_type = new_comp.name
                     cell.state_vector['type_id'] = hash(new_comp.id)
                     cost += diff_cost
+
+            # (After MODIFY_TIMER from Proposal A)
+            elif action == "DISABLE_RULE":
+                # 'param' is the rule.id to disable
+                for rule in self.genotype.rule_genes:
+                    if rule.id == param:
+                        rule.is_disabled = True
+                        break
+                cost += self.settings.get('action_cost_compute', 0.02)
+
+            elif action == "ENABLE_RULE":
+                # 'param' is the rule.id to enable
+                for rule in self.genotype.rule_genes:
+                    if rule.id == param:
+                        rule.is_disabled = False
+                        break
+                cost += self.settings.get('action_cost_compute', 0.02)
+                
             
             elif action == "SET_STATE":
                 # Set an internal state variable
@@ -1141,14 +1162,24 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
 
     # --- 2. Create Action ---
     action_type = random.choice(['GROW', 'DIFFERENTIATE', 'SET_STATE', 'TRANSFER_ENERGY', 'DIE',
-                                'SET_TIMER', 'MODIFY_TIMER'])
+                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE'])
     
     # Pick a random component from the genotype's "alphabet"
     if not genotype.component_genes:
         # This should not happen, but as a failsafe:
         return RuleGene(action_type="IDLE")
+
+    if action_type in ['ENABLE_RULE', 'DISABLE_RULE']:
+        if not genotype.rule_genes: # Failsafe if no rules exist yet
+             action_type = "IDLE"
+             action_param = "self"
+        else:
+             action_param = random.choice(genotype.rule_genes).id # Target another rule
+    else:
+        action_param = random.choice(list(genotype.component_genes.keys())) # Target a component
+    # --- END OF MODIFICATION ---
         
-    action_param = random.choice(list(genotype.component_genes.keys()))
+
     
     if action_type == "SET_STATE":
         action_param = f"state_{random.randint(0,2)}"
