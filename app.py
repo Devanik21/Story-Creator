@@ -1463,6 +1463,85 @@ def visualize_metabolism(phenotype: Phenotype, grid: UniverseGrid) -> go.Figure:
     )
     return fig
 
+def visualize_component_adjacency(phenotype: Phenotype) -> go.Figure:
+    """
+    NEW: Creates a graph showing which components are physically next to each other.
+    """
+    adj_counts = Counter()
+    for (x, y), cell in phenotype.cells.items():
+        neighbors = phenotype.grid.get_neighbors(x, y)
+        organism_neighbors = [phenotype.cells.get((n.x, n.y)) for n in neighbors if phenotype.cells.get((n.x, n.y))]
+        
+        for neighbor_cell in organism_neighbors:
+            # To avoid double counting and self-loops, create a sorted tuple as the key
+            key = tuple(sorted((cell.component.name, neighbor_cell.component.name)))
+            adj_counts[key] += 1
+
+    G = nx.Graph()
+    for (comp1, comp2), weight in adj_counts.items():
+        G.add_edge(comp1, comp2, weight=weight)
+
+    if not G.nodes:
+        return go.Figure().update_layout(title="Component Adjacency (No connections)", height=300)
+
+    # Get colors for nodes
+    color_map = {comp.name: comp.color for comp in phenotype.genotype.component_genes.values()}
+    node_colors = [color_map.get(node, '#888888') for node in G.nodes()]
+
+    fig, ax = plt.subplots(figsize=(4, 3))
+    pos = nx.spring_layout(G, k=0.9, seed=42, iterations=50)
+    
+    # Draw edges with width proportional to weight
+    weights = [G[u][v]['weight'] for u, v in G.edges()]
+    if weights:
+        max_weight = max(weights)
+        edge_widths = [0.5 + 2.5 * (w / max_weight) for w in weights]
+    else:
+        edge_widths = 0.5
+
+    nx.draw(G, pos, ax=ax, with_labels=False, node_size=600, node_color=node_colors, width=edge_widths, edge_color='#cccccc')
+    labels = {n: n.split('-')[-1].split('_')[0] for n in G.nodes()} # Short labels
+    nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
+    
+    ax.set_title("Component Adjacency Graph", fontsize=10)
+    plt.tight_layout()
+    return fig
+
+def visualize_metabolic_flow(phenotype: Phenotype) -> go.Figure:
+    """
+    NEW: Creates a graph showing the net energy flow between component types.
+    This requires data that is not currently tracked. For now, this is a placeholder.
+    We will simulate a flow based on conductance for demonstration.
+    """
+    G = nx.DiGraph() # Directed graph
+    
+    # Simplified flow: High conductance cells give to neighbors
+    for (x, y), cell in phenotype.cells.items():
+        if cell.component.conductance > 0.5:
+            neighbors = phenotype.grid.get_neighbors(x, y)
+            self_neighbors = [phenotype.cells.get((n.x, n.y)) for n in neighbors if phenotype.cells.get((n.x, n.y))]
+            for neighbor_cell in self_neighbors:
+                # Add a directed edge from the conductor to the neighbor
+                G.add_edge(cell.component.name, neighbor_cell.component.name)
+
+    fig, ax = plt.subplots(figsize=(4, 3))
+    ax.set_title("Metabolic Flow Graph (Conceptual)", fontsize=10)
+    
+    if not G.nodes:
+        ax.text(0.5, 0.5, "No significant energy flow", ha='center', va='center')
+        return fig
+
+    color_map = {comp.name: comp.color for comp in phenotype.genotype.component_genes.values()}
+    node_colors = [color_map.get(node, '#888888') for node in G.nodes()]
+    
+    pos = nx.spring_layout(G, k=0.9, seed=42)
+    nx.draw(G, pos, ax=ax, with_labels=False, node_size=600, node_color=node_colors, width=0.7, arrowsize=10, connectionstyle='arc3,rad=0.1')
+    labels = {n: n.split('-')[-1].split('_')[0] for n in G.nodes()}
+    nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
+    
+    plt.tight_layout()
+    return fig
+
 # --- Reuse visualization functions from GENEVO ---
 # (Slightly adapted for new metric names)
 def visualize_fitness_landscape(history_df: pd.DataFrame):
@@ -2519,6 +2598,18 @@ def main():
                         st.plotly_chart(fig_metab, use_container_width=True, key=f"viewer_metab_{i}")
 
                         st.markdown("##### **Analysis**")
+                        st.markdown("##### **Internal Architecture**")
+                        
+                        # --- NEW GRAPH PLOTS ---
+                        # These are matplotlib figures, so we use st.pyplot
+                        fig_adj = visualize_component_adjacency(phenotype)
+                        st.pyplot(fig_adj, key=f"viewer_adj_{i}")
+                        plt.clf() # Clear the figure to prevent overlap
+
+                        fig_flow = visualize_metabolic_flow(phenotype)
+                        st.pyplot(fig_flow, key=f"viewer_flow_{i}")
+                        plt.clf() # Clear the figure
+
                         component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
                         if component_counts:
                             comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
@@ -2528,6 +2619,7 @@ def main():
                                              color='Component', color_discrete_map=color_map)
                             fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
                             st.plotly_chart(fig_pie, use_container_width=True, key=f"pheno_pie_{i}")
+                            # This pie chart is now redundant with the more detailed graphs, so we can remove it.
                         else:
                             st.info("No cells to analyze.")
 
