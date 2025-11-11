@@ -587,14 +587,12 @@ def main():
     if st.sidebar.button("▶️ RUN SIMULATION", type="primary"):
         
         # Initialization
-        if 'population' not in st.session_state:
-            # It's good practice to initialize all related session state keys together.
-            # This prevents errors if functions are called in an unexpected order.
-            st.session_state.population = [initialize_lifeform() for _ in range(population_size)]
-            st.session_state.history = []
-            st.session_state.organ_types = [o.organ_type for o in initialize_lifeform().organs]
-            st.session_state.population = [initialize_lifeform() for _ in range(population_size)]
-            st.session_state.history = []
+        # This is the correct place to initialize or reset the simulation state.
+        # It ensures that every time a new simulation is started, the state is fresh.
+        st.session_state.population = [initialize_lifeform() for _ in range(population_size)]
+        st.session_state.history = []
+        # Initialize organ_types from the first lifeform for the mutation function to use.
+        st.session_state.organ_types = [o.organ_type for o in st.session_state.population[0].organs]
 
         status_placeholder = st.empty()
         progress_bar = st.progress(0)
