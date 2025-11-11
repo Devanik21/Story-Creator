@@ -1573,23 +1573,26 @@ def main():
 
         with tab_elites:
             st.header("🧬 Elite Lineage Analysis")
-            st.markdown("Presenting the apex predators from each major biological kingdom. These are the most successful lifeforms evolved in this universe, showcasing a diverse museum of alien life.")
+            st.markdown("A deep dive into the 'DNA' of the most successful organisms, ensuring a unique representative for each displayed rank.")
             
             if population:
-                # --- Alien Museum Logic ---
-                # 1. Find the champion of each kingdom
-                kingdom_champions = {}
-                for individual in population:
-                    kingdom = individual.kingdom_id
-                    if kingdom not in kingdom_champions or individual.fitness > kingdom_champions[kingdom].fitness:
-                        kingdom_champions[kingdom] = individual
-                
-                # 2. Sort the champions by fitness
-                elite_specimens = sorted(list(kingdom_champions.values()), key=lambda x: x.fitness, reverse=True)
+                # --- Unique Ranks Logic ---
+                # 1. Sort the entire population by fitness.
+                population.sort(key=lambda x: x.fitness, reverse=True)
                 num_ranks = s.get('num_ranks_to_display', 3)
 
+                # 2. Select the top N unique organisms based on their kingdom.
+                elite_specimens = []
+                seen_kingdoms = set()
+                for individual in population:
+                    if individual.kingdom_id not in seen_kingdoms:
+                        elite_specimens.append(individual)
+                        seen_kingdoms.add(individual.kingdom_id)
+                    if len(elite_specimens) >= num_ranks:
+                        break
+
                 for i, individual in enumerate(elite_specimens[:num_ranks]):
-                    with st.expander(f"**Rank {i+1}:** Lineage `{individual.lineage_id}` | Fitness: `{individual.fitness:.4f}`", expanded=(i==0)):
+                    with st.expander(f"**Rank {i+1}:** Kingdom `{individual.kingdom_id}` | Fitness: `{individual.fitness:.4f}`", expanded=(i==0)):
                         col1, col2, col3 = st.columns([1, 1, 1])
                         with col1:
                             st.markdown("##### **Phenotype**")
