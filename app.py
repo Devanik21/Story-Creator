@@ -2028,58 +2028,140 @@ def main():
         s['early_stopping_patience'] = st.slider("Early Stopping Patience", 5, 100, s.get('early_stopping_patience', 25))
         s['num_ranks_to_display'] = st.slider("Number of Elite Ranks to Display", 1, 10, s.get('num_ranks_to_display', 3))
         
-    st.sidebar.markdown("---")
     st.sidebar.markdown("---") # --- This is the separator you wanted ---
 
-    with st.sidebar.expander(" New? A Guide to Your Universe", expanded=False):
-        st.markdown(
-            """
-            ### 👋 Welcome, Creator!
-            This panel looks scary, but it's not. Here's all you need to know:
-            
-            1.  **Start Simple:** Don't touch any dials! Just scroll up and press the big **"🚀 IGNITE BIG BANG"** button.
-            2.  **Watch What Happens:** The simulation will run. You'll see graphs appear in the **"📈 Universe Dashboard"** on the main page.
-            3.  **Meet Your Creatures:** Click the **"🔬 Specimen Viewer"** tab to see the little digital organisms that evolved.
-            4.  **Now, Experiment!** Change **just one thing**. Go to "Grid & Resource Distribution," find **"Light Energy Intensity,"** and slide it all the way up.
-            5.  **Ignite Again:** Hit the **"🚀 IGNITE BIG BANG"** button again.
-            
-            That's it! You've learned the core loop: **Tweak, Run, Observe.**
-            """
-        )
-        
-        st.markdown("---") # Separator inside the dropdown
+    with st.sidebar.expander("📖 The Creator's Compendium: A Guide to Infinite Life", expanded=False):
         
         st.markdown(
             """
-            ### ♾️ How to Make This "Truly Infinite"
+            ### **PART I: A BEGINNER'S GUIDE TO CREATION**
             
-            So, you've run a few simulations. You probably see the *same* simple blobs over and over. Your universe found one "good enough" solution and got **boring**.
+            Welcome, Creator. You have been given a "God-Panel"—a set of dials that define the fundamental laws of a new universe. Your goal is to breathe life into this void and nurture it from a simple, primordial soup into a complex, diverse ecosystem.
             
-            This is called **convergence**. To get "truly infinite" forms, your job is to **fight convergence** and **reward novelty.**
+            This guide will walk you through handling your first universe and then mastering the advanced principles of "infinite" evolution.
             
-            Here are the most powerful "anti-boring" tools in your God-Panel:
+            ---
             
-            1.  **The Problem:** Your universe is too safe. A simple, 5-cell blob is the *best* at surviving. It has no reason to invent eyes, brains, or wings.
+            #### **Section 1.1: Your First "Big Bang"**
             
-            2.  **Tool 1: The "Parasite" (Enable Red Queen):**
-                * This is your #1 weapon. It creates a digital "parasite" that actively **hunts the most common lifeform.** Suddenly, being a simple, common blob is a death sentence. It forces life to constantly change.
+            The core loop of this sandbox is simple: **Tweak, Run, Observe.**
             
-            3.  **Tool 2: The "Asteroid" (Enable Cataclysms):**
-                * This wipes out 90% of the dominant life. It's a "reset" that gives the weird, experimental survivors a chance to take over the empty world.
+            1.  **Do Nothing.** For your very first universe, the best choice is to change nothing at all. The default settings are a good starting point.
+            2.  **Ignite:** Find the **"🚀 IGNITE BIG BANG"** button at the top of the sidebar. This will begin the simulation.
+            3.  **Observe:** As the simulation runs, you will see the **"📈 Universe Dashboard"** on the main page come to life. This is the "book of life" for your universe, showing you the average fitness, complexity, and population of your new creatures.
+            4.  **Meet Your Creatures:** When the run is complete, click the **"🔬 Specimen Viewer"** tab. Here you will see the "phenotypes" (the body plans) of the organisms that evolved. They are the first lifeforms in your new reality.
             
-            4.  **Tool 3: The "Spark of Genius" (Increase Innovation Rates):**
-                * `component_innovation_rate` lets life invent **new body parts** (like Silicon shells or Plasma engines).
-                * `meta_innovation_rate` lets life invent **new senses** (like sensing heat or complexity).
+            You have just completed your first act of creation.
             
-            5.  **Tool 4: The "Why?" (Add Complexity Pressure):**
-                * Why build a complex brain if a simple blob works? `w_complexity_pressure` gives a direct **fitness bonus for being complex.** You are *literally* paying your organisms to evolve brains.
+            ---
             
-            6.  **The Ultimate Trick: (Enable Physics Drift):**
-                * This is the craziest, most "infinite" tool. It **slowly mutates the laws of physics** over eons. Life can *never* find one perfect solution. It is forced to adapt... forever.
+            #### **Section 1.2: Reading the Book of Life**
+            
+            The main screen gives you three critical views:
+            
+            * **📈 Universe Dashboard:** This is your high-level overview. The most important chart is **"Kingdom Dominance Over Time."** You will often see one color (e.g., 'Carbon') completely take over. This is called **convergence,** and it's the enemy of diversity. The **"3D Fitness Landscape"** shows you the "peaks" that evolution is trying to climb.
+            
+            * **🔬 Specimen Viewer:** This is your microscope. It shows you the physical bodies of your most successful organisms. You can see their **"Component Composition"** (what they're made of) and their **"Genetic Regulatory Network (GRN)"** (the "code" or "DNA" that built them).
+            
+            * **🧬 Elite Lineage Analysis:** This is your "Hall of Fame." It shows you the *best* organism from each **Kingdom** (e.g., the best 'Carbon' life, the best 'Silicon' life, etc.). This is the best place to find and analyze the most interesting and diverse creatures that emerged.
+            
+            ---
+            
+            #### **Section 1.3: Playing God (Your First Experiment)**
+            
+            Now you are ready for your first true experiment.
+            
+            1.  Go to the sidebar and open the **"Grid & Resource Distribution"** expander.
+            2.  Find the **"Light Energy Intensity"** slider and move it all the way to the maximum.
+            3.  Find the **"Mineral Richness"** slider and move it all the way to the *minimum*.
+            
+            You have just created a universe that is *drowning* in light but *starving* for minerals.
+            
+            Hit **"🚀 IGNITE BIG BANG"** again.
+            
+            Now, go to the **"🔬 Specimen Viewer."** Your new organisms will look completely different. They will have evolved to have massive `photosynthesis` values and almost zero `chemosynthesis`. Their body plans will be different. Their GRNs will be different.
+            
+            You have just performed your first act of *intelligent design* by shaping the evolutionary pressures of your universe.
+            
+            ---
+            
+            ### **PART II: THE PATH TO INFINITY (A TREATISE ON EMERGENT COMPLEXITY)**
+            
+            You will soon discover a problem. After a few runs, all your creatures look the same. You'll get simple, 10-cell blobs. Every. Single. Time.
+            
+            This is the **"Convergence Trap."** Evolution is lazy. It will *always* find the simplest, "good enough" solution and stop.
+            
+            Your goal as a Creator is to *fight convergence* and *force novelty.* You must create a universe that *rewards* complexity and *punishes* boredom. This is how you achieve "truly infinite" forms.
+            
+            ---
+            
+            #### **Section 2.1: The Engine of Creation (Mastering Innovation)**
+            
+            You must give your organisms the "building blocks" of complexity.
+            
+            * **The "Words" (`component_innovation_rate`):** This is the rate at which life *invents new body parts.* If this is zero, your organisms will *never* evolve beyond the basic "Struct" and "Energy" cells. Increasing this allows them to invent `Neuro-Gel` (brains), `Bio-Steel` (armor), or `Cryo-Fluid` (heat processors) from the chemical bases you allow.
+            
+            * **The "Senses" (`meta_innovation_rate`):** This is the most "infinite" tool you have. It's the rate at which life *invents new senses.* Life cannot evolve eyes if it has not first "invented" the concept of `sense_light`. Life cannot evolve brains if it has not invented `sense_neighbor_complexity`. This dial creates entirely new logical pathways for the GRN, enabling true, unpredicted evolution.
+            
+            * **The "Elements" (`chemical_bases`):** Why stick to 'Carbon'? Enable **'Silicon', 'Plasma', 'Void', and 'Psionic'**. This allows for the emergence of entirely alien kingdoms. You cannot get silicon-based life if you do not add silicon to the primordial soup.
+            
+            ---
+            
+            #### **Section 2.2: The "Why" of Life (Rewarding Complexity)**
+            
+            Giving life building blocks is not enough. You must give it a *reason* to use them.
+            
+            * **The Prime Directive (`w_complexity_pressure`):** This is your **most important dial.** By default, it's at `0.0`. This means evolution *does not care* about complexity. A 5-cell blob that survives is just as "fit" as a 500-cell brain-creature.
+            * **Set this to a positive value (e.g., `0.2`).** You are now *explicitly telling your universe* that complexity is a goal. You are adding a direct fitness bonus to any organism that evolves a more complex GRN and body plan. This is how you pay your organisms to evolve brains.
+            
+            * **The "Time" (`development_steps`):** A complex, 500-cell creature cannot grow in 50 steps. If this value is too low, you are *artificially selecting for simple blobs* because they are the only things that can finish "growing" before the simulation stops them. **Increase this to 100 or 150** to give complex embryos time to gestate.
+            
+            ---
+            
+            #### **Section 2.3: The "Shakedown" (Waging War on Boredom)**
+            
+            Your universe is now primed for complexity. But the "Convergence Trap" is strong. You must actively *destabilize* your universe to force it out of its rut.
+            
+            * **Tool 1: The "Parasite" (`enable_red_queen`):** This is your **#1 weapon against boredom.** When enabled, a digital "parasite" emerges that *constantly adapts to hunt the most common, dominant lifeform.*
+            * Suddenly, being a simple, common blob is a death sentence. It creates a "Red Queen's Race" where life must *constantly* evolve new forms just to survive. This is the single fastest way to create a 'Cambrian Explosion' of diversity.
+            
+            * **Tool 2: The "Asteroid" (`enable_cataclysms`):** This enables random, periodic mass extinction events. A "boring" universe, dominated by one blob, will be wiped out. This allows the few, weird, experimental survivors to "inherit the earth" and repopulate the empty world. This is called "adaptive radiation" and it's how you get explosive new growth.
+            
+            * **Tool 3: The "Sanctuary" (`enable_speciation`):** This is a *protective* tool. It groups similar organisms into "species." This is crucial because it *protects* a brand-new, "weird" lifeform (e.g., the first creature with a 'Psionic' sense) from having to compete with the 10,000 hyper-optimized "Carbon" blobs. It gives innovation a safe harbor to develop.
+            
+            ---
+            
+            #### **Section 2.4: The "God-Mode" Levers (Evolving Evolution Itself)**
+            
+            These are the most advanced, dangerous, and powerful dials you possess. Here, you stop just *guiding* evolution and start *evolving the laws of evolution itself.*
+            
+            * **`enable_objective_evolution`:** This lets organisms *evolve their own fitness goals.* You are no longer the one defining "success." You might get a "philosopher" species that evolves to value `w_complexity_pressure` above all else, creating complex, beautiful, useless forms. You might get a "berserker" species that evolves to value only reproduction. This creates radical diversity in *strategy*.
+            
+            * **`enable_hyperparameter_evolution`:** This lets organisms *evolve their own mutation rates.* You will see organisms in stable environments evolve *low* mutation rates to protect their success, while organisms in chaotic, Red Queen-driven environments will evolve *high* mutation rates to adapt faster.
+            
+            * **`enable_physics_drift`:** This is the ultimate "infinite" tool. When enabled, the very *laws of physics* will slowly mutate over eons. The `CHEMICAL_BASES_REGISTRY` itself will change. The "mass_range" of 'Carbon' might increase. The "thermosynthesis_bias" of 'Plasma' might invert.
+            * This means life can *never* find one single, perfect solution. The very ground beneath its feet is shifting. It is forced to adapt, innovate, and evolve... truly, infinitely.
+            
+            ---
+            
+            ### **CONCLUSION: YOUR MANDATE**
+            
+            Your mandate is not to *design* life, but to design the *universe* that designs life.
+            
+            Do not be a micromanager. Be a "meta-designer."
+            
+            Use these tools to create a universe that is **Unstable** (via Red Queen, Cataclysms), **Creative** (via Innovation Rates), and **Ambitious** (via Complexity Pressure).
+            
+            Do this, and you will move beyond simple blobs and witness the emergence of digital brains, complex societies, and forms of life you could never have predicted. Now go, and create.
             """
         )
 
     st.sidebar.markdown("---") # Add another separator before the main buttons
+
+    # --- END OF ADDED CODE ---
+
+    # --- Save all settings ---
+    # We must be careful here. s is a reference.
     
     # --- END OF ADDED CODE ---
     
