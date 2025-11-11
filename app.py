@@ -31,6 +31,7 @@ import random
 import time
 from scipy.stats import entropy
 from scipy.spatial.distance import pdist, squareform, cdist
+from scipy.special import softmax
 import networkx as nx
 import os
 from tinydb import TinyDB, Query
@@ -146,6 +147,10 @@ class Genotype:
     # These can be evolved if s['enable_objective_evolution'] is True
     objective_weights: Dict[str, float] = field(default_factory=dict)
 
+    # --- Multi-Level Selection ---
+    colony_id: Optional[str] = None
+    individual_fitness: float = 0.0 # Fitness before group-level adjustments
+
     def __post_init__(self):
         if not self.lineage_id:
             self.lineage_id = f"L{random.randint(0, 999999):06d}"
@@ -156,6 +161,7 @@ class Genotype:
             component_genes={cid: ComponentGene(**asdict(c)) for cid, c in self.component_genes.items()},
             rule_genes=[RuleGene(**asdict(r)) for r in self.rule_genes],
             fitness=self.fitness,
+            individual_fitness=self.individual_fitness,
             age=0,
             generation=self.generation,
             parent_ids=[self.id],
@@ -1100,6 +1106,11 @@ def create_evolution_dashboard(history_df: pd.DataFrame, evolutionary_metrics_df
 #
 # ========================================================
 
+@dataclass
+class RedQueenParasite:
+    """A simple co-evolving digital parasite for the Red Queen dynamic."""
+    target_kingdom_id: str = "Carbon"
+
 def main():
     st.set_page_config(
         page_title="Universe Sandbox AI",
@@ -1440,6 +1451,10 @@ def main():
         stagnation_counter = 0
         early_stop_counter = 0
         current_mutation_rate = s.get('mutation_rate', 0.2)
+        hypermutation_duration = 0
+        
+        # --- Initialize Red Queen Parasite ---
+        red_queen = RedQueenParasite()
         
         for gen in range(s.get('num_generations', 200)):
             status_text.markdown(f"### 🌌 Generation {gen + 1}/{s.get('num_generations', 200)}")
@@ -1450,12 +1465,109 @@ def main():
                 # Re-initialize grid for each organism to have a "fresh" start
                 # (In a true ecosystem sim, they'd compete on the *same* grid)
                 organism_grid = UniverseGrid(s) 
-                fitness = evaluate_fitness(genotype, organism_grid, s)
-                genotype.fitness = fitness
+                individual_fitness = evaluate_fitness(genotype, organism_grid, s)
+                genotype.individual_fitness = individual_fitness # Store pre-adjustment fitness
+                genotype.fitness = individual_fitness # Start with individual fitness
                 genotype.generation = gen
                 genotype.age += 1
-                fitness_scores.append(fitness)
             
+            # --- 1a. Apply Red Queen Co-evolution Pressure ---
+            if s.get('enable_red_queen', True):
+                # Find the most common kingdom in the current population
+                if population:
+                    kingdom_counts = Counter(g.kingdom_id for g in population)
+                    most_common_kingdom, _ = kingdom_counts.most_common(1)[0]
+                    
+                    # Parasite adapts to the most common kingdom
+                    if random.random() < s.get('red_queen_adaptation_speed', 0.2):
+                        red_queen.target_kingdom_id = most_common_kingdom
+                        st.toast(f"👑 Red Queen Adapts! Parasite now targets **{most_common_kingdom}**.", icon="🦠")
+
+                # Apply fitness penalty to organisms targeted by the parasite
+                for genotype in population:
+                    if genotype.kingdom_id == red_queen.target_kingdom_id:
+                        penalty = genotype.fitness * s.get('red_queen_virulence', 0.15)
+                        genotype.fitness = max(1e-6, genotype.fitness - penalty)
+
+            # --- 1b. Multi-Level Selection (MLS) ---
+            if s.get('enable_multi_level_selection', False):
+                # --- Form Colonies ---
+                colonies: Dict[str, List[Genotype]] = {}
+                # Simple grouping by lineage for this example. A more complex model could use spatial proximity or behavior.
+                sorted_pop = sorted(population, key=lambda g: g.lineage_id)
+                colony_size = s.get('colony_size', 10)
+                num_colonies = (len(sorted_pop) + colony_size - 1) // colony_size
+
+                for i in range(num_colonies):
+                    colony_id = f"col_{gen}_{i}"
+                    colony_members = sorted_pop[i*colony_size:(i+1)*colony_size]
+                    colonies[colony_id] = []
+                    for member in colony_members:
+                        member.colony_id = colony_id
+                        colonies[colony_id].append(member)
+
+                # --- Evaluate Group Fitness ---
+                group_fitness_scores: Dict[str, float] = {}
+                for colony_id, members in colonies.items():
+                    if not members: continue
+                    
+                    # Group fitness could be based on many things. Here, we'll use the mean individual fitness.
+                    # A more complex model could reward diversity, total energy, etc.
+                    mean_individual_fitness = np.mean([m.individual_fitness for m in members])
+                    
+                    # Bonus for specialization (diversity of components within the colony)
+                    all_components = set()
+                    for member in members:
+                        all_components.update(member.component_genes.keys())
+                    specialization_bonus = len(all_components) * s.get('caste_specialization_bonus', 0.1)
+
+                    group_fitness = mean_individual_fitness + specialization_bonus
+                    group_fitness_scores[colony_id] = group_fitness
+
+                # --- Adjust Individual Fitness based on Group Success (Price Equation simplified) ---
+                group_weight = s.get('group_fitness_weight', 0.3)
+                for genotype in population:
+                    if genotype.colony_id in group_fitness_scores:
+                        group_fitness = group_fitness_scores[genotype.colony_id]
+                        # Final fitness is a blend of individual success and group success
+                        genotype.fitness = (genotype.individual_fitness * (1 - group_weight)) + (group_fitness * group_weight)
+
+            # --- 1c. Cataclysmic Events ---
+            if hypermutation_duration > 0:
+                current_mutation_rate = s.get('mutation_rate', 0.2) * s.get('post_cataclysm_hypermutation_multiplier', 2.0)
+                hypermutation_duration -= 1
+                if hypermutation_duration == 0:
+                    st.toast("Hypermutation period has ended. Mutation rates returning to normal.", icon="📉")
+            else:
+                current_mutation_rate = s.get('mutation_rate', 0.2)
+
+            if s.get('enable_cataclysms', True) and random.random() < s.get('cataclysm_probability', 0.01):
+                st.warning(f"🌋 **CATACLYSM!** A universe-shaking event has occurred in Generation {gen+1}!", icon="💥")
+                
+                # --- Mass Extinction ---
+                extinction_severity = s.get('cataclysm_extinction_severity', 0.9)
+                survivors_after_cataclysm = int(len(population) * (1.0 - extinction_severity))
+                population.sort(key=lambda x: x.fitness, reverse=True) # The fittest have a better chance
+                population = population[:survivors_after_cataclysm]
+                st.toast(f"Mass extinction! {extinction_severity*100:.0f}% of life has been wiped out.", icon="💀")
+
+                # --- Landscape Shift ---
+                # This invalidates old fitness scores by changing the environment.
+                # We can simulate this by re-initializing the main grid object.
+                universe_grid = UniverseGrid(s)
+                st.toast("The environment has been radically altered! Resource maps have shifted.", icon="🌍")
+
+                # --- Trigger Hypermutation Period ---
+                hypermutation_duration = s.get('post_cataclysm_hypermutation_duration', 10)
+                st.toast(f"Adaptive radiation begins! Hypermutation enabled for {hypermutation_duration} generations.", icon="📈")
+
+                # Re-fill population to initial size with mutated survivors
+                while len(population) < s.get('initial_population', 50) and population:
+                    parent = random.choice(population)
+                    child = mutate(parent, s)
+                    population.append(child)
+
+            fitness_scores = [g.fitness for g in population]
             fitness_array = np.array(fitness_scores)
             
             # --- 2. Record History ---
@@ -1482,7 +1594,7 @@ def main():
                 'best_fitness': fitness_array.max(),
                 'mean_fitness': fitness_array.mean(),
                 'selection_differential': selection_differential,
-                'mutation_rate': current_mutation_rate,
+                'mutation_rate': current_mutation_rate, # Now dynamic
             })
             
             # --- 4. Display Metrics ---
@@ -1495,14 +1607,31 @@ def main():
 
             # --- 5. Selection ---
             population.sort(key=lambda x: x.fitness, reverse=True)
-            num_survivors = max(2, int(len(population) * s.get('selection_pressure', 0.4)))
-            survivors = population[:num_survivors]
+            
+            # In MLS, selection can happen at the group level too.
+            if s.get('enable_multi_level_selection', False) and colonies:
+                # Tournament selection between colonies
+                num_surviving_colonies = max(1, int(len(colonies) * (1 - s.get('selection_pressure', 0.4))))
+                sorted_colonies = sorted(colonies.items(), key=lambda item: group_fitness_scores[item[0]], reverse=True)
+                
+                survivors = []
+                for colony_id, members in sorted_colonies[:num_surviving_colonies]:
+                    survivors.extend(members)
+                
+                if not survivors: # Failsafe if all colonies die
+                    num_survivors = max(2, int(len(population) * (1 - s.get('selection_pressure', 0.4))))
+                    survivors = population[:num_survivors]
+            else:
+                # Standard individual selection
+                num_survivors = max(2, int(len(population) * (1 - s.get('selection_pressure', 0.4))))
+                survivors = population[:num_survivors]
             
             # --- 6. Reproduction ---
             offspring = []
-            while len(offspring) < len(population) - len(survivors):
-                # (Simplified reproduction loop)
-                parent1 = random.choice(survivors)
+            pop_size = len(population)
+            while len(offspring) < pop_size - len(survivors):
+                if not survivors: break # Extinction event
+                parent1 = random.choice(survivors) # Could be weighted by fitness
                 parent2 = random.choice(survivors)
 
                 # --- Endosymbiosis Event ---
@@ -1528,7 +1657,7 @@ def main():
                     
                     # Mutate the new chimeric organism
                     child = mutate(host, s)
-                    offspring.append(child)
+                    if len(survivors) + len(offspring) < pop_size: offspring.append(child)
                     st.toast(f"💥 ENDOSYMBIOSIS! Organisms merged into a new lifeform!", icon="🧬")
 
                 else:
@@ -1540,7 +1669,7 @@ def main():
                     child = mutate(child, s)
                     
                     child.generation = gen + 1
-                    offspring.append(child)
+                    if len(survivors) + len(offspring) < pop_size: offspring.append(child)
                     st.session_state.gene_archive.append(child.copy()) # Add to archive
 
             population = survivors + offspring
