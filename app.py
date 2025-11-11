@@ -46,7 +46,7 @@ from scipy.spatial.distance import pdist, squareform, cdist
 from scipy.special import softmax
 import networkx as nx
 import os
-from tinydb import TinyDB, Query
+from tinydb import TinyDB, Query, Storage
 from collections import Counter, deque
 import json
 import uuid
@@ -1544,10 +1544,15 @@ def main():
         st.stop()
         
     # --- Database Setup (Reused from GENEVO) ---
-    db = TinyDB('universe_sandbox_db_v2.json') # New DB file
+    # --- MODIFICATION FOR STREAMLIT PERSISTENCE ---
+    # Use CachingMiddleware with a write cache size of 0 to force immediate writes.
+    # This prevents data loss if the Streamlit app doesn't shut down gracefully.
+    from tinydb.middlewares import CachingMiddleware
+    storage = CachingMiddleware(Storage)
+    storage.WRITE_CACHE_SIZE = 0 # Force immediate writes
+    db = TinyDB('universe_sandbox_db_v2.json', storage=storage)
     settings_table = db.table('settings')
     results_table = db.table('results')
-    # =G=E=N=E=V=O= =2=.=0= =N=E=W= =F=E=A=T=U=R=E=S=T=A=R=T=S= =H=E=R=E=
     universe_presets_table = db.table('universe_presets') # For "Personal Universe"
 
     # --- Load previous state (Reused from GENEVO) ---
