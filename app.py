@@ -46,7 +46,7 @@ from scipy.spatial.distance import pdist, squareform, cdist
 from scipy.special import softmax
 import networkx as nx
 import os
-from tinydb import TinyDB, Query, Storage
+from tinydb import TinyDB, Query
 from collections import Counter, deque
 import json
 import uuid
@@ -1547,10 +1547,11 @@ def main():
     # --- MODIFICATION FOR STREAMLIT PERSISTENCE ---
     # Use CachingMiddleware with a write cache size of 0 to force immediate writes.
     # This prevents data loss if the Streamlit app doesn't shut down gracefully.
+    from tinydb.storages import JSONStorage
     from tinydb.middlewares import CachingMiddleware
-    storage = CachingMiddleware(Storage)
-    storage.WRITE_CACHE_SIZE = 0 # Force immediate writes
-    db = TinyDB('universe_sandbox_db_v2.json', storage=storage)
+    storage = CachingMiddleware(JSONStorage)
+    storage.WRITE_CACHE_SIZE = 1 # Force writes after every operation
+    db = TinyDB('universe_sandbox_db_v2.json', storage=storage, indent=4)
     settings_table = db.table('settings')
     results_table = db.table('results')
     universe_presets_table = db.table('universe_presets') # For "Personal Universe"
