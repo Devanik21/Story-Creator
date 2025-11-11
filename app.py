@@ -2603,11 +2603,11 @@ def main():
                         # --- NEW GRAPH PLOTS ---
                         # These are matplotlib figures, so we use st.pyplot
                         fig_adj = visualize_component_adjacency(phenotype)
-                        st.pyplot(fig_adj, key=f"viewer_adj_{i}")
+                        st.pyplot(fig_adj)
                         plt.clf() # Clear the figure to prevent overlap
 
                         fig_flow = visualize_metabolic_flow(phenotype)
-                        st.pyplot(fig_flow, key=f"viewer_flow_{i}")
+                        st.pyplot(fig_flow)
                         plt.clf() # Clear the figure
 
                         component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
@@ -2653,7 +2653,7 @@ def main():
                                 labels = {n: n.split('\n')[0] for n in G.nodes()} # Short labels
                                 nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
                                 st.pyplot(fig_grn)
-                                plt.clf()
+                                plt.close(fig_grn) # Use plt.close(fig) for better memory management
                             except Exception as e:
                                 st.warning(f"Could not draw GRN: {e}")
                         else:
