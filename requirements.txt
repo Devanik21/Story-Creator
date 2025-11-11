@@ -10,3 +10,4 @@ networkx
 tinydb
 matplotlib
 scikit-learn
+seaborn
