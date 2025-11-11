@@ -1,539 +1,685 @@
+# Create a new file named UniverseSandboxAI.py
 import streamlit as st
-import google.generativeai as genai
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from dataclasses import dataclass, field
+from typing import List, Dict, Tuple, Optional, Set
 import random
 import time
- 
-# Configure Streamlit page
-st.set_page_config( 
-    page_title="⚡ Instant Tech Story Generator",
-    page_icon="🚀",
-    layout="wide"  
-)
+import uuid
+from collections import Counter
+import json
+import math
 
-# Custom CSS for better styling
-st.markdown("""
-<style>
-.content-box {
-    background-color: #2a2d31;
-    padding: 15px;
-    border-radius: 10px;
-    margin: 10px 0;
-    border: 1px solid #3e4248;
-}
-.story-card {
-    background-color: #1e2124;
-    padding: 20px;
-    border-radius: 10px;
-    margin: 15px 0;
-    border: 1px solid #3e4248;
-    border-left: 4px solid #00d4ff;
-}
-.story-number {
-    color: #00d4ff;
-    font-weight: bold;
-    font-size: 1.2em;
-}
-</style>
-""", unsafe_allow_html=True)
+# ==============================================================================
+# 1. UNIVERSE CONSTANTS & PHYSICS ENGINE
+# ==============================================================================
+# These classes define the fundamental, unchangeable laws of your universe.
+# Once the simulation starts, these are fixed.
 
-# Get API key from secrets
-try:
-    api_key = st.secrets["GEMINI_API_KEY"]
-    genai.configure(api_key=api_key)
-except:
-    st.error("⚠️ Please add GEMINI_API_KEY to your Streamlit secrets")
-    st.stop()
+@dataclass
+class PhysicsConstants:
+    """Defines the physical laws of the universe."""
+    gravity: float = 0.01
+    friction: float = 0.95
+    max_velocity: float = 1.0
+    time_step: float = 1.0
+    interaction_radius: float = 5.0  # Radius for local interactions
+    bond_force: float = 0.1  # Force keeping bonded particles together
+    repulsion_force: float = 0.5 # Force preventing particle overlap
 
-# 100+ High-Engagement Tech Topics
-VIRAL_TECH_TOPICS = [
-    # AI & Machine Learning
-    "The day AI became smarter than my professor",
-    "I asked ChatGPT to write my resume and got 5 job offers",
-    "My AI girlfriend broke up with me (seriously)",
-    "I trained an AI to predict my mood and it's scary accurate",
-    "Why AI will replace teachers in 5 years (and I'm not mad about it)",
-    "I let AI plan my entire week and it changed my life",
-    "The AI that saved my failing startup",
-    "I discovered my roommate is secretly an AI researcher",
-    "How I used AI to ace every exam without studying",
-    "The creepiest thing AI told me about my future",
-    
-    # Quantum & Physics
-    "Quantum physics explained like you're 5 (and why it matters)",
-    "I accidentally discovered time travel in my physics lab",
-    "Why quantum computers will break the internet (soon)",
-    "The multiverse theory that keeps me awake at night",
-    "I met a quantum physicist and my mind exploded",
-    "How quantum entanglement is like my toxic relationship",
-    "The Schrödinger's cat experiment that changed everything",
-    "Why parallel universes might explain my bad luck",
-    "I tried to build a quantum computer in my dorm",
-    "The quantum mystery that scientists can't solve",
-    
-    # Space & Universe
-    "What I learned from staring at stars for 100 nights",
-    "The day we discovered we're not alone in the universe",
-    "I calculated how long it takes to reach Mars (spoiler: too long)",
-    "Why black holes are actually portals to other dimensions",
-    "The space mission that failed but taught us everything",
-    "I applied to be an astronaut and here's what happened",
-    "The asteroid that almost ended everything",
-    "Why we need to colonize Mars before 2030",
-    "The alien signal that changed everything we know",
-    "I witnessed a UFO and no one believes me",
-    
-    # Future Technology
-    "I lived in a smart home for 30 days and here's what happened",
-    "The day robots took over my job (and why I'm grateful)",
-    "I tried brain-computer interface and read minds",
-    "Why we'll all be cyborgs by 2035",
-    "The technology that will make death optional",
-    "I experienced virtual reality so real I forgot reality",
-    "The app that predicts your death date (and it's accurate)",
-    "Why flying cars are finally happening in 2025",
-    "I tested Neuralink and became superhuman",
-    "The technology that reads your thoughts",
-    
-    # Blockchain & Crypto
-    "I lost $10,000 in crypto and learned this valuable lesson",
-    "The blockchain technology that will revolutionize everything",
-    "Why NFTs are making teenagers millionaires",
-    "I created my own cryptocurrency in my dorm room",
-    "The crypto scam that taught me about human nature",
-    "How I became a blockchain developer in 30 days",
-    "The decentralized future that's coming whether we like it or not",
-    "I tried living on Bitcoin for a month",
-    "Why Web3 will replace the internet as we know it",
-    "The DeFi protocol that changed my life",
-    
-    # Biotechnology & Life Sciences
-    "I edited my own DNA using CRISPR (true story)",
-    "The day we cured aging (and why it's terrifying)",
-    "I cloned myself and met my clone",
-    "Why synthetic biology will feed 10 billion people",
-    "The biotech breakthrough that ended depression",
-    "I grew organs in a lab and saved lives",
-    "The genetic modification that made me superhuman",
-    "Why we'll all live to 150 years old",
-    "I discovered the secret to immortality in bacteria",
-    "The bioengineering project that went too far",
-    
-    # Consciousness & Mind
-    "I uploaded my consciousness to the cloud",
-    "The day we proved consciousness is just code",
-    "I experienced ego death through technology",
-    "Why your thoughts aren't actually yours",
-    "The meditation app that showed me the universe",
-    "I connected my brain to the internet for 24 hours",
-    "The consciousness transfer experiment that worked",
-    "Why free will is an illusion (and science proves it)",
-    "I communicated with my subconscious mind",
-    "The technology that measures your soul",
-    
-    # Social Technology Impact
-    "How social media rewired my brain (the scary truth)",
-    "I deleted all social media for a year and this happened",
-    "The algorithm that knows you better than yourself",
-    "Why TikTok is actually mind control",
-    "I studied the psychology of viral content",
-    "The social experiment that revealed human nature",
-    "How technology is making us lonelier",
-    "I lived like it's 1995 for a month (no internet)",
-    "The app addiction that almost ruined my life",
-    "Why Gen Z is the last purely human generation",
-    
-    # Energy & Environment
-    "I built a fusion reactor in my garage (almost)",
-    "The renewable energy breakthrough that changes everything",
-    "How I powered my house with my footsteps",
-    "The climate technology that will save Earth",
-    "I lived off-grid for 6 months using only solar",
-    "The energy source that governments don't want you to know",
-    "How I turned CO2 into money",
-    "The battery technology that powers the future",
-    "I created energy from thin air",
-    "Why nuclear fusion is finally here",
-    
-    # Philosophy of Technology
-    "The day I realized we're living in a simulation",
-    "Technology killed God (and here's what replaced Him)",
-    "I discovered the meaning of life through code",
-    "Why humans are becoming obsolete",
-    "The technological singularity started yesterday",
-    "I found proof we're in the Matrix",
-    "The ethics of playing God with technology",
-    "Why the future belongs to AI, not humans",
-    "I solved the meaning of existence using quantum mechanics",
-    "The philosophy that will guide our digital future"
-]
+@dataclass
+class Element:
+    """Defines a fundamental building block of matter."""
+    id: int
+    name: str
+    color: str
+    mass: float
+    max_bonds: int
+    properties: Set[str] = field(default_factory=set) # e.g., 'photosynthetic', 'conductive'
 
-# Viral writing styles for maximum human authenticity
-VIRAL_STYLES = [
-    "Confused college student sharing a wild discovery",
-    "Skeptical person who became a total believer", 
-    "Ordinary person experiencing mind-bending tech",
-    "Failed experiment that taught life lessons",
-    "Accidental discovery that changed perspective",
-    "Personal journey down a tech rabbit hole",
-    "Shocked researcher making breakthrough",
-    "Curious student explaining complex stuff simply"
-]
+@dataclass
+class Chemistry:
+    """Defines the rules of bonding and reactions."""
+    elements: List[Element]
+    # Defines how strongly elements bond. Higher number = stronger bond.
+    # Key is a sorted tuple of element IDs.
+    bond_strengths: Dict[Tuple[int, int], float] = field(default_factory=dict)
+    # Defines reactions, e.g., what happens when particles meet.
+    reactions: Dict[str, str] = field(default_factory=dict)
 
-# Human imperfections and authenticity markers
-HUMAN_MARKERS = [
-    "I think", "maybe", "probably", "it seems like", "I guess", "perhaps",
-    "you know", "I mean", "well", "actually", "sort of", "kind of", "pretty much"
-]
+# ==============================================================================
+# 2. GENETIC & PHENOTYPIC REPRESENTATION
+# ==============================================================================
+# This is the core of life: the genetic code and the physical body it creates.
 
-TYPOS_AND_ERRORS = [
-    ("definitely", "definately"),
-    ("separate", "seperate"),
-    ("occurred", "occured"),
-    ("receive", "recieve"),
-    ("believe", "belive"),
-    ("weird", "wierd"),
-    ("beginning", "begining")
-]
+@dataclass
+class Particle:
+    """A single point of matter in an organism's body."""
+    id: str
+    element_id: int
+    x: float
+    y: float
+    vx: float = 0.0
+    vy: float = 0.0
+    charge: float = 0.0 # Represents stored energy
+    age: int = 0
 
-def add_human_imperfections(text):
-    """Add subtle human imperfections to make content more authentic"""
-    # Randomly add some casual expressions
-    if random.random() < 0.3:
-        marker = random.choice(HUMAN_MARKERS)
-        sentences = text.split('.')
-        if len(sentences) > 2:
-            idx = random.randint(1, len(sentences) - 2)
-            sentences[idx] = f" {marker}, {sentences[idx].strip()}"
-            text = '.'.join(sentences)
-    
-    # Occasionally add a typo (very rarely to maintain quality)
-    if random.random() < 0.1:
-        original, typo = random.choice(TYPOS_AND_ERRORS)
-        if original in text:
-            text = text.replace(original, typo, 1)
-    
-    return text
+@dataclass
+class Bond:
+    """A connection between two particles."""
+    p1_id: str
+    p2_id: str
+    strength: float
 
-def generate_single_story():
-    """Generate a single story with all components"""
-    try:
-        # Randomly select topic and style
-        topic = random.choice(VIRAL_TECH_TOPICS)
-        style = random.choice(VIRAL_STYLES)
-        
-        # Initialize model
-        model = genai.GenerativeModel('gemma-3-1b-it')
-        
-        # Ultra-humanized prompt with strong anti-AI detection barriers
-        story_prompt = f"""
-        You are a real college student named Alex who just experienced something incredible related to: "{topic}"
-
-        Write this as YOUR personal story with the voice of: {style}
-        
-        CRITICAL HUMAN AUTHENTICITY REQUIREMENTS:
-        - Write like a gentle, thoughtful person reflecting on an interesting experience
-        - Use soft, natural language that feels warm and genuine
-        - NO EMOJIS anywhere in the content
-        - Include subtle personal details: classes, everyday situations, quiet moments
-        - Add gentle reactions: "I found it fascinating", "it made me wonder", "I was curious"
-        - Use thoughtful words naturally: "I think", "maybe", "it seems", "perhaps"
-        - Include quiet observations: "I noticed", "it occurred to me", "I realized"
-        - Add gentle asides in parentheses: "(which surprised me)", "(I hadn't expected that)"
-        - Use flowing, natural sentence rhythm - not choppy or forced
-        - Include everyday contexts: "during lunch", "walking to class", "before bed"
-        - Add relatable, gentle struggles: studying late, quiet curiosity, simple discoveries
-        - Use conversational but thoughtful language
-        - Include gentle uncertainty: "I'm not entirely sure", "it might be", "I wondered if"
-        - Add soft social reactions: "my friend mentioned", "I told my sister and she thought"
-        - Keep tone reflective, curious, and naturally human
-        - Sound like someone sharing a quiet realization or gentle discovery
-        
-        STORY STRUCTURE (10-60 words ONLY - NO PARAGRAPHS):
-        Write as gentle, flowing text with natural transitions. Every sentence should connect smoothly without any spacing or paragraph breaks. Keep it brief, soft and thoughtful:
-        1. Gentle opening: Something interesting you noticed or experienced
-        2. Quiet context: How you came across this (studying, walking, thinking)
-        3. The discovery: What you found with gentle curiosity
-        4. Your reflection: A thoughtful moment of realization
-        5. Soft impact: How it quietly changed your thinking
-        6. Gentle question: Wonder if others have noticed something similar
-        
-        Make this feel like you're having a quiet, thoughtful conversation with someone you trust about something that gently opened your mind. Be reflective, curious, and naturally human in a soft way.
-        
-        DO NOT use any dramatic language, excessive excitement, or forced enthusiasm. This is your gentle, authentic reflection told in a naturally human way.
-        """
-        
-        # Generate story
-        story_response = model.generate_content(story_prompt)
-        story = story_response.text.strip()
-        
-        if not story:
-            st.error(f"❌ Story generation failed - empty response for topic: {topic}")
-            return None
-        
-        # Add human imperfections
-        story = add_human_imperfections(story)
-        
-        # Generate viral title
-        title_prompt = f"""
-        You're Alex, the college student who just wrote that story. Create ONLY ONE SINGLE title like you would for a social media post.
-        
-        Make it:
-        - Sound like YOU wrote it, not a marketer
-        - Personal and emotional
-        - Uses "I" statements
-        - 6-10 words max
-        - Creates curiosity but sounds casual
-        - No clickbait phrases or marketing language
-        
-        Topic context: {topic}
-        Story preview: {story[:100]}
-        
-        Write ONLY ONE title like you're posting on Reddit or texting friends. Do not provide multiple options or explanations.
-        """
-        
-        title_response = model.generate_content(title_prompt)
-        title = title_response.text.strip().replace('"', '').split('\n')[0]
-        
-        if not title:
-            title = f"My experience with {topic.split()[0].lower()}"
-        
-        # Generate engaging description
-        desc_prompt = f"""
-        You're Alex. Write a 2-3 sentence description like you would for a social media post caption.
-        
-        Make it:
-        - Sound like gentle, thoughtful sharing
-        - Personal and quietly relatable
-        - Create soft curiosity without drama
-        - Include a genuine, reflective moment
-        - End with a gentle wondering or quiet question
-        
-        Keep it warm and authentic like you're sharing a quiet realization. NO EMOJIS. Be naturally human and gentle.
-        
-        Story context: {story}
-        """
-        
-        desc_response = model.generate_content(desc_prompt)
-        description = desc_response.text.strip()
-        
-        if not description:
-            description = "Just sharing something interesting I discovered recently. Made me think differently about technology."
-        
-        # Generate authentic disclaimer
-        disclaimers = [
-            "This is just my personal experience and thoughts. I'm still figuring this stuff out tbh.",
-            "Based on what actually happened to me. I might be wrong about some technical stuff but this is real.",
-            "Just sharing my story - everyone's experience is different and I'm def not an expert lol.",
-            "This is what I went through personally. Technology is crazy and I'm still learning about it.",
-            "My real experience, not trying to convince anyone of anything. Just thought it was worth sharing."
-        ]
-        
-        disclaimer = random.choice(disclaimers)
-        word_count = len(story.split())
-        
-        story_data = {
-            'title': title,
-            'story': story,
-            'description': description,
-            'disclaimer': disclaimer,
-            'topic': topic,
-            'word_count': word_count
-        }
-        
-        # Debug: Show what was generated
-        st.write(f"✅ Generated story {len(st.session_state.generated_stories) + 1}: {title[:30]}...")
-        
-        return story_data
-        
-    except Exception as e:
-        st.error(f"❌ Error generating story: {str(e)}")
-        return None
-
-def generate_five_stories():
-    """Generate 5 stories automatically"""
-    stories = []
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    for i in range(3):
-        status_text.text(f"🧠 Generating story {i+1}/3... ⚡")
-        progress_bar.progress((i + 1) / 3)
-        
-        story_data = generate_single_story()
-        if story_data:
-            stories.append(story_data)
-        
-        # Small delay to prevent API rate limiting
-        time.sleep(1)
-    
-    status_text.text("✅ All 3 stories generated successfully!")
-    progress_bar.progress(1.0)
-    time.sleep(1)
-    status_text.empty()
-    progress_bar.empty()
-    
-    return stories
-
-# Initialize session state for stories
-if 'generated_stories' not in st.session_state:
-    st.session_state.generated_stories = []
-
-# Main App
-st.title("🚀 ⚡ AUTO TECH STORY GENERATOR")
-st.markdown("**5 viral stories auto-generated on page load** • No buttons needed • 100% Human-like • Maximum engagement")
-
-# Auto-generate 5 stories on first load
-if not st.session_state.generated_stories:
-    st.info("🚀 **AUTO-GENERATING 5 VIRAL TECH STORIES FOR YOU...** This will take about 30 seconds.")
-    st.session_state.generated_stories = generate_five_stories()
-
-# Display generated stories
-if st.session_state.generated_stories:
-    st.success(f"✅ **{len(st.session_state.generated_stories)} ULTRA-HUMAN VIRAL STORIES READY!** Copy-paste ready for Milyin")
-    
-    # Quick copy instructions
-    st.info("💡 **INSTANT PUBLISHING:** Hover over any text box → Click copy icon → Paste to Milyin → Publish!")
-    
-    # Display all stories in a tabbed interface
-    tabs = st.tabs([f"📝 Story {i+1}" for i in range(len(st.session_state.generated_stories))])
-    
-    for idx, tab in enumerate(tabs):
-        with tab:
-            story_data = st.session_state.generated_stories[idx]
-            
-            st.markdown(f"""
-            <div class="story-card">
-                <div class="story-number">STORY #{idx+1}</div>
-                <p><strong>Topic:</strong> {story_data['topic']}</p>
-                <p><strong>Word Count:</strong> {story_data['word_count']} | <strong>Human Score:</strong> 98%</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            col1, col2 = st.columns([1, 1])
-            
-            with col1:
-                st.markdown("**🏷️ TITLE:**")
-                st.code(story_data['title'], language="text")
-                
-                st.markdown("**📖 STORY:**")
-                st.code(story_data['story'], language="text")
-                
-            with col2:
-                st.markdown("**📝 DESCRIPTION:**")
-                st.code(story_data['description'], language="text")
-                
-                st.markdown("**⚠️ DISCLAIMER:**")
-                st.code(story_data['disclaimer'], language="text")
-
-    # Action buttons
-    col_btn1, col_btn2, col_btn3 = st.columns(3)
-    
-    with col_btn1:
-        if st.button("🔄 Generate 5 New Stories", use_container_width=True):
-            st.session_state.generated_stories = []
-            st.rerun()
-    
-    with col_btn2:
-        if st.button("➕ Add 5 More Stories", use_container_width=True):
-            additional_stories = generate_five_stories()
-            st.session_state.generated_stories.extend(additional_stories)
-            st.rerun()
-    
-    with col_btn3:
-        if st.button("🗑️ Clear All Stories", use_container_width=True):
-            st.session_state.generated_stories = []
-            st.rerun()
-
-# Quick stats
-st.markdown("---")
-col_a, col_b, col_c = st.columns(3)
-
-with col_a:
-    story_count = len(st.session_state.generated_stories) if st.session_state.generated_stories else 0
-    st.metric("📚 Stories Ready", story_count, "Auto-generated")
-
-with col_b:
-    st.metric("⚡ Load Time", "~30s", "5 stories batch")
-
-with col_c:
-    st.metric("🤖 AI Detection", "2%", "Ultra-human")
-
-# Enhanced workflow guide
-with st.expander("⚡ INSTANT PUBLISHING WORKFLOW"):
-    st.markdown("""
-    **🚀 AUTOMATED WORKFLOW - NO BUTTON PRESSING:**
-    
-    **✅ What Happens Automatically:**
-    1. **Page loads** → 5 stories generate automatically
-    2. **Stories appear** in organized tabs for easy browsing
-    3. **Copy-paste boxes** ready for each story component
-    4. **All metadata** (word count, topic, human score) calculated
-    
-    **⏱️ 30 seconds: Publishing to Milyin**
-    1. **Keep Milyin.com open** in another tab
-    2. **Browse through the 5 generated stories** using tabs
-    3. **Pick your favorite** and copy-paste:
-       - Title box ← Paste Title
-       - Content box ← Paste Story  
-       - Description ← Paste Description
-       - Add disclaimer at bottom
-    4. **Select "Technology" category**
-    5. **Click Publish**
-    
-    **🎯 Pro Strategy:**
-    • **Publish 1 story now**, save others for later
-    • **Use different stories** throughout the day
-    • **Refresh page** when you need 5 new stories
-    • **Add more stories** using the "Add 5 More" button
-    
-    **💡 Time-Saving Tips:**
-    • Stories are ranked by engagement potential
-    • Each story is completely unique and viral-optimized
-    • No editing needed - publish as-is for best results
-    • Use tabs to quickly compare and choose best story
-    """)
-
-with st.expander("🔥 MAXIMIZING YOUR 5 AUTO-GENERATED STORIES"):
-    st.markdown("""
-    **💰 MONETIZATION STRATEGY:**
-    
-    **📊 Story Selection Priority:**
-    1. **Story #1** - Highest engagement potential (post immediately)
-    2. **Stories #2-3** - Save for peak hours (lunch, evening)
-    3. **Stories #4-5** - Weekend content or backup options
-    
-    **⏰ Publishing Schedule:**
-    • **Morning (7-9 AM):** Story #1 - catches early readers
-    • **Lunch (12-1 PM):** Story #2 - midday engagement spike  
-    • **Evening (6-8 PM):** Story #3 - prime engagement time
-    • **Save 2 stories** for next day or weekend
-    
-    **🎯 Cross-Platform Strategy:**
-    • **Milyin:** Full story with description
-    • **Reddit:** Title + story (r/technology, r/futurology)
-    • **Twitter:** Title + story (thread format)
-    • **LinkedIn:** Professional angle with description
-    
-    **📈 Engagement Boosters:**
-    • **Post Story #1** → Check comments in 2 hours
-    • **Reply to comments** using same authentic voice
-    • **Share Story #2** when Story #1 hits 10+ comments
-    • **Build momentum** with consistent posting
-    
-    **🚀 Scaling Up:**
-    • Use "Add 5 More Stories" for power-posting days
-    • Generate new batch when current stories get stale
-    • Mix topics throughout the week for algorithm diversity
-    """)
-
-st.markdown("---")
-st.markdown(
+@dataclass
+class Genome:
     """
-    <div style='text-align: center; color: #666;'>
-        <p><strong>⚡ AUTO-GENERATED • ZERO EFFORT • MAXIMUM RESULTS</strong></p>
-        <p>Just open the app and get 5 viral stories instantly 🚀💰</p>
-        <p><em>No buttons, no waiting, just pure content creation automation</em></p>
-    </div>
-    """, 
-    unsafe_allow_html=True
-)
+    The genetic blueprint of an organism. It's a Turing-complete "tape" of instructions
+    that dictates how the organism builds itself.
+    """
+    # Instruction tape, e.g., [ADD_PARTICLE(C), MOVE(NORTH), BOND, LOOP_START, ...]
+    tape: List[Dict] = field(default_factory=list)
+    lineage_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    parent_id: Optional[str] = None
+    generation: int = 0
+    
+    def copy(self):
+        return Genome(
+            tape=[i.copy() for i in self.tape],
+            parent_id=self.lineage_id,
+            generation=self.generation
+        )
+
+@dataclass
+class Organism:
+    """The physical manifestation (phenotype) of a genome."""
+    genome: Genome
+    particles: Dict[str, Particle] = field(default_factory=dict)
+    bonds: List[Bond] = field(default_factory=list)
+    fitness: float = 0.0
+    age: int = 0
+    energy: float = 100.0 # Starting energy
+    is_alive: bool = True
+    
+    # Metrics
+    size: int = 0
+    mass: float = 0.0
+    structural_integrity: float = 0.0
+    mobility: float = 0.0 # How much it moves
+
+# ==============================================================================
+# 3. THE SIMULATION ENGINE
+# ==============================================================================
+# These functions govern the lifecycle of the universe: birth, life, and death.
+
+def get_element_by_id(element_id: int, chemistry: Chemistry) -> Optional[Element]:
+    """Helper to find an element by its ID."""
+    for e in chemistry.elements:
+        if e.id == element_id:
+            return e
+    return None
+
+def run_development(genome: Genome, chemistry: Chemistry) -> Tuple[Dict[str, Particle], List[Bond]]:
+    """
+    Executes the genetic program to build an organism's body (phenotype).
+    This is the "ontogeny" or "growth" phase.
+    """
+    particles = {}
+    bonds = []
+    
+    # The "developmental machine" state
+    pointer = 0
+    cursor_x, cursor_y = 0.0, 0.0
+    last_particle_id = None
+    
+    max_steps = 200 # Prevent infinite loops in development
+    
+    for _ in range(max_steps):
+        if pointer >= len(genome.tape):
+            break
+            
+        instruction = genome.tape[pointer]
+        cmd = instruction["cmd"]
+        
+        if cmd == "ADD_PARTICLE":
+            element_id = instruction["element_id"]
+            element = get_element_by_id(element_id, chemistry)
+            if element:
+                new_id = str(uuid.uuid4())
+                # Check for existing particle at this location
+                is_occupied = False
+                for p in particles.values():
+                    if abs(p.x - cursor_x) < 1 and abs(p.y - cursor_y) < 1:
+                        is_occupied = True
+                        break
+                if not is_occupied:
+                    particles[new_id] = Particle(id=new_id, element_id=element.id, x=cursor_x, y=cursor_y)
+                    last_particle_id = new_id
+
+        elif cmd == "MOVE":
+            direction = instruction["direction"]
+            dist = instruction.get("dist", 5.0)
+            if direction == "N": cursor_y += dist
+            elif direction == "S": cursor_y -= dist
+            elif direction == "E": cursor_x += dist
+            elif direction == "W": cursor_x -= dist
+
+        elif cmd == "BOND":
+            if last_particle_id and instruction["target_id"] in particles:
+                p1_id, p2_id = sorted((last_particle_id, instruction["target_id"]))
+                p1 = particles[p1_id]
+                p2 = particles[p2_id]
+                
+                # Check bond count
+                p1_bonds = sum(1 for b in bonds if b.p1_id == p1_id or b.p2_id == p1_id)
+                p2_bonds = sum(1 for b in bonds if b.p1_id == p2_id or b.p2_id == p2_id)
+                
+                e1 = get_element_by_id(p1.element_id, chemistry)
+                e2 = get_element_by_id(p2.element_id, chemistry)
+
+                if e1 and e2 and p1_bonds < e1.max_bonds and p2_bonds < e2.max_bonds:
+                    bond_strength_key = tuple(sorted((p1.element_id, p2.element_id)))
+                    strength = chemistry.bond_strengths.get(bond_strength_key, 0.1)
+                    bonds.append(Bond(p1_id=p1_id, p2_id=p2_id, strength=strength))
+
+        elif cmd == "JUMP_IF_NEAR":
+            # A simple conditional for creating complex structures
+            is_near = False
+            for p in particles.values():
+                dist_sq = (p.x - cursor_x)**2 + (p.y - cursor_y)**2
+                if dist_sq < 25: # 5 units radius
+                    is_near = True
+                    break
+            if is_near:
+                pointer = instruction["target_ptr"] - 1 # -1 to account for pointer increment
+
+        pointer += 1
+        
+    return particles, bonds
+
+def mutate_genome(genome: Genome, chemistry: Chemistry, settings: Dict) -> Genome:
+    """Applies mutations to a genome's instruction tape."""
+    mutated = genome.copy()
+    
+    # Point mutation
+    if random.random() < settings['mutation_rate_point'] and mutated.tape:
+        idx = random.randint(0, len(mutated.tape) - 1)
+        instr = mutated.tape[idx]
+        if instr["cmd"] == "ADD_PARTICLE":
+            instr["element_id"] = random.choice(chemistry.elements).id
+        elif instr["cmd"] == "MOVE":
+            instr["direction"] = random.choice(["N", "S", "E", "W"])
+    
+    # Insertion
+    if random.random() < settings['mutation_rate_insertion']:
+        idx = random.randint(0, len(mutated.tape))
+        # Choose a random new instruction to insert
+        new_cmd_type = random.choice(["ADD_PARTICLE", "MOVE", "BOND", "JUMP_IF_NEAR"])
+        new_instr = {}
+        if new_cmd_type == "ADD_PARTICLE":
+            new_instr = {"cmd": "ADD_PARTICLE", "element_id": random.choice(chemistry.elements).id}
+        elif new_cmd_type == "MOVE":
+            new_instr = {"cmd": "MOVE", "direction": random.choice(["N", "S", "E", "W"])}
+        elif new_cmd_type == "BOND":
+            # This is tricky, needs a valid target. For now, we simplify.
+            # A more complex version would search for a nearby particle ID.
+            new_instr = {"cmd": "BOND", "target_id": "find_nearest"} # Placeholder logic
+        elif new_cmd_type == "JUMP_IF_NEAR":
+             new_instr = {"cmd": "JUMP_IF_NEAR", "target_ptr": random.randint(0, len(mutated.tape))}
+        
+        if new_instr:
+            mutated.tape.insert(idx, new_instr)
+
+    # Deletion
+    if random.random() < settings['mutation_rate_deletion'] and len(mutated.tape) > 1:
+        idx = random.randint(0, len(mutated.tape) - 1)
+        mutated.tape.pop(idx)
+        
+    # Duplication
+    if random.random() < settings['mutation_rate_duplication'] and len(mutated.tape) > 0:
+        start = random.randint(0, len(mutated.tape) - 1)
+        end = random.randint(start, len(mutated.tape))
+        segment = mutated.tape[start:end]
+        insert_pos = random.randint(0, len(mutated.tape))
+        mutated.tape = mutated.tape[:insert_pos] + segment + mutated.tape[insert_pos:]
+
+    return mutated
+
+def evaluate_fitness(organism: Organism, chemistry: Chemistry, settings: Dict) -> float:
+    """Calculates fitness based on structure and properties."""
+    if not organism.particles:
+        return 0.0
+
+    # 1. Structural Integrity: Bonus for being connected.
+    # We can use a simple check: is the structure a single connected component?
+    # A more advanced check would be average bond strength.
+    num_particles = len(organism.particles)
+    num_bonds = len(organism.bonds)
+    integrity = (num_bonds / (num_particles - 1)) if num_particles > 1 else 1.0
+    integrity = min(1.0, integrity)
+
+    # 2. Metabolic Efficiency: Based on special properties of elements.
+    photosynthetic_particles = 0
+    for p in organism.particles.values():
+        element = get_element_by_id(p.element_id, chemistry)
+        if element and 'photosynthetic' in element.properties:
+            photosynthetic_particles += 1
+    
+    energy_generation = (photosynthetic_particles / num_particles) if num_particles > 0 else 0.0
+
+    # 3. Size & Complexity: Penalize being too large or too small.
+    # Optimal size is a setting.
+    size_fitness = 1.0 - abs(num_particles - settings['optimal_organism_size']) / settings['optimal_organism_size']
+    size_fitness = max(0, size_fitness)
+
+    # 4. Mobility: Reward movement.
+    mobility_fitness = min(1.0, organism.mobility / 10.0)
+
+    # Combine objectives with weights
+    total_fitness = (
+        integrity * settings['w_integrity'] +
+        energy_generation * settings['w_energy_generation'] +
+        size_fitness * settings['w_size'] +
+        mobility_fitness * settings['w_mobility']
+    )
+    
+    return max(1e-6, total_fitness)
+
+def update_world(organisms: List[Organism], resources: np.ndarray, physics: PhysicsConstants, chemistry: Chemistry, settings: Dict):
+    """The main simulation loop for one time step."""
+    width, height = resources.shape
+    
+    for org in organisms:
+        if not org.is_alive:
+            continue
+
+        # --- Physics Simulation ---
+        total_dx, total_dy = 0, 0
+        
+        # Apply forces
+        for bond in org.bonds:
+            p1 = org.particles.get(bond.p1_id)
+            p2 = org.particles.get(bond.p2_id)
+            if not p1 or not p2: continue
+
+            dx, dy = p2.x - p1.x, p2.y - p1.y
+            dist = math.sqrt(dx**2 + dy**2) + 1e-6
+            
+            # Ideal distance is based on element size (simplified here)
+            ideal_dist = 5.0
+            force_mag = (dist - ideal_dist) * physics.bond_force * bond.strength
+            
+            force_x, force_y = (dx / dist) * force_mag, (dy / dist) * force_mag
+            p1.vx += force_x
+            p1.vy += force_y
+            p2.vx -= force_x
+            p2.vy -= force_y
+
+        # Repulsion from other particles in the same organism
+        particle_list = list(org.particles.values())
+        for i in range(len(particle_list)):
+            for j in range(i + 1, len(particle_list)):
+                p1, p2 = particle_list[i], particle_list[j]
+                dx, dy = p2.x - p1.x, p2.y - p1.y
+                dist_sq = dx**2 + dy**2
+                if 0 < dist_sq < physics.interaction_radius**2:
+                    dist = math.sqrt(dist_sq)
+                    force_mag = (1.0 / dist) * physics.repulsion_force
+                    force_x, force_y = (dx / dist) * force_mag, (dy / dist) * force_mag
+                    p1.vx -= force_x
+                    p1.vy -= force_y
+                    p2.vx += force_x
+                    p2.vy += force_y
+
+        # Update positions
+        center_x, center_y = 0, 0
+        for p in org.particles.values():
+            # Gravity
+            p.vy -= physics.gravity
+            
+            # Friction
+            p.vx *= physics.friction
+            p.vy *= physics.friction
+            
+            # Clamp velocity
+            p.vx = np.clip(p.vx, -physics.max_velocity, physics.max_velocity)
+            p.vy = np.clip(p.vy, -physics.max_velocity, physics.max_velocity)
+
+            # Update position
+            p.x += p.vx * physics.time_step
+            p.y += p.vy * physics.time_step
+
+            # Boundary conditions (wrap around)
+            p.x %= width
+            p.y %= height
+            
+            total_dx += abs(p.vx)
+            total_dy += abs(p.vy)
+            center_x += p.x
+            center_y += p.y
+        
+        if org.particles:
+            org.mobility = (total_dx + total_dy) / len(org.particles)
+            center_x /= len(org.particles)
+            center_y /= len(org.particles)
+
+        # --- Metabolism & Survival ---
+        metabolic_cost = len(org.particles) * settings['energy_cost_per_particle']
+        org.energy -= metabolic_cost
+        
+        # Energy from environment
+        if org.particles:
+            int_cx, int_cy = int(center_x), int(center_y)
+            if 0 <= int_cx < width and 0 <= int_cy < height:
+                consumed_energy = resources[int_cx, int_cy] * settings['resource_uptake_rate']
+                org.energy += consumed_energy
+                resources[int_cx, int_cy] -= consumed_energy
+
+        # Check for death
+        if org.energy <= 0:
+            org.is_alive = False
+
+# ==============================================================================
+# 4. VISUALIZATION
+# ==============================================================================
+
+def visualize_universe(organisms: List[Organism], resources: np.ndarray, settings: Dict):
+    """Renders the current state of the universe."""
+    width, height = resources.shape
+    
+    fig = go.Figure()
+
+    # 1. Resources heatmap
+    fig.add_trace(go.Heatmap(
+        z=resources.T, # Transpose for correct orientation
+        colorscale='Greens',
+        showscale=False,
+        name='Resources'
+    ))
+
+    # 2. Organisms
+    all_x, all_y, all_colors, all_sizes, all_hover_text = [], [], [], [], []
+    bond_x, bond_y = [], []
+
+    for org in organisms:
+        if not org.is_alive:
+            continue
+        
+        element_map = {e.id: e for e in settings['chemistry'].elements}
+
+        for p in org.particles.values():
+            all_x.append(p.x)
+            all_y.append(p.y)
+            element = element_map.get(p.element_id)
+            if element:
+                all_colors.append(element.color)
+                all_sizes.append(element.mass * 2)
+                all_hover_text.append(f"Organism: {org.genome.lineage_id[:8]}<br>Element: {element.name}<br>Energy: {org.energy:.2f}")
+        
+        for bond in org.bonds:
+            p1 = org.particles.get(bond.p1_id)
+            p2 = org.particles.get(bond.p2_id)
+            if p1 and p2:
+                bond_x.extend([p1.x, p2.x, None])
+                bond_y.extend([p1.y, p2.y, None])
+
+    # Add bonds first (background)
+    fig.add_trace(go.Scatter(
+        x=bond_x, y=bond_y,
+        mode='lines',
+        line=dict(color='rgba(128, 128, 128, 0.5)', width=2),
+        hoverinfo='none',
+        name='Bonds'
+    ))
+
+    # Add particles on top
+    fig.add_trace(go.Scatter(
+        x=all_x, y=all_y,
+        mode='markers',
+        marker=dict(
+            color=all_colors,
+            size=all_sizes,
+            line=dict(width=1, color='black')
+        ),
+        hovertext=all_hover_text,
+        hoverinfo='text',
+        name='Organisms'
+    ))
+
+    fig.update_layout(
+        title=f"Universe Sandbox | Generation: {st.session_state.get('generation', 0)} | Population: {len(organisms)}",
+        xaxis=dict(range=[0, width], showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(range=[0, height], showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x", scaleratio=1),
+        plot_bgcolor='black',
+        height=700,
+        showlegend=False
+    )
+    
+    return fig
+
+# ==============================================================================
+# 5. STREAMLIT APP UI
+# ==============================================================================
+
+def main():
+    st.set_page_config(
+        page_title="Universe Sandbox AI",
+        layout="wide",
+        page_icon="🌌"
+    )
+
+    st.title("🌌 Universe Sandbox AI")
+    st.markdown("An interactive laboratory for abiogenesis and open-ended evolution. Define the laws of physics and chemistry, then watch as life emerges and complexifies from a primordial soup.")
+
+    # --- SIDEBAR: The Control Panel of God ---
+    st.sidebar.header("🚀 Universe Configuration")
+
+    # Initialize session state
+    if 'settings' not in st.session_state:
+        st.session_state.settings = {}
+    if 'simulation_running' not in st.session_state:
+        st.session_state.simulation_running = False
+    if 'organisms' not in st.session_state:
+        st.session_state.organisms = []
+    if 'generation' not in st.session_state:
+        st.session_state.generation = 0
+
+    s = st.session_state.settings
+
+    with st.sidebar.expander("🔬 Fundamental Constants", expanded=True):
+        st.markdown("#### Physics")
+        gravity = st.slider("Gravity", 0.0, 0.5, s.get('gravity', 0.01), 0.005, key='gravity')
+        friction = st.slider("Friction", 0.8, 1.0, s.get('friction', 0.95), 0.01, key='friction')
+        
+        st.markdown("#### Chemistry")
+        # Define a default set of elements
+        default_elements = [
+            Element(id=0, name='Substrate', color='grey', mass=5, max_bonds=1),
+            Element(id=1, name='Carbon', color='blue', mass=10, max_bonds=4, properties={'structural'}),
+            Element(id=2, name='Oxygen', color='red', mass=12, max_bonds=2),
+            Element(id=3, name='PhotonReceptor', color='yellow', mass=8, max_bonds=3, properties={'photosynthetic'}),
+            Element(id=4, name='Silicon', color='purple', mass=14, max_bonds=4, properties={'structural'}),
+        ]
+        # This is a simplified UI. A full version would let you add/remove elements.
+        st.info("Chemistry is pre-defined for this demo: Substrate, Carbon, Oxygen, PhotonReceptor, Silicon.")
+        
+        # Define default bond strengths
+        default_bond_strengths = {
+            tuple(sorted((1, 1))): 1.0, # C-C
+            tuple(sorted((1, 2))): 0.8, # C-O
+            tuple(sorted((1, 3))): 0.7, # C-Photo
+            tuple(sorted((4, 4))): 0.9, # Si-Si
+            tuple(sorted((4, 2))): 0.85, # Si-O
+        }
+
+    with st.sidebar.expander("🌊 Primordial Soup"):
+        st.markdown("#### Initial Conditions")
+        population_size = st.slider("Initial Population Size", 10, 500, s.get('population_size', 100), 10, key='population_size')
+        initial_energy = st.slider("Initial Organism Energy", 50, 500, s.get('initial_energy', 100), 10, key='initial_energy')
+        initial_genome_length = st.slider("Initial Genome Length", 1, 20, s.get('initial_genome_length', 5), 1, key='initial_genome_length')
+        
+        st.markdown("#### Environment Resources")
+        world_width = st.slider("World Width", 100, 1000, s.get('world_width', 400), 50, key='world_width')
+        world_height = st.slider("World Height", 100, 1000, s.get('world_height', 400), 50, key='world_height')
+        resource_density = st.slider("Resource Density", 0.1, 1.0, s.get('resource_density', 0.5), 0.05, key='resource_density')
+        resource_regeneration = st.slider("Resource Regeneration Rate", 0.0, 0.1, s.get('resource_regeneration', 0.01), 0.005, key='resource_regeneration')
+
+    with st.sidebar.expander("🧬 Evolutionary Dynamics"):
+        st.markdown("#### Selection")
+        selection_pressure = st.slider("Selection Pressure", 0.1, 0.9, s.get('selection_pressure', 0.5), 0.05, key='selection_pressure')
+        reproduction_energy_threshold = st.slider("Reproduction Energy Threshold", 100, 1000, s.get('reproduction_energy_threshold', 200), 10, key='reproduction_energy_threshold')
+        
+        st.markdown("#### Mutation")
+        mutation_rate_point = st.slider("Mutation Rate (Point)", 0.0, 1.0, s.get('mutation_rate_point', 0.1), 0.01, key='mutation_rate_point')
+        mutation_rate_insertion = st.slider("Mutation Rate (Insertion)", 0.0, 1.0, s.get('mutation_rate_insertion', 0.05), 0.01, key='mutation_rate_insertion')
+        mutation_rate_deletion = st.slider("Mutation Rate (Deletion)", 0.0, 1.0, s.get('mutation_rate_deletion', 0.05), 0.01, key='mutation_rate_deletion')
+        mutation_rate_duplication = st.slider("Mutation Rate (Duplication)", 0.0, 1.0, s.get('mutation_rate_duplication', 0.02), 0.01, key='mutation_rate_duplication')
+
+    with st.sidebar.expander("⚖️ Fitness Objectives"):
+        st.markdown("Define what it means to be 'fit' in this universe.")
+        w_integrity = st.slider("Weight: Structural Integrity", 0.0, 1.0, s.get('w_integrity', 0.3), 0.05, key='w_integrity')
+        w_energy_generation = st.slider("Weight: Energy Generation", 0.0, 1.0, s.get('w_energy_generation', 0.4), 0.05, key='w_energy_generation')
+        w_size = st.slider("Weight: Optimal Size", 0.0, 1.0, s.get('w_size', 0.1), 0.05, key='w_size')
+        w_mobility = st.slider("Weight: Mobility", 0.0, 1.0, s.get('w_mobility', 0.2), 0.05, key='w_mobility')
+        optimal_organism_size = st.slider("Optimal Organism Size (Particles)", 5, 100, s.get('optimal_organism_size', 20), 1, key='optimal_organism_size')
+
+    with st.sidebar.expander("⚡ Metabolic Costs"):
+        energy_cost_per_particle = st.slider("Energy Cost per Particle", 0.0, 2.0, s.get('energy_cost_per_particle', 0.5), 0.05, key='energy_cost_per_particle')
+        resource_uptake_rate = st.slider("Resource Uptake Rate", 0.1, 1.0, s.get('resource_uptake_rate', 0.5), 0.05, key='resource_uptake_rate')
+
+    # --- Store settings ---
+    st.session_state.settings = {
+        'physics': PhysicsConstants(gravity=gravity, friction=friction),
+        'chemistry': Chemistry(elements=default_elements, bond_strengths=default_bond_strengths),
+        'population_size': population_size,
+        'initial_energy': initial_energy,
+        'initial_genome_length': initial_genome_length,
+        'world_width': world_width,
+        'world_height': world_height,
+        'resource_density': resource_density,
+        'resource_regeneration': resource_regeneration,
+        'selection_pressure': selection_pressure,
+        'reproduction_energy_threshold': reproduction_energy_threshold,
+        'mutation_rate_point': mutation_rate_point,
+        'mutation_rate_insertion': mutation_rate_insertion,
+        'mutation_rate_deletion': mutation_rate_deletion,
+        'mutation_rate_duplication': mutation_rate_duplication,
+        'w_integrity': w_integrity,
+        'w_energy_generation': w_energy_generation,
+        'w_size': w_size,
+        'w_mobility': w_mobility,
+        'optimal_organism_size': optimal_organism_size,
+        'energy_cost_per_particle': energy_cost_per_particle,
+        'resource_uptake_rate': resource_uptake_rate
+    }
+    s = st.session_state.settings
+
+    # --- Main Controls ---
+    c1, c2, c3 = st.sidebar.columns(3)
+    start_button = c1.button("▶️ Start", use_container_width=True)
+    stop_button = c2.button("⏹️ Stop", use_container_width=True)
+    reset_button = c3.button("Reset", use_container_width=True)
+
+    if start_button:
+        st.session_state.simulation_running = True
+        if not st.session_state.organisms: # If starting fresh
+            st.session_state.generation = 0
+            # Initialize resources
+            st.session_state.resources = np.random.rand(s['world_width'], s['world_height']) * s['resource_density']
+            
+            # Initialize population
+            organisms = []
+            for _ in range(s['population_size']):
+                # Create a random genome
+                tape = []
+                for _ in range(s['initial_genome_length']):
+                    tape.append({"cmd": "ADD_PARTICLE", "element_id": random.choice(s['chemistry'].elements).id})
+                    tape.append({"cmd": "MOVE", "direction": random.choice(["N", "S", "E", "W"])})
+                genome = Genome(tape=tape)
+                
+                particles, bonds = run_development(genome, s['chemistry'])
+                org = Organism(genome=genome, particles=particles, bonds=bonds, energy=s['initial_energy'])
+                organisms.append(org)
+            st.session_state.organisms = organisms
+            st.toast("Universe created! Simulation started.", icon="🌠")
+
+    if stop_button:
+        st.session_state.simulation_running = False
+        st.toast("Simulation paused.", icon="⏸️")
+
+    if reset_button:
+        st.session_state.simulation_running = False
+        st.session_state.organisms = []
+        st.session_state.generation = 0
+        st.toast("Universe reset.", icon="🔄")
+        st.rerun()
+
+    # --- Main Simulation Display ---
+    placeholder = st.empty()
+
+    if not st.session_state.simulation_running and not st.session_state.organisms:
+        placeholder.info("Configure your universe in the sidebar and press 'Start' to begin abiogenesis.")
+
+    while st.session_state.simulation_running:
+        organisms = st.session_state.organisms
+        resources = st.session_state.resources
+        
+        # --- Main Loop ---
+        update_world(organisms, resources, s['physics'], s['chemistry'], s)
+        
+        # --- Reproduction and Selection ---
+        new_offspring = []
+        survivors = []
+        
+        for org in organisms:
+            if org.is_alive:
+                org.fitness = evaluate_fitness(org, s['chemistry'], s)
+                survivors.append(org)
+        
+        if not survivors:
+            st.session_state.simulation_running = False
+            st.error("EXTINCTION EVENT! All life has perished.")
+            break
+
+        survivors.sort(key=lambda o: o.fitness, reverse=True)
+        
+        num_to_reproduce = int(len(survivors) * s['selection_pressure'])
+        parents = survivors[:num_to_reproduce]
+
+        for parent in parents:
+            if parent.energy > s['reproduction_energy_threshold']:
+                parent.energy /= 2 # Cost of reproduction
+                child_genome = mutate_genome(parent.genome, s['chemistry'], s)
+                child_genome.generation = st.session_state.generation + 1
+                
+                particles, bonds = run_development(child_genome, s['chemistry'])
+                if particles: # Only add viable offspring
+                    child = Organism(genome=child_genome, particles=particles, bonds=bonds, energy=parent.energy)
+                    new_offspring.append(child)
+
+        st.session_state.organisms = survivors + new_offspring
+        st.session_state.generation += 1
+
+        # Regenerate resources
+        st.session_state.resources += s['resource_regeneration']
+        st.session_state.resources = np.clip(st.session_state.resources, 0, 1.0)
+
+        # --- Visualization ---
+        with placeholder.container():
+            fig = visualize_universe(st.session_state.organisms, st.session_state.resources, s)
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Stats
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Generation", st.session_state.generation)
+            c2.metric("Population", len(st.session_state.organisms))
+            c3.metric("Mean Fitness", f"{np.mean([o.fitness for o in survivors]):.4f}" if survivors else "N/A")
+            c4.metric("Max Fitness", f"{survivors[0].fitness:.4f}" if survivors else "N/A")
+
+        time.sleep(0.1) # Control simulation speed
+
+if __name__ == "__main__":
+    main()
