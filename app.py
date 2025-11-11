@@ -174,60 +174,44 @@ def survival_simulation(genome: Genome, universe: Universe) -> float:
     Its fitness is its ability to maintain energy, survive, and reproduce.
     """
     
-    # --- 1. Calculate Costs & Needs ---
     total_mass = sum(o.size for o in genome.organs)
-    metabolic_cost = total_mass * (universe.temperature / 273.15) # Higher temp, higher metabolism
-    
+    metabolic_cost = total_mass * (universe.temperature / 273.15)
     cognitive_cost = sum(o.size * o.efficiency for o in genome.organs if 'Neural' in o.organ_type or 'Cognitive' in o.organ_type)
-    metabolic_cost += cognitive_cost * 2 # Brains are expensive
+    metabolic_cost += cognitive_cost * 2
 
-    # --- 2. Calculate Production & Capabilities ---
     energy_production = 0.0
     sensory_acuity = 0.0
     mobility = 0.0
-
     for organ in genome.organs:
-        # Energy generation
         if 'Photo' in organ.organ_type:
             energy_production += organ.size * organ.efficiency * universe.star_luminosity * universe.available_elements.get('Hydrogen', 0)
         elif 'Chemo' in organ.organ_type:
-             # Basic chemosynthesis from available chemicals
             energy_production += organ.size * organ.efficiency * (universe.available_elements.get('Carbon', 0) + universe.available_elements.get('Sulfur', 0))
         elif 'Thermo' in organ.organ_type:
-             energy_production += organ.size * organ.efficiency * (universe.temperature / 100.0) # Thermal vents
-
-        # Senses
+            energy_production += organ.size * organ.efficiency * (universe.temperature / 100.0)
         if 'Receptor' in organ.organ_type:
             sensory_acuity += organ.size * organ.efficiency
-        
-        # Movement
         if 'Actuator' in organ.organ_type:
             mobility += organ.size * organ.efficiency
 
-    # --- 3. Environmental Stresses ---
-    structural_integrity = sum(o.size for o in genome.organs if 'Structural' in o.organ_type)
+    structural_integrity_organ = sum(o.size for o in genome.organs if 'Structural' in o.organ_type)
     structural_stress = total_mass * universe.gravity
-    structural_failure_prob = max(0, (structural_stress - structural_integrity) / (structural_stress + 1e-6))
-
+    structural_failure_prob = max(0, (structural_stress - structural_integrity_organ) / (structural_stress + 1e-6))
     radiation_damage = total_mass * universe.radiation_level
     radiation_shielding = sum(o.size for o in genome.organs if 'Shielding' in o.organ_type)
     radiation_failure_prob = max(0, (radiation_damage - radiation_shielding) / (radiation_damage + 1e-6))
 
-    # --- 4. Calculate Final Fitness ---
     energy_balance = energy_production - metabolic_cost
     genome.energy_balance = energy_balance
     genome.structural_integrity = 1.0 - structural_failure_prob
-    genome.sensory_acuity = sensory_acuity / (total_mass + 1)
-    genome.mobility = mobility / (total_mass + 1)
-
-    # Base survival depends on energy and integrity
+    genome.sensory_acuity = sensory_acuity / (total_mass + 1e-6)
+    genome.mobility = mobility / (total_mass + 1e-6)
+    # --- ADDED THIS LINE ---
+    genome.cognitive_complexity = cognitive_cost / (total_mass + 1e-6) 
+    
     survival_chance = (1 / (1 + np.exp(-energy_balance / 10))) * (1.0 - structural_failure_prob) * (1.0 - radiation_failure_prob)
-
-    # Reproductive potential depends on surplus energy
     reproductive_potential = max(0, energy_balance / 10) if survival_chance > 0.5 else 0.0
     genome.reproductive_potential = reproductive_potential
-
-    # Final fitness is a composite score
     total_fitness = survival_chance * (1 + reproductive_potential)
     genome.survival_fitness = max(1e-9, total_fitness)
     
@@ -450,23 +434,31 @@ def visualize_lifeform_3d(genome: Genome) -> go.Figure:
 # create_evolution_dashboard, visualize_fitness_landscape
 def create_evolution_dashboard(history_df: pd.DataFrame) -> go.Figure:
     """Comprehensive evolution analytics dashboard."""
+    if history_df.empty:
+        return go.Figure()
+        
     fig = make_subplots(
-        rows=2, cols=3,
+        rows=2, cols=2,
         subplot_titles=(
-            '<b>Fitness Evolution</b>', '<b>Phenotypic Trait Trajectories</b>', '<b>Final Population Structure</b>',
-            '<b>Morphological Diversity</b>', '<b>Environmental Adaptation</b>', '<b>Complexity Growth</b>'
+            '<b>Fitness Evolution</b>', '<b>Phenotypic Trait Trajectories</b>',
+            '<b>Complexity vs. Mass</b>', '<b>Final Population Distribution</b>'
         ),
         specs=[
-            [{}, {}, {'type': 'polar'}],
-            [{}, {}, {}]
+            [{}, {}],
+            [{}, {'type': 'polar'}]
         ]
     )
     
-    # Plot 1: Fitness Evolution
-    for form_id in sorted(history_df['form_id'].unique()):
-        form_data = history_df[history_df['form_id'] == form_id]
-        mean_fitness = form_data.groupby('generation')['survival_fitness'].mean()
-        fig.add_trace(go.Scatter(x=mean_fitness.index, y=mean_fitness.values, mode='lines', name=f'Lineage {form_id}'), row=1, col=1)
+    # --- Plot 1: Fitness Evolution (Corrected) ---
+    # This no longer tries to group by 'form_id'.
+    mean_fitness = history_df.groupby('generation')['survival_fitness'].mean()
+    fig.add_trace(go.Scatter(
+        x=mean_fitness.index, 
+        y=mean_fitness.values, 
+        mode='lines', 
+        name='Mean Population Fitness',
+        line=dict(color='gold')
+    ), row=1, col=1)
 
     # Plot 2: Trait Trajectories
     mean_traits = history_df.groupby('generation')[['energy_balance', 'structural_integrity', 'mobility']].mean()
@@ -474,23 +466,38 @@ def create_evolution_dashboard(history_df: pd.DataFrame) -> go.Figure:
     fig.add_trace(go.Scatter(x=mean_traits.index, y=mean_traits['structural_integrity'], name='Integrity', line=dict(color='grey')), row=1, col=2)
     fig.add_trace(go.Scatter(x=mean_traits.index, y=mean_traits['mobility'], name='Mobility', line=dict(color='blue')), row=1, col=2)
 
-    # Plot 3: Final Population
+    # Plot 3: Complexity vs. Mass Evolution
+    complexity_trend = history_df.groupby('generation')['cognitive_complexity'].mean()
+    mass_trend = history_df.groupby('generation')['total_mass'].mean()
+    fig.add_trace(go.Scatter(x=complexity_trend.index, y=complexity_trend.values, name='Cognitive Complexity', line=dict(color='cyan')), row=2, col=1)
+    fig.add_trace(go.Scatter(x=mass_trend.index, y=mass_trend.values, name='Total Mass', line=dict(color='magenta', dash='dot')), row=2, col=1)
+
+    # Plot 4: Final Population Structure
     final_gen_df = history_df[history_df['generation'] == history_df['generation'].max()]
     if not final_gen_df.empty:
+        final_gen_df['total_mass_viz'] = final_gen_df['total_mass'].clip(upper=final_gen_df['total_mass'].quantile(0.95)) # Prevent outliers from crushing scale
         r_vals = final_gen_df['survival_fitness']
         theta_vals = final_gen_df['lineage_id'].str.replace('L-', '').astype(int) % 360 # Angle by lineage
-        fig.add_trace(go.Scatterpolar(r=r_vals, theta=theta_vals, mode='markers', marker=dict(color=final_gen_df['generation'], size=final_gen_df['total_mass']*2, showscale=False)), row=1, col=3)
+        fig.add_trace(go.Scatterpolar(
+            r=r_vals, 
+            theta=theta_vals, 
+            mode='markers',
+            marker=dict(
+                color=final_gen_df['cognitive_complexity'], 
+                size=final_gen_df['total_mass_viz'] * 3 + 5, 
+                showscale=True,
+                colorbar=dict(title='Cognitive<br>Complexity')
+            ),
+            hovertext="Fitness: " + r_vals.round(3).astype(str) + "<br>Mass: " + final_gen_df['total_mass'].round(2).astype(str)
+        ), row=2, col=2)
 
-    # Plot 4, 5, 6
-    if 'diversity' in history_df.columns:
-        diversity_trend = history_df.groupby('generation')['diversity'].mean()
-        fig.add_trace(go.Scatter(x=diversity_trend.index, y=diversity_trend.values, name='Diversity'), row=2, col=1)
+    # Update axis labels
+    fig.update_xaxes(title_text="Generation")
+    fig.update_yaxes(title_text="Mean Fitness", row=1, col=1)
+    fig.update_yaxes(title_text="Mean Score", row=1, col=2)
+    fig.update_yaxes(title_text="Mean Value", row=2, col=1)
 
-    complexity_trend = history_df.groupby('generation')['cognitive_complexity'].mean()
-    fig.add_trace(go.Scatter(x=complexity_trend.index, y=complexity_trend.values, name='Cognitive Complexity'), row=2, col=3)
-
-    # ... more plots can be added
-    fig.update_layout(height=800, title_text="<b>Cosmic Evolution Dashboard</b>", title_x=0.5)
+    fig.update_layout(height=800, title_text="<b>Cosmic Evolution Dashboard</b>", title_x=0.5, legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
     return fig
 
 
@@ -601,6 +608,7 @@ def main():
                     'survival_fitness': lf.survival_fitness, 'energy_balance': lf.energy_balance,
                     'structural_integrity': lf.structural_integrity, 'mobility': lf.mobility,
                     'total_mass': sum(o.size for o in lf.organs), 'cognitive_complexity': sum(o.size for o in lf.organs if 'Neural' in lf.organ_type),
+                     'cognitive_complexity': lf.cognitive_complexity,
                  })
 
             population.sort(key=lambda x: x.survival_fitness, reverse=True)
