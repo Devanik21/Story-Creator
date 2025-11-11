@@ -1676,7 +1676,7 @@ def main():
                             pos = nx.spring_layout(G, k=0.9, seed=42)
                             node_colors = [data['color'] for _, data in G.nodes(data=True)]
                             nx.draw(G, pos, ax=ax, with_labels=True, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
-                            st.pyplot(fig_grn, key=f"pheno_grn_{i}")
+                            st.pyplot(fig_grn)
                         else:
                             st.info("No GRN to display.")
 
