@@ -679,17 +679,15 @@ class Phenotype:
 
     def prune_cell(self, x, y):
         """Removes a single cell from the organism and the grid."""
-        cell_to_prune = self.cells.pop((x, y), None) # Safely get and remove the cell
-
+        if (x,y) in self.cells:
+            del self.cells[(x,y)]
         grid_cell = self.grid.get_cell(x, y)
         if grid_cell:
             grid_cell.organism_id = None
             grid_cell.cell_type = None
-
-        if cell_to_prune:
             # --- NEW 2.1: Niche Construction ---
             # Release the cell's environmental effect into the grid upon death.
-            effect = cell_to_prune.component.environmental_effect
+            effect = self.cells[(x,y)].component.environmental_effect
             if effect:
                 for resource, amount in effect.items():
                     grid_cell.dynamic_resources[resource] = grid_cell.dynamic_resources.get(resource, 0.0) + amount
@@ -919,63 +917,51 @@ class Phenotype:
 
 def get_primordial_soup_genotype(settings: Dict) -> Genotype:
     """Creates the 'Adam/Eve' genotype with procedurally generated components."""
-
-    # --- NEW: Supercharged Primordial Soup ---
-    # Create a richer, more specialized set of starting components to accelerate morphological diversity.
-
-    # 1. Zygote (The Seed)
+    
+    # 1. Define primordial components by innovating from the base registry
     comp_zygote = innovate_component(None, settings, force_base='Carbon')
     comp_zygote.name = f"Zygote_{uuid.uuid4().hex[:4]}"
     comp_zygote.energy_storage *= 2.0 # Boost zygote storage
-    comp_zygote.structural = 0.1 # Give it a tiny bit of structure
+    
+    comp_struct = innovate_component(None, settings)
+    comp_struct.name = f"Struct_{uuid.uuid4().hex[:4]}"
+    comp_struct.structural *= 1.5 # Boost structure
+    
+    comp_energy = innovate_component(None, settings)
+    comp_energy.name = f"Energy_{uuid.uuid4().hex[:4]}"
 
-    # 2. Meso-Shell (Basic Structure)
-    comp_shell = innovate_component(None, settings, force_base='Silicon')
-    comp_shell.name = f"Meso-Shell_{uuid.uuid4().hex[:4]}"
-    comp_shell.structural = np.clip(comp_shell.structural * 1.5, 1.0, 3.0)
-    comp_shell.mass *= 1.2
-
-    # 3. Photo-Core (Energy Production)
-    comp_energy = innovate_component(None, settings, force_base='Plasma')
-    comp_energy.name = f"Photo-Core_{uuid.uuid4().hex[:4]}"
-    comp_energy.photosynthesis = np.clip(comp_energy.photosynthesis * 2.0, 1.0, 3.0)
-    comp_energy.structural = 0.0 # Pure energy
-
-    # 4. Neuro-Spine (Energy Conduction)
-    comp_conduct = innovate_component(None, settings, force_base='Aether')
-    comp_conduct.name = f"Neuro-Spine_{uuid.uuid4().hex[:4]}"
-    comp_conduct.conductance = np.clip(comp_conduct.conductance * 2.0, 0.8, 2.0)
-    comp_conduct.structural = 0.1
-
-    # 5. Armor-Plate (Defense)
-    comp_armor = innovate_component(None, settings, force_base='Metallic')
-    comp_armor.name = f"Armor-Plate_{uuid.uuid4().hex[:4]}"
-    comp_armor.armor = np.clip(comp_armor.armor * 2.0, 1.0, 3.0)
-    comp_armor.mass *= 2.0
-    comp_armor.structural = 0.5
-
-    components = {c.name: c for c in [comp_zygote, comp_shell, comp_energy, comp_conduct, comp_armor]}
-
-    # Define more specific primordial rules for this richer toolkit
+    components = {c.name: c for c in [comp_struct, comp_energy, comp_zygote]}
+    
+    # 2. Define primordial rules that refer to the new components
     rules = [
-        # Rule 1: If I am a Zygote, grow a Shell around me.
+        # Rule 1: If neighbor is empty and I have energy, grow a structural cell
         RuleGene(
             conditions=[
-                {'source': 'self_type', 'operator': '==', 'target_value': comp_zygote.name},
-                {'source': 'self_age', 'operator': '<', 'target_value': 2},
+                {'source': 'neighbor_count_empty', 'operator': '>', 'target_value': 0},
+                {'source': 'self_energy', 'operator': '>', 'target_value': random.uniform(1.5, 3.0)},
             ],
             action_type="GROW",
-            action_param=comp_shell.name,
-            priority=20
+            action_param=comp_struct.name,
+            priority=10
         ),
-        # Rule 2: After initial growth, differentiate the Zygote into an Energy core.
+        # Rule 2: If neighbor is empty and I have lots of energy, grow an energy cell
+        RuleGene(
+            conditions=[
+                {'source': 'neighbor_count_empty', 'operator': '>', 'target_value': 0},
+                {'source': 'self_energy', 'operator': '>', 'target_value': random.uniform(4.0, 6.0)},
+            ],
+            action_type="GROW",
+            action_param=comp_energy.name,
+            priority=11
+        ),
+        # Rule 3: If I am a Zygote and old, differentiate into a Struct
         RuleGene(
             conditions=[
                 {'source': 'self_type', 'operator': '==', 'target_value': comp_zygote.name},
-                {'source': 'self_age', 'operator': '>', 'target_value': 1},
+                {'source': 'self_age', 'operator': '>', 'target_value': 2},
             ],
             action_type="DIFFERENTIATE",
-            action_param=comp_energy.name,
+            action_param=comp_struct.name,
             priority=100 # High priority
         )
     ]
@@ -1475,85 +1461,6 @@ def visualize_metabolism(phenotype: Phenotype, grid: UniverseGrid) -> go.Figure:
         margin=dict(l=20, r=20, t=40, b=20),
         plot_bgcolor='rgba(0,0,0,0)'
     )
-    return fig
-
-def visualize_component_adjacency(phenotype: Phenotype) -> go.Figure:
-    """
-    NEW: Creates a graph showing which components are physically next to each other.
-    """
-    adj_counts = Counter()
-    for (x, y), cell in phenotype.cells.items():
-        neighbors = phenotype.grid.get_neighbors(x, y)
-        organism_neighbors = [phenotype.cells.get((n.x, n.y)) for n in neighbors if phenotype.cells.get((n.x, n.y))]
-        
-        for neighbor_cell in organism_neighbors:
-            # To avoid double counting and self-loops, create a sorted tuple as the key
-            key = tuple(sorted((cell.component.name, neighbor_cell.component.name)))
-            adj_counts[key] += 1
-
-    G = nx.Graph()
-    for (comp1, comp2), weight in adj_counts.items():
-        G.add_edge(comp1, comp2, weight=weight)
-
-    if not G.nodes:
-        return go.Figure().update_layout(title="Component Adjacency (No connections)", height=300)
-
-    # Get colors for nodes
-    color_map = {comp.name: comp.color for comp in phenotype.genotype.component_genes.values()}
-    node_colors = [color_map.get(node, '#888888') for node in G.nodes()]
-
-    fig, ax = plt.subplots(figsize=(4, 3))
-    pos = nx.spring_layout(G, k=0.9, seed=42, iterations=50)
-    
-    # Draw edges with width proportional to weight
-    weights = [G[u][v]['weight'] for u, v in G.edges()]
-    if weights:
-        max_weight = max(weights)
-        edge_widths = [0.5 + 2.5 * (w / max_weight) for w in weights]
-    else:
-        edge_widths = 0.5
-
-    nx.draw(G, pos, ax=ax, with_labels=False, node_size=600, node_color=node_colors, width=edge_widths, edge_color='#cccccc')
-    labels = {n: n.split('-')[-1].split('_')[0] for n in G.nodes()} # Short labels
-    nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
-    
-    ax.set_title("Component Adjacency Graph", fontsize=10)
-    plt.tight_layout()
-    return fig
-
-def visualize_metabolic_flow(phenotype: Phenotype) -> go.Figure:
-    """
-    NEW: Creates a graph showing the net energy flow between component types.
-    This requires data that is not currently tracked. For now, this is a placeholder.
-    We will simulate a flow based on conductance for demonstration.
-    """
-    G = nx.DiGraph() # Directed graph
-    
-    # Simplified flow: High conductance cells give to neighbors
-    for (x, y), cell in phenotype.cells.items():
-        if cell.component.conductance > 0.5:
-            neighbors = phenotype.grid.get_neighbors(x, y)
-            self_neighbors = [phenotype.cells.get((n.x, n.y)) for n in neighbors if phenotype.cells.get((n.x, n.y))]
-            for neighbor_cell in self_neighbors:
-                # Add a directed edge from the conductor to the neighbor
-                G.add_edge(cell.component.name, neighbor_cell.component.name)
-
-    fig, ax = plt.subplots(figsize=(4, 3))
-    ax.set_title("Metabolic Flow Graph (Conceptual)", fontsize=10)
-    
-    if not G.nodes:
-        ax.text(0.5, 0.5, "No significant energy flow", ha='center', va='center')
-        return fig
-
-    color_map = {comp.name: comp.color for comp in phenotype.genotype.component_genes.values()}
-    node_colors = [color_map.get(node, '#888888') for node in G.nodes()]
-    
-    pos = nx.spring_layout(G, k=0.9, seed=42)
-    nx.draw(G, pos, ax=ax, with_labels=False, node_size=600, node_color=node_colors, width=0.7, arrowsize=10, connectionstyle='arc3,rad=0.1')
-    labels = {n: n.split('-')[-1].split('_')[0] for n in G.nodes()}
-    nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
-    
-    plt.tight_layout()
     return fig
 
 # --- Reuse visualization functions from GENEVO ---
@@ -2250,7 +2157,6 @@ def main():
 
         # --- Initialize Universe Grid ---
         universe_grid = UniverseGrid(s)
-        st.session_state.universe_grid = universe_grid # Store in session state
         
         # --- Evolution Loop ---
         progress_container = st.empty()
@@ -2613,18 +2519,6 @@ def main():
                         st.plotly_chart(fig_metab, use_container_width=True, key=f"viewer_metab_{i}")
 
                         st.markdown("##### **Analysis**")
-                        st.markdown("##### **Internal Architecture**")
-                        
-                        # --- NEW GRAPH PLOTS ---
-                        # These are matplotlib figures, so we use st.pyplot
-                        fig_adj = visualize_component_adjacency(phenotype)
-                        st.pyplot(fig_adj)
-                        plt.clf() # Clear the figure to prevent overlap
-
-                        fig_flow = visualize_metabolic_flow(phenotype)
-                        st.pyplot(fig_flow)
-                        plt.clf() # Clear the figure
-
                         component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
                         if component_counts:
                             comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
@@ -2634,7 +2528,6 @@ def main():
                                              color='Component', color_discrete_map=color_map)
                             fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
                             st.plotly_chart(fig_pie, use_container_width=True, key=f"pheno_pie_{i}")
-                            # This pie chart is now redundant with the more detailed graphs, so we can remove it.
                         else:
                             st.info("No cells to analyze.")
 
@@ -2668,7 +2561,7 @@ def main():
                                 labels = {n: n.split('\n')[0] for n in G.nodes()} # Short labels
                                 nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
                                 st.pyplot(fig_grn)
-                                plt.close(fig_grn) # Use plt.close(fig) for better memory management
+                                plt.clf()
                             except Exception as e:
                                 st.warning(f"Could not draw GRN: {e}")
                         else:
@@ -2774,10 +2667,8 @@ def main():
         # Prepare data for download
         # Convert Genotype objects (which are not directly JSON serializable) to dictionaries
         final_population_serializable = [asdict(g) for g in st.session_state.get('current_population', [])]
-        final_population_serializable = [asdict(g) for g in (st.session_state.get('current_population') or [])]
         # The gene archive can be very large, so we'll sample it if it's huge to keep downloads manageable
         gene_archive_sample = st.session_state.get('gene_archive', [])
-        gene_archive_sample = st.session_state.get('gene_archive') or []
         if len(gene_archive_sample) > 5000:
             gene_archive_sample = random.sample(gene_archive_sample, 5000)
         gene_archive_serializable = [asdict(g) for g in gene_archive_sample]
@@ -2805,4 +2696,4 @@ if __name__ == "__main__":
     # Set a non-interactive backend for Streamlit
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    main() 
+    main()
