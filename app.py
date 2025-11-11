@@ -1201,6 +1201,58 @@ def meta_innovate_condition_source(settings: Dict):
             st.session_state.evolvable_condition_sources.append(new_sense)
             st.toast(f"🧠 Meta-Innovation! Life has evolved a new sense: **{new_sense}**", icon="🧬")
 
+
+
+def apply_physics_drift(settings: Dict):
+    """
+    "Truly Infinite" Part 3: Co-evolving the Universe's Physics.
+    
+    This function has a very small chance to "mutate" the fundamental
+    archetypes in the CHEMICAL_BASES_REGISTRY. This makes the
+    very "physics" of what life *can* be co-evolve with the life itself.
+    """
+    if random.random() < settings.get('physics_drift_rate', 0.001):
+        
+        # Pick a random base to mutate
+        try:
+            base_name, base_template = random.choice(list(CHEMICAL_BASES_REGISTRY.items()))
+        except IndexError:
+            return # Registry is empty, shouldn't happen
+            
+        # Pick a random property to mutate
+        prop_to_mutate = random.choice(list(base_template.keys()))
+        
+        drift_magnitude = np.random.normal(0, 0.05) # Small drift
+        
+        if prop_to_mutate.endswith('_range'):
+            # Mutate a range tuple, e.g., 'mass_range': (0.5, 1.5)
+            # We'll just drift the midpoint and keep the interval
+            try:
+                min_val, max_val = base_template[prop_to_mutate]
+                mid_point = (min_val + max_val) / 2
+                interval = (max_val - min_val)
+                
+                # Apply drift relative to the midpoint
+                new_mid_point = mid_point + (drift_magnitude * mid_point)
+                new_min = max(0.01, new_mid_point - interval/2) # Don't go below zero
+                new_max = new_min + interval
+                
+                base_template[prop_to_mutate] = (new_min, new_max)
+            except Exception:
+                pass # Fail silently if it's not a (min, max) tuple
+                
+        elif prop_to_mutate.endswith('_bias'):
+            # Mutate a bias float, e.g., 'photosynthesis_bias': 0.3
+            try:
+                current_bias = base_template[prop_to_mutate]
+                new_bias = current_bias + drift_magnitude
+                base_template[prop_to_mutate] = new_bias
+            except Exception:
+                pass # Fail silently if not a float
+        
+        if drift_magnitude != 0:
+            st.toast(f"🌌 Physics Drift! Archetype '{base_name}' property '{prop_to_mutate}' has mutated.", icon="🌀")
+
 # ========================================================
 #
 # PART 6: VISUALIZATION (THE "VIEWSCREEN")
@@ -1723,6 +1775,12 @@ def main():
         s['hyper_mutation_rate'] = st.slider("Meta-Mutation Rate", 0.0, 0.2, s.get('hyper_mutation_rate', 0.05), 0.01)
         s['enable_genetic_code_evolution'] = st.checkbox("Enable Genetic Code Evolution", s.get('enable_genetic_code_evolution', False), help="Allow invention of new *types* of rules and conditions.")
         s['enable_objective_evolution'] = st.checkbox("Enable Objective Evolution (Autotelic)", s.get('enable_objective_evolution', False), help="Allow organisms to evolve their *own* fitness goals.")
+        # --- ADD THESE LINES ---
+        st.markdown("---")
+        st.markdown("**THE TRUE INFINITE:** Evolve the laws of physics.")
+        s['enable_physics_drift'] = st.checkbox("Enable Physics Co-evolution", s.get('enable_physics_drift', False), help="Allow the archetypes in the CHEMICAL_BASES_REGISTRY to 'mutate' over time.")
+        s['physics_drift_rate'] = st.slider("Physics Drift Rate", 0.0, 0.01, s.get('physics_drift_rate', 0.001), 0.0001, help="Per-generation chance of a random physical archetype mutating.")
+        # --- END OF ADDITION ---
 
     with st.sidebar.expander("♾️ Deep Evolutionary Physics & Information Dynamics (EXPANDED)", expanded=False):
         st.markdown("**THEORETICAL APEX:** Model deep physical and informational principles.")
@@ -2187,6 +2245,11 @@ def main():
 
             # --- 7. NEW 2.0: Meta-Innovation ---
             meta_innovate_condition_source(s)
+
+            # "Truly Infinite" Physics Drift
+            if s.get('enable_physics_drift', False):
+                apply_physics_drift(s)
+            # --- END OF ADDITION ---
                 
             # --- 8. Archive Pruning ---
             max_archive = s.get('max_archive_size', 10000)
