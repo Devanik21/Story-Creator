@@ -2508,18 +2508,15 @@ def main():
                         st.metric("Fitness", f"{specimen.fitness:.4f}")
                         st.metric("Cell Count", f"{specimen.cell_count}")
 
-                        fig = visualize_phenotype_2d(phenotype, vis_grid)
-                        st.plotly_chart(fig, use_container_width=True, key=f"pheno_vis_{i}")
                         # --- Main Visualization ---
                         fig_pheno = visualize_phenotype_2d(phenotype, vis_grid)
-                        st.plotly_chart(fig_pheno, use_container_width=True, key=f"pheno_vis_{i}")
+                        st.plotly_chart(fig_pheno, use_container_width=True, key=f"viewer_pheno_{i}")
 
-                        st.markdown("##### **Component Composition**")
                         # --- NEW VISUALIZATIONS ---
                         fig_morpho = visualize_morphogenesis(phenotype, vis_grid)
-                        st.plotly_chart(fig_morpho, use_container_width=True, key=f"morpho_vis_{i}")
+                        st.plotly_chart(fig_morpho, use_container_width=True, key=f"viewer_morpho_{i}")
                         fig_metab = visualize_metabolism(phenotype, vis_grid)
-                        st.plotly_chart(fig_metab, use_container_width=True, key=f"metab_vis_{i}")
+                        st.plotly_chart(fig_metab, use_container_width=True, key=f"viewer_metab_{i}")
 
                         st.markdown("##### **Analysis**")
                         component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
