@@ -1460,10 +1460,7 @@ def main():
             'history': st.session_state.history,
             'evolutionary_metrics': st.session_state.evolutionary_metrics,
         }
-        if results_table.get(doc_id=1):
-        results_table.update(results_to_save, doc_ids=[1])
-        else:
-        results_table.insert(results_to_save) # This will get doc_id=1 if the table is empty
+        results_table.upsert(results_to_save, doc_id=1)
         
 
     # ===============================================
