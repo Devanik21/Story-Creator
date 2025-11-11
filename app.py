@@ -1574,7 +1574,12 @@ def main():
                             st.markdown("##### **Genetic Code: Rules (The 'Grammar')**")
                             rule_data = []
                             for rule in individual.rule_genes:
-                                conds = " AND ".join([f"{c['source']} {c['operator']} {c['target_value']:.1f}" for c in rule.conditions])
+                                cond_parts = []
+                                for c in rule.conditions:
+                                    target_val = c['target_value']
+                                    val_str = f"{target_val:.1f}" if isinstance(target_val, (int, float)) else str(target_val)
+                                    cond_parts.append(f"{c['source']} {c['operator']} {val_str}")
+                                conds = " AND ".join(cond_parts)
                                 act = f"{rule.action_type}({rule.action_param})"
                                 rule_data.append(f"IF [{conds}] THEN {act} (P={rule.probability:.2f})")
                             st.json(rule_data)
