@@ -1636,24 +1636,65 @@ def main():
                 
                 cols = st.columns(len(top_specimens))
                 for i, specimen in enumerate(top_specimens):
-                    with cols[i]:
+                    with cols[i], st.spinner(f"Growing specimen {i+1}..."):
+                        # We need to re-run development to visualize it
+                        vis_grid = UniverseGrid(s)
+                        phenotype = Phenotype(specimen, vis_grid, s)
+
                         st.markdown(f"**Rank {i+1} (Gen {specimen.generation})**")
                         st.metric("Fitness", f"{specimen.fitness:.4f}")
                         st.metric("Cell Count", f"{specimen.cell_count}")
-                        
-                        # We need to re-run development to visualize it
-                        with st.spinner(f"Growing specimen {i+1}..."):
-                            vis_grid = UniverseGrid(s)
-                            phenotype = Phenotype(specimen, vis_grid, s)
-                            fig = visualize_phenotype_2d(phenotype, vis_grid)
-                            st.plotly_chart(fig, width='stretch', key=f"pheno_vis_{i}")
+
+                        fig = visualize_phenotype_2d(phenotype, vis_grid)
+                        st.plotly_chart(fig, use_container_width=True, key=f"pheno_vis_{i}")
+
+                        st.markdown("##### **Component Composition**")
+                        component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
+                        if component_counts:
+                            comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
+                            comp_df = comp_df.rename(columns={'index': 'Component'})
+                            color_map = {c.name: c.color for c in specimen.component_genes.values()}
+                            fig_pie = px.pie(comp_df, values='Count', names='Component', 
+                                             color='Component', color_discrete_map=color_map)
+                            fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
+                            st.plotly_chart(fig_pie, use_container_width=True, key=f"pheno_pie_{i}")
+                        else:
+                            st.info("No cells to analyze.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN)**")
+                        G = nx.DiGraph()
+                        for comp_name, comp_gene in specimen.component_genes.items():
+                            G.add_node(comp_name, type='component', color=comp_gene.color)
+                        for rule in specimen.rule_genes:
+                            action_node = f"{rule.action_type}\n({rule.action_param})"
+                            G.add_node(action_node, type='action', color='#FFB347') # Orange for actions
+                            G.add_edge(list(specimen.component_genes.keys())[0], action_node, label=f"P={rule.probability:.1f}") # Simplified source
+                            G.add_edge(action_node, rule.action_param)
+
+                        if G.nodes:
+                            fig_grn, ax = plt.subplots(figsize=(4, 3))
+                            pos = nx.spring_layout(G, k=0.9, seed=42)
+                            node_colors = [data['color'] for _, data in G.nodes(data=True)]
+                            nx.draw(G, pos, ax=ax, with_labels=True, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                            st.pyplot(fig_grn, key=f"pheno_grn_{i}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Evolved Objectives**")
+                        if specimen.objective_weights:
+                            obj_df = pd.DataFrame.from_dict(specimen.objective_weights, orient='index', columns=['Weight']).reset_index()
+                            obj_df = obj_df.rename(columns={'index': 'Objective'})
+                            fig_bar = px.bar(obj_df, x='Objective', y='Weight', color='Objective')
+                            fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
+                            st.plotly_chart(fig_bar, use_container_width=True, key=f"pheno_bar_{i}")
+                        else:
+                            st.info("Global objectives are in use.")
             else:
                 st.warning("No population data available to view specimens. Run an evolution.")
 
         with tab_elites:
             st.header("🧬 Elite Lineage Analysis")
             st.markdown("A deep dive into the 'DNA' of the most successful organisms. Each rank displays the best organism from a unique Kingdom, showcasing the diversity of life that has evolved.")
-            
             if population:
                 # --- Corrected Unique Ranks Logic ---
                 # 1. Sort the population by fitness to ensure we process the best organisms first.
