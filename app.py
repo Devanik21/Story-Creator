@@ -588,6 +588,11 @@ def main():
         
         # Initialization
         if 'population' not in st.session_state:
+            # It's good practice to initialize all related session state keys together.
+            # This prevents errors if functions are called in an unexpected order.
+            st.session_state.population = [initialize_lifeform() for _ in range(population_size)]
+            st.session_state.history = []
+            st.session_state.organ_types = [o.organ_type for o in initialize_lifeform().organs]
             st.session_state.population = [initialize_lifeform() for _ in range(population_size)]
             st.session_state.history = []
 
@@ -598,6 +603,10 @@ def main():
         for gen in range(num_generations):
             status_placeholder.markdown(f"### Generation {gen+1}/{num_generations}...")
             
+            # Defensive check inside the loop as well, in case of app re-runs or state loss.
+            if 'population' not in st.session_state or not st.session_state.population:
+                st.warning(f"Population lost at generation {gen}. Re-initializing.")
+                st.session_state.population = [initialize_lifeform() for _ in range(population_size)]
             population = st.session_state.population
             
             # 1. Survival Simulation (Fitness Evaluation)
