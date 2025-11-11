@@ -1,3 +1,10 @@
 streamlit
 google-generativeai
 pyperclip
+streamlit
+numpy
+pandas
+plotly
+scipy
+networkx
+tinydb
