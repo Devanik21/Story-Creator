@@ -1491,6 +1491,10 @@ def main():
     universe_presets_table = db.table('universe_presets') # For "Personal Universe"
 
     # --- Load previous state (Reused from GENEVO) ---
+    # NEW 2.0: Initialize universe_presets if it doesn't exist.
+    if 'universe_presets' not in st.session_state:
+        st.session_state.universe_presets = {doc['name']: doc['settings'] for doc in universe_presets_table.all()}
+
     if 'state_loaded' not in st.session_state:
         saved_settings = settings_table.get(doc_id=1)
         st.session_state.settings = saved_settings if saved_settings else {}
@@ -1507,7 +1511,7 @@ def main():
             st.session_state.current_population = None
             
         # NEW 2.0: Load universe presets
-        st.session_state.universe_presets = {doc['name']: doc['settings'] for doc in universe_presets_table.all()}
+        # This is now handled by the initialization check above to prevent race conditions.
         
         st.session_state.state_loaded = True
 
