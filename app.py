@@ -1185,6 +1185,9 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
         action_param = f"state_{random.randint(0,2)}"
     elif action_type == "TRANSFER_ENERGY":
         action_param = "NEIGHBORS"
+
+    action_value = random.random() * 5.0
+    
     elif action_type in ['SET_TIMER', 'MODIFY_TIMER']:
         action_param = random.choice(['pulse_A', 'pulse_B', 'phase_C']) # Give it some timer names
         if action_type == 'SET_TIMER':
@@ -1196,7 +1199,7 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
         conditions=conditions,
         action_type=action_type,
         action_param=action_param,
-        action_value=random.random() * 5.0, # e.g., energy to transfer, value to set
+        action_value=action_value, # e.g., energy to transfer, value to set
         priority=random.randint(0, 10)
     )
 
