@@ -141,6 +141,10 @@ class Genotype:
     # These can be evolved if s['enable_hyperparameter_evolution'] is True
     evolvable_mutation_rate: float = 0.2
     evolvable_innovation_rate: float = 0.05
+    
+    # --- Autotelic Evolution (Evolvable Objectives) ---
+    # These can be evolved if s['enable_objective_evolution'] is True
+    objective_weights: Dict[str, float] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.lineage_id:
@@ -157,7 +161,8 @@ class Genotype:
             parent_ids=[self.id],
             kingdom_id=self.kingdom_id,
             evolvable_mutation_rate=self.evolvable_mutation_rate,
-            evolvable_innovation_rate=self.evolvable_innovation_rate
+            evolvable_innovation_rate=self.evolvable_innovation_rate,
+            objective_weights=self.objective_weights.copy()
         )
         return new_genotype
     
@@ -602,10 +607,21 @@ def get_primordial_soup_genotype() -> Genotype:
         )
     ]
     
+    # --- Initialize Evolvable Objectives ---
+    # If autotelic evolution is enabled, the organism gets its own set of goals.
+    # Otherwise, the dict is empty and the global settings are used.
+    objective_weights = {
+        'w_lifespan': 0.4,
+        'w_efficiency': 0.3,
+        'w_reproduction': 0.3,
+        'w_complexity_pressure': 0.0,
+    }
+
     return Genotype(
         component_genes=components,
         rule_genes=rules,
-        kingdom_id=comp_struct.name
+        kingdom_id=comp_struct.name,
+        objective_weights=objective_weights
     )
 
 def evaluate_fitness(genotype: Genotype, grid: UniverseGrid, settings: Dict) -> float:
@@ -636,6 +652,13 @@ def evaluate_fitness(genotype: Genotype, grid: UniverseGrid, settings: Dict) -> 
     
     # --- 3. Calculate Fitness Components ---
     
+    # --- Use organism's own objectives if autotelic evolution is enabled ---
+    if settings.get('enable_objective_evolution', False) and genotype.objective_weights:
+        weights = genotype.objective_weights
+    else:
+        # Fallback to global settings
+        weights = settings
+
     # --- Base Fitness: Energy Efficiency & Longevity ---
     total_cost = organism.genotype.energy_consumption
     if total_cost == 0: total_cost = 1.0
@@ -643,17 +666,17 @@ def evaluate_fitness(genotype: Genotype, grid: UniverseGrid, settings: Dict) -> 
     energy_efficiency = total_energy_gathered / (total_cost * lifespan + 1.0)
     lifespan_score = lifespan / max_lifespan
     
-    base_fitness = (lifespan_score * 0.7) + (energy_efficiency * 0.3)
+    base_fitness = (lifespan_score * weights.get('w_lifespan', 0.4)) + (energy_efficiency * weights.get('w_efficiency', 0.3))
     
     # --- Reproduction Bonus ---
     repro_bonus = 0.0
     repro_threshold = settings.get('reproduction_energy_threshold', 50.0)
     if organism.total_energy > repro_threshold:
-        repro_bonus = settings.get('reproduction_bonus', 0.5) * (organism.total_energy / repro_threshold)
+        repro_bonus = weights.get('w_reproduction', 0.3) * (organism.total_energy / repro_threshold)
         
     # --- Complexity Pressure (from settings) ---
     complexity = genotype.compute_complexity()
-    complexity_pressure = settings.get('w_complexity_pressure', 0.0)
+    complexity_pressure = weights.get('w_complexity_pressure', 0.0)
     complexity_score = complexity * complexity_pressure
     
     # --- Final Fitness ---
@@ -722,6 +745,16 @@ def mutate(genotype: Genotype, settings: Dict) -> Genotype:
         if random.random() < hyper_mut_rate and 'innovation_rate' in settings.get('evolvable_params', []):
             mutated.evolvable_innovation_rate = np.clip(mutated.evolvable_innovation_rate * np.random.lognormal(0, 0.1), 0.01, 0.5)
 
+    # --- 5. Objective Mutation (Evolving the Goal Itself) ---
+    if settings.get('enable_objective_evolution', False):
+        hyper_mut_rate = settings.get('hyper_mutation_rate', 0.05) # Reuse meta-mutation rate
+        if random.random() < hyper_mut_rate:
+            # Pick a random objective to mutate
+            objective_to_change = random.choice(list(mutated.objective_weights.keys()))
+            # Mutate it slightly
+            current_val = mutated.objective_weights[objective_to_change]
+            mutated.objective_weights[objective_to_change] = current_val + np.random.normal(0, 0.05)
+            # (No clipping here to allow for negative weights, which can be interesting)
 
     mutated.complexity = mutated.compute_complexity()
     mutated.update_kingdom() # Update kingdom in case dominant component changed
