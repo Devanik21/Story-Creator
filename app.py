@@ -652,3 +652,7 @@ def main():
                         st.metric("Mobility", f"{lifeform.mobility:.2f}")
     else:
         st.info("Set the fundamental constants of your universe in the sidebar and click 'RUN SIMULATION' to begin the emergence of life.")
+
+
+if __name__ == "__main__":
+    main()
