@@ -2250,6 +2250,7 @@ def main():
 
         # --- Initialize Universe Grid ---
         universe_grid = UniverseGrid(s)
+        st.session_state.universe_grid = universe_grid # Store in session state
         
         # --- Evolution Loop ---
         progress_container = st.empty()
@@ -2802,4 +2803,4 @@ if __name__ == "__main__":
     # Set a non-interactive backend for Streamlit
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    main()
+    main() 
