@@ -679,15 +679,17 @@ class Phenotype:
 
     def prune_cell(self, x, y):
         """Removes a single cell from the organism and the grid."""
-        if (x,y) in self.cells:
-            del self.cells[(x,y)]
+        cell_to_prune = self.cells.pop((x, y), None) # Safely get and remove the cell
+
         grid_cell = self.grid.get_cell(x, y)
         if grid_cell:
             grid_cell.organism_id = None
             grid_cell.cell_type = None
+
+        if cell_to_prune:
             # --- NEW 2.1: Niche Construction ---
             # Release the cell's environmental effect into the grid upon death.
-            effect = self.cells[(x,y)].component.environmental_effect
+            effect = cell_to_prune.component.environmental_effect
             if effect:
                 for resource, amount in effect.items():
                     grid_cell.dynamic_resources[resource] = grid_cell.dynamic_resources.get(resource, 0.0) + amount
