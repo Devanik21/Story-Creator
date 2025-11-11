@@ -2029,6 +2029,62 @@ def main():
         s['num_ranks_to_display'] = st.slider("Number of Elite Ranks to Display", 1, 10, s.get('num_ranks_to_display', 3))
         
     st.sidebar.markdown("---")
+    st.sidebar.markdown("---") # --- This is the separator you wanted ---
+
+    with st.sidebar.expander(" New? A Guide to Your Universe", expanded=False):
+        st.markdown(
+            """
+            ### 👋 Welcome, Creator!
+            This panel looks scary, but it's not. Here's all you need to know:
+            
+            1.  **Start Simple:** Don't touch any dials! Just scroll up and press the big **"🚀 IGNITE BIG BANG"** button.
+            2.  **Watch What Happens:** The simulation will run. You'll see graphs appear in the **"📈 Universe Dashboard"** on the main page.
+            3.  **Meet Your Creatures:** Click the **"🔬 Specimen Viewer"** tab to see the little digital organisms that evolved.
+            4.  **Now, Experiment!** Change **just one thing**. Go to "Grid & Resource Distribution," find **"Light Energy Intensity,"** and slide it all the way up.
+            5.  **Ignite Again:** Hit the **"🚀 IGNITE BIG BANG"** button again.
+            
+            That's it! You've learned the core loop: **Tweak, Run, Observe.**
+            """
+        )
+        
+        st.markdown("---") # Separator inside the dropdown
+        
+        st.markdown(
+            """
+            ### ♾️ How to Make This "Truly Infinite"
+            
+            So, you've run a few simulations. You probably see the *same* simple blobs over and over. Your universe found one "good enough" solution and got **boring**.
+            
+            This is called **convergence**. To get "truly infinite" forms, your job is to **fight convergence** and **reward novelty.**
+            
+            Here are the most powerful "anti-boring" tools in your God-Panel:
+            
+            1.  **The Problem:** Your universe is too safe. A simple, 5-cell blob is the *best* at surviving. It has no reason to invent eyes, brains, or wings.
+            
+            2.  **Tool 1: The "Parasite" (Enable Red Queen):**
+                * This is your #1 weapon. It creates a digital "parasite" that actively **hunts the most common lifeform.** Suddenly, being a simple, common blob is a death sentence. It forces life to constantly change.
+            
+            3.  **Tool 2: The "Asteroid" (Enable Cataclysms):**
+                * This wipes out 90% of the dominant life. It's a "reset" that gives the weird, experimental survivors a chance to take over the empty world.
+            
+            4.  **Tool 3: The "Spark of Genius" (Increase Innovation Rates):**
+                * `component_innovation_rate` lets life invent **new body parts** (like Silicon shells or Plasma engines).
+                * `meta_innovation_rate` lets life invent **new senses** (like sensing heat or complexity).
+            
+            5.  **Tool 4: The "Why?" (Add Complexity Pressure):**
+                * Why build a complex brain if a simple blob works? `w_complexity_pressure` gives a direct **fitness bonus for being complex.** You are *literally* paying your organisms to evolve brains.
+            
+            6.  **The Ultimate Trick: (Enable Physics Drift):**
+                * This is the craziest, most "infinite" tool. It **slowly mutates the laws of physics** over eons. Life can *never* find one perfect solution. It is forced to adapt... forever.
+            """
+        )
+
+    st.sidebar.markdown("---") # Add another separator before the main buttons
+    
+    # --- END OF ADDED CODE ---
+    
+    # --- Save all settings ---
+    # We must be careful here. s is a reference.
     
     # --- END OF SIDEBAR ---
     
