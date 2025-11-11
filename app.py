@@ -2493,6 +2493,29 @@ def main():
             else:
                 st.warning("No population data available to analyze.")
         
+        st.markdown("---")
+        
+        # --- Download Button ---
+        try:
+            # Prepare data for download
+            download_data = {
+                "settings": st.session_state.settings,
+                "history": st.session_state.history,
+                "evolutionary_metrics": st.session_state.evolutionary_metrics,
+                "final_population_genotypes": [asdict(g) for g in population] if population else []
+            }
+            json_string = json.dumps(download_data, indent=4)
+            
+            st.download_button(
+                label="📥 Download All Results as JSON",
+                data=json_string,
+                file_name=f"universe_results_{s.get('experiment_name', 'run').replace(' ', '_')}.json",
+                mime="application/json",
+                help="Download the settings, full generational history, metrics, and final population genotypes as a single JSON file."
+            )
+        except Exception as e:
+            st.error(f"Could not prepare data for download: {e}")
+        
 if __name__ == "__main__":
     import matplotlib
     # Set a non-interactive backend for Streamlit
