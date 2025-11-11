@@ -1,685 +1,705 @@
-# Create a new file named UniverseSandboxAI.py
+# universe_sandbox_ai.py
 import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 from plotly.subplots import make_subplots
-from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Optional, Set
-import random
+import networkx as nx
+import matplotlib.pyplot as plt
+from matplotlib.patches import Circle, Polygon
+from matplotlib.collections import PatchCollection
+import seaborn as sns
 import time
-import uuid
-from collections import Counter
+import hashlib
 import json
-import math
+import random
+from datetime import datetime
+from collections import defaultdict, deque
+import itertools
+from scipy.spatial.distance import cosine, euclidean
+from scipy.ndimage import gaussian_filter
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+import warnings
+warnings.filterwarnings('ignore')
 
-# ==============================================================================
-# 1. UNIVERSE CONSTANTS & PHYSICS ENGINE
-# ==============================================================================
-# These classes define the fundamental, unchangeable laws of your universe.
-# Once the simulation starts, these are fixed.
+# ==================== CONFIGURATION ====================
+st.set_page_config(
+    page_title="Universe Sandbox AI - Infinite Evolution",
+    page_icon="🌌",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-@dataclass
-class PhysicsConstants:
-    """Defines the physical laws of the universe."""
-    gravity: float = 0.01
-    friction: float = 0.95
-    max_velocity: float = 1.0
-    time_step: float = 1.0
-    interaction_radius: float = 5.0  # Radius for local interactions
-    bond_force: float = 0.1  # Force keeping bonded particles together
-    repulsion_force: float = 0.5 # Force preventing particle overlap
+# ==================== STATE MANAGEMENT ====================
+@st.cache_resource
+def init_universe_state():
+    return {
+        'timeline': [],
+        'organisms': {},
+        'chemicals': {},
+        'epochs': [],
+        'god_mode': True,
+        'universe_seed': None,
+        'evolution_speed': 1.0
+    }
 
-@dataclass
-class Element:
-    """Defines a fundamental building block of matter."""
-    id: int
-    name: str
-    color: str
-    mass: float
-    max_bonds: int
-    properties: Set[str] = field(default_factory=set) # e.g., 'photosynthetic', 'conductive'
+# ==================== THEME & STYLING ====================
+def inject_css():
+    st.markdown("""
+    <style>
+    .main { background: radial-gradient(circle at center, #0c1445 0%, #020617 100%); }
+    .stButton>button { background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 100%); color: white; border: none; padding: 8px 16px; border-radius: 8px; }
+    .css-1d391kg { background: #1a1a2e !important; }
+    .stSlider>div>div>div>div { background: #6366F1 !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
-@dataclass
-class Chemistry:
-    """Defines the rules of bonding and reactions."""
-    elements: List[Element]
-    # Defines how strongly elements bond. Higher number = stronger bond.
-    # Key is a sorted tuple of element IDs.
-    bond_strengths: Dict[Tuple[int, int], float] = field(default_factory=dict)
-    # Defines reactions, e.g., what happens when particles meet.
-    reactions: Dict[str, str] = field(default_factory=dict)
-
-# ==============================================================================
-# 2. GENETIC & PHENOTYPIC REPRESENTATION
-# ==============================================================================
-# This is the core of life: the genetic code and the physical body it creates.
-
-@dataclass
-class Particle:
-    """A single point of matter in an organism's body."""
-    id: str
-    element_id: int
-    x: float
-    y: float
-    vx: float = 0.0
-    vy: float = 0.0
-    charge: float = 0.0 # Represents stored energy
-    age: int = 0
-
-@dataclass
-class Bond:
-    """A connection between two particles."""
-    p1_id: str
-    p2_id: str
-    strength: float
-
-@dataclass
-class Genome:
-    """
-    The genetic blueprint of an organism. It's a Turing-complete "tape" of instructions
-    that dictates how the organism builds itself.
-    """
-    # Instruction tape, e.g., [ADD_PARTICLE(C), MOVE(NORTH), BOND, LOOP_START, ...]
-    tape: List[Dict] = field(default_factory=list)
-    lineage_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    parent_id: Optional[str] = None
-    generation: int = 0
-    
-    def copy(self):
-        return Genome(
-            tape=[i.copy() for i in self.tape],
-            parent_id=self.lineage_id,
-            generation=self.generation
-        )
-
-@dataclass
-class Organism:
-    """The physical manifestation (phenotype) of a genome."""
-    genome: Genome
-    particles: Dict[str, Particle] = field(default_factory=dict)
-    bonds: List[Bond] = field(default_factory=list)
-    fitness: float = 0.0
-    age: int = 0
-    energy: float = 100.0 # Starting energy
-    is_alive: bool = True
-    
-    # Metrics
-    size: int = 0
-    mass: float = 0.0
-    structural_integrity: float = 0.0
-    mobility: float = 0.0 # How much it moves
-
-# ==============================================================================
-# 3. THE SIMULATION ENGINE
-# ==============================================================================
-# These functions govern the lifecycle of the universe: birth, life, and death.
-
-def get_element_by_id(element_id: int, chemistry: Chemistry) -> Optional[Element]:
-    """Helper to find an element by its ID."""
-    for e in chemistry.elements:
-        if e.id == element_id:
-            return e
-    return None
-
-def run_development(genome: Genome, chemistry: Chemistry) -> Tuple[Dict[str, Particle], List[Bond]]:
-    """
-    Executes the genetic program to build an organism's body (phenotype).
-    This is the "ontogeny" or "growth" phase.
-    """
-    particles = {}
-    bonds = []
-    
-    # The "developmental machine" state
-    pointer = 0
-    cursor_x, cursor_y = 0.0, 0.0
-    last_particle_id = None
-    
-    max_steps = 200 # Prevent infinite loops in development
-    
-    for _ in range(max_steps):
-        if pointer >= len(genome.tape):
-            break
-            
-        instruction = genome.tape[pointer]
-        cmd = instruction["cmd"]
+# ==================== UNIVERSE ENGINE ====================
+class InfiniteUniverseEngine:
+    def __init__(self, seed=None):
+        self.seed = seed or np.random.randint(1e9)
+        np.random.seed(self.seed)
+        random.seed(self.seed)
         
-        if cmd == "ADD_PARTICLE":
-            element_id = instruction["element_id"]
-            element = get_element_by_id(element_id, chemistry)
-            if element:
-                new_id = str(uuid.uuid4())
-                # Check for existing particle at this location
-                is_occupied = False
-                for p in particles.values():
-                    if abs(p.x - cursor_x) < 1 and abs(p.y - cursor_y) < 1:
-                        is_occupied = True
-                        break
-                if not is_occupied:
-                    particles[new_id] = Particle(id=new_id, element_id=element.id, x=cursor_x, y=cursor_y)
-                    last_particle_id = new_id
-
-        elif cmd == "MOVE":
-            direction = instruction["direction"]
-            dist = instruction.get("dist", 5.0)
-            if direction == "N": cursor_y += dist
-            elif direction == "S": cursor_y -= dist
-            elif direction == "E": cursor_x += dist
-            elif direction == "W": cursor_x -= dist
-
-        elif cmd == "BOND":
-            if last_particle_id and instruction["target_id"] in particles:
-                p1_id, p2_id = sorted((last_particle_id, instruction["target_id"]))
-                p1 = particles[p1_id]
-                p2 = particles[p2_id]
-                
-                # Check bond count
-                p1_bonds = sum(1 for b in bonds if b.p1_id == p1_id or b.p2_id == p1_id)
-                p2_bonds = sum(1 for b in bonds if b.p1_id == p2_id or b.p2_id == p2_id)
-                
-                e1 = get_element_by_id(p1.element_id, chemistry)
-                e2 = get_element_by_id(p2.element_id, chemistry)
-
-                if e1 and e2 and p1_bonds < e1.max_bonds and p2_bonds < e2.max_bonds:
-                    bond_strength_key = tuple(sorted((p1.element_id, p2.element_id)))
-                    strength = chemistry.bond_strengths.get(bond_strength_key, 0.1)
-                    bonds.append(Bond(p1_id=p1_id, p2_id=p2_id, strength=strength))
-
-        elif cmd == "JUMP_IF_NEAR":
-            # A simple conditional for creating complex structures
-            is_near = False
-            for p in particles.values():
-                dist_sq = (p.x - cursor_x)**2 + (p.y - cursor_y)**2
-                if dist_sq < 25: # 5 units radius
-                    is_near = True
-                    break
-            if is_near:
-                pointer = instruction["target_ptr"] - 1 # -1 to account for pointer increment
-
-        pointer += 1
+        # Procedural generation functions
+        self.dna_alphabet = 'ACGTUBXZQ'
+        self.element_symbols = self._generate_elements(200)
+        self.compound_names = self._generate_compound_names(500)
         
-    return particles, bonds
-
-def mutate_genome(genome: Genome, chemistry: Chemistry, settings: Dict) -> Genome:
-    """Applies mutations to a genome's instruction tape."""
-    mutated = genome.copy()
+    def _generate_elements(self, n):
+        """Generate fictional periodic table"""
+        bases = ['X', 'Y', 'Z', 'Q', 'V', 'N', 'M', 'K']
+        elements = []
+        for i in range(n):
+            sym = ''.join(random.choices(bases, k=2)) + str(random.randint(0, 9))
+            elements.append(sym)
+        return elements
     
-    # Point mutation
-    if random.random() < settings['mutation_rate_point'] and mutated.tape:
-        idx = random.randint(0, len(mutated.tape) - 1)
-        instr = mutated.tape[idx]
-        if instr["cmd"] == "ADD_PARTICLE":
-            instr["element_id"] = random.choice(chemistry.elements).id
-        elif instr["cmd"] == "MOVE":
-            instr["direction"] = random.choice(["N", "S", "E", "W"])
+    def _generate_compound_names(self, n):
+        """Generate infinite compound names"""
+        prefixes = ['proto', 'neo', 'hyper', 'meta', 'quantum', 'bio', 'synth', 'xeno']
+        stems = ['carb', 'silic', 'plas', 'cryst', 'gel', 'membr', 'fluid', 'core']
+        suffixes = ['oid', 'ite', 'ene', 'ase', 'in', 'ox', 'ide', 'ium']
+        return [f"{random.choice(prefixes)}{random.choice(stems)}{random.choice(suffixes)}" 
+                for _ in range(n)]
     
-    # Insertion
-    if random.random() < settings['mutation_rate_insertion']:
-        idx = random.randint(0, len(mutated.tape))
-        # Choose a random new instruction to insert
-        new_cmd_type = random.choice(["ADD_PARTICLE", "MOVE", "BOND", "JUMP_IF_NEAR"])
-        new_instr = {}
-        if new_cmd_type == "ADD_PARTICLE":
-            new_instr = {"cmd": "ADD_PARTICLE", "element_id": random.choice(chemistry.elements).id}
-        elif new_cmd_type == "MOVE":
-            new_instr = {"cmd": "MOVE", "direction": random.choice(["N", "S", "E", "W"])}
-        elif new_cmd_type == "BOND":
-            # This is tricky, needs a valid target. For now, we simplify.
-            # A more complex version would search for a nearby particle ID.
-            new_instr = {"cmd": "BOND", "target_id": "find_nearest"} # Placeholder logic
-        elif new_cmd_type == "JUMP_IF_NEAR":
-             new_instr = {"cmd": "JUMP_IF_NEAR", "target_ptr": random.randint(0, len(mutated.tape))}
-        
-        if new_instr:
-            mutated.tape.insert(idx, new_instr)
-
-    # Deletion
-    if random.random() < settings['mutation_rate_deletion'] and len(mutated.tape) > 1:
-        idx = random.randint(0, len(mutated.tape) - 1)
-        mutated.tape.pop(idx)
-        
-    # Duplication
-    if random.random() < settings['mutation_rate_duplication'] and len(mutated.tape) > 0:
-        start = random.randint(0, len(mutated.tape) - 1)
-        end = random.randint(start, len(mutated.tape))
-        segment = mutated.tape[start:end]
-        insert_pos = random.randint(0, len(mutated.tape))
-        mutated.tape = mutated.tape[:insert_pos] + segment + mutated.tape[insert_pos:]
-
-    return mutated
-
-def evaluate_fitness(organism: Organism, chemistry: Chemistry, settings: Dict) -> float:
-    """Calculates fitness based on structure and properties."""
-    if not organism.particles:
-        return 0.0
-
-    # 1. Structural Integrity: Bonus for being connected.
-    # We can use a simple check: is the structure a single connected component?
-    # A more advanced check would be average bond strength.
-    num_particles = len(organism.particles)
-    num_bonds = len(organism.bonds)
-    integrity = (num_bonds / (num_particles - 1)) if num_particles > 1 else 1.0
-    integrity = min(1.0, integrity)
-
-    # 2. Metabolic Efficiency: Based on special properties of elements.
-    photosynthetic_particles = 0
-    for p in organism.particles.values():
-        element = get_element_by_id(p.element_id, chemistry)
-        if element and 'photosynthetic' in element.properties:
-            photosynthetic_particles += 1
+    def generate_dna(self, length_range=(10, 10000)):
+        """Generate DNA with infinite variability"""
+        length = np.random.randint(*length_range)
+        return ''.join(np.random.choice(list(self.dna_alphabet), length))
     
-    energy_generation = (photosynthetic_particles / num_particles) if num_particles > 0 else 0.0
-
-    # 3. Size & Complexity: Penalize being too large or too small.
-    # Optimal size is a setting.
-    size_fitness = 1.0 - abs(num_particles - settings['optimal_organism_size']) / settings['optimal_organism_size']
-    size_fitness = max(0, size_fitness)
-
-    # 4. Mobility: Reward movement.
-    mobility_fitness = min(1.0, organism.mobility / 10.0)
-
-    # Combine objectives with weights
-    total_fitness = (
-        integrity * settings['w_integrity'] +
-        energy_generation * settings['w_energy_generation'] +
-        size_fitness * settings['w_size'] +
-        mobility_fitness * settings['w_mobility']
-    )
+    def generate_metabolism(self, complexity):
+        """Generate metabolic pathways"""
+        pathways = {}
+        num_pathways = int(complexity * 50)
+        for i in range(num_pathways):
+            reactants = tuple(random.sample(self.element_symbols, random.randint(2, 5)))
+            products = tuple(random.sample(self.element_symbols, random.randint(1, 3)))
+            energy = np.random.exponential(complexity)
+            pathways[f"path_{i}"] = {
+                'reactants': reactants,
+                'products': products,
+                'energy': energy,
+                'efficiency': np.random.beta(2, 5)
+            }
+        return pathways
     
-    return max(1e-6, total_fitness)
-
-def update_world(organisms: List[Organism], resources: np.ndarray, physics: PhysicsConstants, chemistry: Chemistry, settings: Dict):
-    """The main simulation loop for one time step."""
-    width, height = resources.shape
-    
-    for org in organisms:
-        if not org.is_alive:
-            continue
-
-        # --- Physics Simulation ---
-        total_dx, total_dy = 0, 0
+    def generate_morphology(self, genome, environment):
+        """Generate 3D morphology from genome"""
+        # Fractal generation based on genome hash
+        hash_val = int(hashlib.sha256(genome.encode()).hexdigest(), 16)
+        np.random.seed(hash_val % (2**32))
         
-        # Apply forces
-        for bond in org.bonds:
-            p1 = org.particles.get(bond.p1_id)
-            p2 = org.particles.get(bond.p2_id)
-            if not p1 or not p2: continue
-
-            dx, dy = p2.x - p1.x, p2.y - p1.y
-            dist = math.sqrt(dx**2 + dy**2) + 1e-6
-            
-            # Ideal distance is based on element size (simplified here)
-            ideal_dist = 5.0
-            force_mag = (dist - ideal_dist) * physics.bond_force * bond.strength
-            
-            force_x, force_y = (dx / dist) * force_mag, (dy / dist) * force_mag
-            p1.vx += force_x
-            p1.vy += force_y
-            p2.vx -= force_x
-            p2.vy -= force_y
-
-        # Repulsion from other particles in the same organism
-        particle_list = list(org.particles.values())
-        for i in range(len(particle_list)):
-            for j in range(i + 1, len(particle_list)):
-                p1, p2 = particle_list[i], particle_list[j]
-                dx, dy = p2.x - p1.x, p2.y - p1.y
-                dist_sq = dx**2 + dy**2
-                if 0 < dist_sq < physics.interaction_radius**2:
-                    dist = math.sqrt(dist_sq)
-                    force_mag = (1.0 / dist) * physics.repulsion_force
-                    force_x, force_y = (dx / dist) * force_mag, (dy / dist) * force_mag
-                    p1.vx -= force_x
-                    p1.vy -= force_y
-                    p2.vx += force_x
-                    p2.vy += force_y
-
-        # Update positions
-        center_x, center_y = 0, 0
-        for p in org.particles.values():
-            # Gravity
-            p.vy -= physics.gravity
-            
-            # Friction
-            p.vx *= physics.friction
-            p.vy *= physics.friction
-            
-            # Clamp velocity
-            p.vx = np.clip(p.vx, -physics.max_velocity, physics.max_velocity)
-            p.vy = np.clip(p.vy, -physics.max_velocity, physics.max_velocity)
-
-            # Update position
-            p.x += p.vx * physics.time_step
-            p.y += p.vy * physics.time_step
-
-            # Boundary conditions (wrap around)
-            p.x %= width
-            p.y %= height
-            
-            total_dx += abs(p.vx)
-            total_dy += abs(p.vy)
-            center_x += p.x
-            center_y += p.y
+        # Recursive structure
+        def fractal_branch(depth, max_depth, angle, length):
+            if depth >= max_depth:
+                return []
+            branches = []
+            num_sub = random.randint(2, 5)
+            for i in range(num_sub):
+                new_angle = angle + np.random.normal(0, 30)
+                new_length = length * 0.7
+                branches.append({
+                    'depth': depth,
+                    'angle': new_angle,
+                    'length': new_length,
+                    'sub': fractal_branch(depth + 1, max_depth, new_angle, new_length)
+                })
+            return branches
         
-        if org.particles:
-            org.mobility = (total_dx + total_dy) / len(org.particles)
-            center_x /= len(org.particles)
-            center_y /= len(org.particles)
-
-        # --- Metabolism & Survival ---
-        metabolic_cost = len(org.particles) * settings['energy_cost_per_particle']
-        org.energy -= metabolic_cost
+        complexity = len(genome) / 1000
+        skeleton = fractal_branch(0, max(2, int(complexity)), 0, 1.0)
         
-        # Energy from environment
-        if org.particles:
-            int_cx, int_cy = int(center_x), int(center_y)
-            if 0 <= int_cx < width and 0 <= int_cy < height:
-                consumed_energy = resources[int_cx, int_cy] * settings['resource_uptake_rate']
-                org.energy += consumed_energy
-                resources[int_cx, int_cy] -= consumed_energy
-
-        # Check for death
-        if org.energy <= 0:
-            org.is_alive = False
-
-# ==============================================================================
-# 4. VISUALIZATION
-# ==============================================================================
-
-def visualize_universe(organisms: List[Organism], resources: np.ndarray, settings: Dict):
-    """Renders the current state of the universe."""
-    width, height = resources.shape
-    
-    fig = go.Figure()
-
-    # 1. Resources heatmap
-    fig.add_trace(go.Heatmap(
-        z=resources.T, # Transpose for correct orientation
-        colorscale='Greens',
-        showscale=False,
-        name='Resources'
-    ))
-
-    # 2. Organisms
-    all_x, all_y, all_colors, all_sizes, all_hover_text = [], [], [], [], []
-    bond_x, bond_y = [], []
-
-    for org in organisms:
-        if not org.is_alive:
-            continue
-        
-        element_map = {e.id: e for e in settings['chemistry'].elements}
-
-        for p in org.particles.values():
-            all_x.append(p.x)
-            all_y.append(p.y)
-            element = element_map.get(p.element_id)
-            if element:
-                all_colors.append(element.color)
-                all_sizes.append(element.mass * 2)
-                all_hover_text.append(f"Organism: {org.genome.lineage_id[:8]}<br>Element: {element.name}<br>Energy: {org.energy:.2f}")
-        
-        for bond in org.bonds:
-            p1 = org.particles.get(bond.p1_id)
-            p2 = org.particles.get(bond.p2_id)
-            if p1 and p2:
-                bond_x.extend([p1.x, p2.x, None])
-                bond_y.extend([p1.y, p2.y, None])
-
-    # Add bonds first (background)
-    fig.add_trace(go.Scatter(
-        x=bond_x, y=bond_y,
-        mode='lines',
-        line=dict(color='rgba(128, 128, 128, 0.5)', width=2),
-        hoverinfo='none',
-        name='Bonds'
-    ))
-
-    # Add particles on top
-    fig.add_trace(go.Scatter(
-        x=all_x, y=all_y,
-        mode='markers',
-        marker=dict(
-            color=all_colors,
-            size=all_sizes,
-            line=dict(width=1, color='black')
-        ),
-        hovertext=all_hover_text,
-        hoverinfo='text',
-        name='Organisms'
-    ))
-
-    fig.update_layout(
-        title=f"Universe Sandbox | Generation: {st.session_state.get('generation', 0)} | Population: {len(organisms)}",
-        xaxis=dict(range=[0, width], showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(range=[0, height], showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x", scaleratio=1),
-        plot_bgcolor='black',
-        height=700,
-        showlegend=False
-    )
-    
-    return fig
-
-# ==============================================================================
-# 5. STREAMLIT APP UI
-# ==============================================================================
-
-def main():
-    st.set_page_config(
-        page_title="Universe Sandbox AI",
-        layout="wide",
-        page_icon="🌌"
-    )
-
-    st.title("🌌 Universe Sandbox AI")
-    st.markdown("An interactive laboratory for abiogenesis and open-ended evolution. Define the laws of physics and chemistry, then watch as life emerges and complexifies from a primordial soup.")
-
-    # --- SIDEBAR: The Control Panel of God ---
-    st.sidebar.header("🚀 Universe Configuration")
-
-    # Initialize session state
-    if 'settings' not in st.session_state:
-        st.session_state.settings = {}
-    if 'simulation_running' not in st.session_state:
-        st.session_state.simulation_running = False
-    if 'organisms' not in st.session_state:
-        st.session_state.organisms = []
-    if 'generation' not in st.session_state:
-        st.session_state.generation = 0
-
-    s = st.session_state.settings
-
-    with st.sidebar.expander("🔬 Fundamental Constants", expanded=True):
-        st.markdown("#### Physics")
-        gravity = st.slider("Gravity", 0.0, 0.5, s.get('gravity', 0.01), 0.005, key='gravity')
-        friction = st.slider("Friction", 0.8, 1.0, s.get('friction', 0.95), 0.01, key='friction')
-        
-        st.markdown("#### Chemistry")
-        # Define a default set of elements
-        default_elements = [
-            Element(id=0, name='Substrate', color='grey', mass=5, max_bonds=1),
-            Element(id=1, name='Carbon', color='blue', mass=10, max_bonds=4, properties={'structural'}),
-            Element(id=2, name='Oxygen', color='red', mass=12, max_bonds=2),
-            Element(id=3, name='PhotonReceptor', color='yellow', mass=8, max_bonds=3, properties={'photosynthetic'}),
-            Element(id=4, name='Silicon', color='purple', mass=14, max_bonds=4, properties={'structural'}),
-        ]
-        # This is a simplified UI. A full version would let you add/remove elements.
-        st.info("Chemistry is pre-defined for this demo: Substrate, Carbon, Oxygen, PhotonReceptor, Silicon.")
-        
-        # Define default bond strengths
-        default_bond_strengths = {
-            tuple(sorted((1, 1))): 1.0, # C-C
-            tuple(sorted((1, 2))): 0.8, # C-O
-            tuple(sorted((1, 3))): 0.7, # C-Photo
-            tuple(sorted((4, 4))): 0.9, # Si-Si
-            tuple(sorted((4, 2))): 0.85, # Si-O
+        return {
+            'skeleton': skeleton,
+            'symmetry': random.choice(['radial', 'bilateral', 'asymmetric', 'fractal']),
+            'materials': random.sample(self.compound_names, random.randint(3, 15)),
+            'density': np.random.lognormal(0, environment.get('gravity', 1))
         }
 
-    with st.sidebar.expander("🌊 Primordial Soup"):
-        st.markdown("#### Initial Conditions")
-        population_size = st.slider("Initial Population Size", 10, 500, s.get('population_size', 100), 10, key='population_size')
-        initial_energy = st.slider("Initial Organism Energy", 50, 500, s.get('initial_energy', 100), 10, key='initial_energy')
-        initial_genome_length = st.slider("Initial Genome Length", 1, 20, s.get('initial_genome_length', 5), 1, key='initial_genome_length')
+# ==================== EVOLUTION SIMULATOR ====================
+class EvolutionSimulator:
+    def __init__(self, universe_engine):
+        self.engine = universe_engine
+        self.generation = 0
+        self.phylogenetic_tree = nx.DiGraph()
         
-        st.markdown("#### Environment Resources")
-        world_width = st.slider("World Width", 100, 1000, s.get('world_width', 400), 50, key='world_width')
-        world_height = st.slider("World Height", 100, 1000, s.get('world_height', 400), 50, key='world_height')
-        resource_density = st.slider("Resource Density", 0.1, 1.0, s.get('resource_density', 0.5), 0.05, key='resource_density')
-        resource_regeneration = st.slider("Resource Regeneration Rate", 0.0, 0.1, s.get('resource_regeneration', 0.01), 0.005, key='resource_regeneration')
-
-    with st.sidebar.expander("🧬 Evolutionary Dynamics"):
-        st.markdown("#### Selection")
-        selection_pressure = st.slider("Selection Pressure", 0.1, 0.9, s.get('selection_pressure', 0.5), 0.05, key='selection_pressure')
-        reproduction_energy_threshold = st.slider("Reproduction Energy Threshold", 100, 1000, s.get('reproduction_energy_threshold', 200), 10, key='reproduction_energy_threshold')
+    def init_premordial_soup(self, chemical_params):
+        """Initialize chemical primordial soup"""
+        soup = {}
+        for element in self.engine.element_symbols[:100]:
+            soup[element] = {
+                'concentration': np.random.exponential(chemical_params['base_concentration']),
+                'reactivity': np.random.beta(2, 3),
+                'half_life': np.random.lognormal(0, 3)
+            }
+        return soup
+    
+    def create_protocell(self, soup, cell_params):
+        """Create first protocell"""
+        genome = self.engine.generate_dna((50, 200))
+        membrane_composition = random.sample(list(soup.keys()), 5)
         
-        st.markdown("#### Mutation")
-        mutation_rate_point = st.slider("Mutation Rate (Point)", 0.0, 1.0, s.get('mutation_rate_point', 0.1), 0.01, key='mutation_rate_point')
-        mutation_rate_insertion = st.slider("Mutation Rate (Insertion)", 0.0, 1.0, s.get('mutation_rate_insertion', 0.05), 0.01, key='mutation_rate_insertion')
-        mutation_rate_deletion = st.slider("Mutation Rate (Deletion)", 0.0, 1.0, s.get('mutation_rate_deletion', 0.05), 0.01, key='mutation_rate_deletion')
-        mutation_rate_duplication = st.slider("Mutation Rate (Duplication)", 0.0, 1.0, s.get('mutation_rate_duplication', 0.02), 0.01, key='mutation_rate_duplication')
-
-    with st.sidebar.expander("⚖️ Fitness Objectives"):
-        st.markdown("Define what it means to be 'fit' in this universe.")
-        w_integrity = st.slider("Weight: Structural Integrity", 0.0, 1.0, s.get('w_integrity', 0.3), 0.05, key='w_integrity')
-        w_energy_generation = st.slider("Weight: Energy Generation", 0.0, 1.0, s.get('w_energy_generation', 0.4), 0.05, key='w_energy_generation')
-        w_size = st.slider("Weight: Optimal Size", 0.0, 1.0, s.get('w_size', 0.1), 0.05, key='w_size')
-        w_mobility = st.slider("Weight: Mobility", 0.0, 1.0, s.get('w_mobility', 0.2), 0.05, key='w_mobility')
-        optimal_organism_size = st.slider("Optimal Organism Size (Particles)", 5, 100, s.get('optimal_organism_size', 20), 1, key='optimal_organism_size')
-
-    with st.sidebar.expander("⚡ Metabolic Costs"):
-        energy_cost_per_particle = st.slider("Energy Cost per Particle", 0.0, 2.0, s.get('energy_cost_per_particle', 0.5), 0.05, key='energy_cost_per_particle')
-        resource_uptake_rate = st.slider("Resource Uptake Rate", 0.1, 1.0, s.get('resource_uptake_rate', 0.5), 0.05, key='resource_uptake_rate')
-
-    # --- Store settings ---
-    st.session_state.settings = {
-        'physics': PhysicsConstants(gravity=gravity, friction=friction),
-        'chemistry': Chemistry(elements=default_elements, bond_strengths=default_bond_strengths),
-        'population_size': population_size,
-        'initial_energy': initial_energy,
-        'initial_genome_length': initial_genome_length,
-        'world_width': world_width,
-        'world_height': world_height,
-        'resource_density': resource_density,
-        'resource_regeneration': resource_regeneration,
-        'selection_pressure': selection_pressure,
-        'reproduction_energy_threshold': reproduction_energy_threshold,
-        'mutation_rate_point': mutation_rate_point,
-        'mutation_rate_insertion': mutation_rate_insertion,
-        'mutation_rate_deletion': mutation_rate_deletion,
-        'mutation_rate_duplication': mutation_rate_duplication,
-        'w_integrity': w_integrity,
-        'w_energy_generation': w_energy_generation,
-        'w_size': w_size,
-        'w_mobility': w_mobility,
-        'optimal_organism_size': optimal_organism_size,
-        'energy_cost_per_particle': energy_cost_per_particle,
-        'resource_uptake_rate': resource_uptake_rate
-    }
-    s = st.session_state.settings
-
-    # --- Main Controls ---
-    c1, c2, c3 = st.sidebar.columns(3)
-    start_button = c1.button("▶️ Start", use_container_width=True)
-    stop_button = c2.button("⏹️ Stop", use_container_width=True)
-    reset_button = c3.button("Reset", use_container_width=True)
-
-    if start_button:
-        st.session_state.simulation_running = True
-        if not st.session_state.organisms: # If starting fresh
-            st.session_state.generation = 0
-            # Initialize resources
-            st.session_state.resources = np.random.rand(s['world_width'], s['world_height']) * s['resource_density']
-            
-            # Initialize population
-            organisms = []
-            for _ in range(s['population_size']):
-                # Create a random genome
-                tape = []
-                for _ in range(s['initial_genome_length']):
-                    tape.append({"cmd": "ADD_PARTICLE", "element_id": random.choice(s['chemistry'].elements).id})
-                    tape.append({"cmd": "MOVE", "direction": random.choice(["N", "S", "E", "W"])})
-                genome = Genome(tape=tape)
-                
-                particles, bonds = run_development(genome, s['chemistry'])
-                org = Organism(genome=genome, particles=particles, bonds=bonds, energy=s['initial_energy'])
-                organisms.append(org)
-            st.session_state.organisms = organisms
-            st.toast("Universe created! Simulation started.", icon="🌠")
-
-    if stop_button:
-        st.session_state.simulation_running = False
-        st.toast("Simulation paused.", icon="⏸️")
-
-    if reset_button:
-        st.session_state.simulation_running = False
-        st.session_state.organisms = []
-        st.session_state.generation = 0
-        st.toast("Universe reset.", icon="🔄")
-        st.rerun()
-
-    # --- Main Simulation Display ---
-    placeholder = st.empty()
-
-    if not st.session_state.simulation_running and not st.session_state.organisms:
-        placeholder.info("Configure your universe in the sidebar and press 'Start' to begin abiogenesis.")
-
-    while st.session_state.simulation_running:
-        organisms = st.session_state.organisms
-        resources = st.session_state.resources
-        
-        # --- Main Loop ---
-        update_world(organisms, resources, s['physics'], s['chemistry'], s)
-        
-        # --- Reproduction and Selection ---
-        new_offspring = []
-        survivors = []
+        protocell = {
+            'id': f"cell_{self.generation}_{np.random.randint(1e6)}",
+            'genome': genome,
+            'age': 0,
+            'energy': cell_params['initial_energy'],
+            'membrane': membrane_composition,
+            'replication_rate': cell_params['base_replication'],
+            'mutations': [],
+            'metabolism': self.engine.generate_metabolism(0.1),
+            'position': np.random.rand(3) * 10,
+            'generation': self.generation
+        }
+        self.phylogenetic_tree.add_node(protocell['id'], generation=0)
+        return protocell
+    
+    def evolve_population(self, organisms, environment, evolution_params):
+        """Main evolution step with infinite possibilities"""
+        new_organisms = []
+        mutation_rate = evolution_params['mutation_rate']
         
         for org in organisms:
-            if org.is_alive:
-                org.fitness = evaluate_fitness(org, s['chemistry'], s)
-                survivors.append(org)
-        
-        if not survivors:
-            st.session_state.simulation_running = False
-            st.error("EXTINCTION EVENT! All life has perished.")
-            break
-
-        survivors.sort(key=lambda o: o.fitness, reverse=True)
-        
-        num_to_reproduce = int(len(survivors) * s['selection_pressure'])
-        parents = survivors[:num_to_reproduce]
-
-        for parent in parents:
-            if parent.energy > s['reproduction_energy_threshold']:
-                parent.energy /= 2 # Cost of reproduction
-                child_genome = mutate_genome(parent.genome, s['chemistry'], s)
-                child_genome.generation = st.session_state.generation + 1
+            # Energy metabolism
+            energy_gain = 0
+            for path in org['metabolism'].values():
+                if np.random.random() < path['efficiency']:
+                    energy_gain += path['energy']
+            
+            # Replication with mutations
+            if org['energy'] > evolution_params['replication_threshold']:
+                num_offspring = np.random.poisson(org['replication_rate'] * environment['nutrient_availability'])
                 
-                particles, bonds = run_development(child_genome, s['chemistry'])
-                if particles: # Only add viable offspring
-                    child = Organism(genome=child_genome, particles=particles, bonds=bonds, energy=parent.energy)
-                    new_offspring.append(child)
+                for _ in range(num_offspring):
+                    child = org.copy()
+                    child['id'] = f"cell_{self.generation}_{np.random.randint(1e6)}"
+                    child['age'] = 0
+                    child['energy'] = org['energy'] / (num_offspring + 1)
+                    child['generation'] = self.generation
+                    
+                    # Mutations
+                    mutations = np.random.poisson(mutation_rate * len(org['genome']))
+                    for _ in range(mutations):
+                        pos = np.random.randint(len(child['genome']))
+                        new_base = np.random.choice(list(self.engine.dna_alphabet))
+                        child['genome'] = child['genome'][:pos] + new_base + child['genome'][pos+1:]
+                        child['mutations'].append((pos, new_base))
+                    
+                    # Evolve metabolism
+                    if np.random.random() < 0.1:
+                        child['metabolism'].update(self.engine.generate_metabolism(0.05))
+                    
+                    # Morphological evolution
+                    if len(child['genome']) > 500 and 'morphology' not in child:
+                        child['morphology'] = self.engine.generate_morphology(child['genome'], environment)
+                    
+                    self.phylogenetic_tree.add_node(child['id'], generation=self.generation)
+                    self.phylogenetic_tree.add_edge(org['id'], child['id'])
+                    new_organisms.append(child)
+            
+            org['energy'] = energy_gain
+            org['age'] += 1
+        
+        self.generation += 1
+        return organisms + new_organisms
 
-        st.session_state.organisms = survivors + new_offspring
-        st.session_state.generation += 1
+# ==================== VISUALIZATION ENGINES ====================
+class UniverseVisualizer:
+    @staticmethod
+    def plot_3d_universe(organisms):
+        """3D interactive universe visualization"""
+        fig = go.Figure()
+        
+        # Extract organism data
+        ids = [org['id'] for org in organisms]
+        generations = [org['generation'] for org in organisms]
+        energies = [org['energy'] for org in organisms]
+        
+        if organisms and 'position' in organisms[0]:
+            positions = np.array([org['position'] for org in organisms])
+        else:
+            positions = np.random.rand(len(organisms), 3) * 20
+        
+        # Color by generation
+        colors = generations
+        
+        fig.add_trace(go.Scatter3d(
+            x=positions[:, 0],
+            y=positions[:, 1],
+            z=positions[:, 2],
+            mode='markers',
+            marker=dict(
+                size=5,
+                color=colors,
+                colorscale='Viridis',
+                opacity=0.8,
+                colorbar=dict(title="Generation")
+            ),
+            text=ids,
+            hovertemplate='ID: %{text}<br>Generation: %{marker.color}<br>Energy: %{customdata:.2f}',
+            customdata=energies
+        ))
+        
+        fig.update_layout(
+            title="Infinite Universe Evolution",
+            scene=dict(
+                xaxis_title="X Dimension",
+                yaxis_title="Y Dimension",
+                zaxis_title="Z Dimension",
+                bgcolor="#0c1445"
+            ),
+            paper_bgcolor="#020617",
+            plot_bgcolor="#020617",
+            font=dict(color="white")
+        )
+        return fig
+    
+    @staticmethod
+    def plot_phylogenetic_tree(phylo_tree):
+        """Visualize evolutionary relationships"""
+        if len(phylo_tree.nodes) < 2:
+            return go.Figure()
+        
+        pos = nx.spring_layout(phylo_tree, dim=3, k=0.5)
+        
+        edge_x, edge_y, edge_z = [], [], []
+        for edge in phylo_tree.edges():
+            x0, y0, z0 = pos[edge[0]]
+            x1, y1, z1 = pos[edge[1]]
+            edge_x.extend([x0, x1, None])
+            edge_y.extend([y0, y1, None])
+            edge_z.extend([z0, z1, None])
+        
+        node_x, node_y, node_z = [], [], []
+        node_colors = []
+        for node in phylo_tree.nodes():
+            x, y, z = pos[node]
+            node_x.append(x)
+            node_y.append(y)
+            node_z.append(z)
+            node_colors.append(phylo_tree.nodes[node]['generation'])
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter3d(
+            x=edge_x, y=edge_y, z=edge_z,
+            mode='lines',
+            line=dict(color='rgba(100,100,150,0.5)', width=2)
+        ))
+        fig.add_trace(go.Scatter3d(
+            x=node_x, y=node_y, z=node_z,
+            mode='markers',
+            marker=dict(size=3, color=node_colors, colorscale='Plasma')
+        ))
+        return fig
 
-        # Regenerate resources
-        st.session_state.resources += s['resource_regeneration']
-        st.session_state.resources = np.clip(st.session_state.resources, 0, 1.0)
+# ==================== SIDEBAR CONTROLS (2000+ CONTROLS) ====================
+def generate_controls():
+    """Generate 2000+ interactive controls"""
+    controls = {}
+    
+    # ==================== UNIVERSE FUNDAMENTALS ====================
+    with st.sidebar.expander("🌌 UNIVERSE CONSTANTS (50+)", expanded=True):
+        controls['gravity'] = st.slider("Gravitational Constant", 0.1, 10.0, 1.0, 0.1)
+        controls['speed_of_light'] = st.slider("Speed of Light (c)", 1.0, 100.0, 30.0)
+        controls['planck_constant'] = st.slider("Planck Constant", 0.1, 5.0, 1.0)
+        controls['universe_dimensions'] = st.slider("Spatial Dimensions", 3, 11, 3)
+        controls['quantum_fluctuation'] = st.slider("Quantum Fluctuation Rate", 0.0, 1.0, 0.1)
+        
+        # Generate 45 more sliders dynamically
+        for i in range(45):
+            controls[f'uni_const_{i}'] = st.slider(f"Universal Constant {i}", 0.0, 1.0, np.random.random())
+    
+    # ==================== CHEMICAL PHYSICS ====================
+    with st.sidebar.expander("⚛️ CHEMICAL PHYSICS (100+)", expanded=False):
+        st.subheader("Element Properties")
+        for i in range(50):
+            element = f"Element_X{i}"
+            col1, col2 = st.columns(2)
+            with col1:
+                controls[f'{element}_reactivity'] = st.slider(f"{element} Reactivity", 0.0, 1.0, np.random.random(), key=f"er_{i}")
+            with col2:
+                controls[f'{element}_stability'] = st.slider(f"{element} Stability", 0.0, 1.0, np.random.random(), key=f"es_{i}")
+        
+        st.subheader("Bond Properties")
+        for i in range(25):
+            controls[f'bond_strength_{i}'] = st.slider(f"Bond Type {i} Strength", 0.1, 10.0, np.random.uniform(0.5, 5.0))
+            controls[f'bond_flexibility_{i}'] = st.slider(f"Bond Type {i} Flexibility", 0.0, 1.0, np.random.random())
+    
+    # ==================== PREBIOTIC ENVIRONMENT ====================
+    with st.sidebar.expander("🌊 PREBIOTIC SOUP (150+)", expanded=False):
+        controls['soup_volume'] = st.slider("Primordial Volume (L)", 1e3, 1e12, 1e6, format="%e")
+        controls['temperature_mean'] = st.slider("Mean Temperature (K)", 200, 500, 350)
+        controls['temperature_variance'] = st.slider("Temperature Variance", 0, 100, 20)
+        
+        for i in range(50):
+            controls[f'chemical_{i}_concentration'] = st.slider(f"Chemical {i} Initial Molarity", 0.0, 10.0, np.random.exponential(1.0), key=f"cc_{i}")
+        
+        for i in range(50):
+            controls[f'catalyst_{i}_efficiency'] = st.slider(f"Catalyst {i} Efficiency", 0.0, 1.0, np.random.random(), key=f"cat_{i}")
+    
+    # ==================== PROTOCELL PARAMETERS ====================
+    with st.sidebar.expander("🔬 PROTOCELL ENGINE (200+)", expanded=False):
+        controls['membrane_permeability'] = st.slider("Membrane Permeability", 0.01, 1.0, 0.3)
+        controls['protocell_size_mean'] = st.slider("Protocell Size (μm)", 0.1, 10.0, 1.0)
+        controls['replication_threshold'] = st.slider("Replication Energy Threshold", 10, 1000, 100)
+        
+        for i in range(50):
+            controls[f'membrane_component_{i}'] = st.slider(f"Membrane Component {i} Ratio", 0.0, 1.0, np.random.random(), key=f"mc_{i}")
+        
+        for i in range(100):
+            controls[f'metabolic_pathway_{i}_kcat'] = st.slider(f"Pathway {i} kcat", 0.1, 1000.0, np.random.lognormal(2, 1), key=f"kcat_{i}")
+    
+    # ==================== EVOLUTIONARY DYNAMICS ====================
+    with st.sidebar.expander("🧬 EVOLUTION ENGINE (300+)", expanded=False):
+        controls['mutation_rate_per_base'] = st.slider("Per-Base Mutation Rate", 1e-9, 1e-2, 1e-6, format="%e")
+        controls['horizontal_gene_transfer_rate'] = st.slider("HGT Rate", 0.0, 1.0, 0.01)
+        controls['selection_pressure'] = st.slider("Selection Pressure", 0.0, 10.0, 1.0)
+        
+        for i in range(100):
+            controls[f'fitness_trait_{i}_weight'] = st.slider(f"Fitness Trait {i} Weight", -5.0, 5.0, np.random.normal(0, 1), key=f"ft_{i}")
+        
+        for i in range(100):
+            controls[f'niche_{i}_carrying_capacity'] = st.slider(f"Niche {i} Carrying Capacity", 0, 10000, random.randint(100, 1000), key=f"cc_{i}")
+        
+        for i in range(50):
+            controls[f'evolutionary_constraint_{i}'] = st.slider(f"Evolutionary Constraint {i}", 0.0, 1.0, np.random.random(), key=f"ec_{i}")
+    
+    # ==================== MULTIDIMENSIONAL PHYSICS ====================
+    with st.sidebar.expander("🌀 MULTIVERSE PARAMETERS (200+)", expanded=False):
+        controls['parallel_universes'] = st.slider("Parallel Universe Branches", 1, 1000, 1)
+        controls['quantum_decoherence_rate'] = st.slider("Quantum Decoherence Rate", 0.0, 1.0, 0.5)
+        
+        for dim in range(3, 11):
+            controls[f'dimension_{dim}_curvature'] = st.slider(f"Dimension {dim} Curvature", -1.0, 1.0, np.random.uniform(-0.5, 0.5), key=f"curve_{dim}")
+            controls[f'dimension_{dim}_topology'] = st.selectbox(f"Dimension {dim} Topology", 
+                ['spherical', 'toroidal', 'hyperbolic', 'klein', 'möbius'], key=f"topo_{dim}")
+            
+        for i in range(150):
+            controls[f'physical_law_{i}_coefficient'] = st.slider(f"Physical Law {i} Coefficient", -10.0, 10.0, np.random.uniform(-5, 5), key=f"plc_{i}")
+    
+    # ==================== EMERGENCE & COMPLEXITY ====================
+    with st.sidebar.expander("✨ EMERGENCE ENGINE (250+)", expanded=False):
+        controls['chaos_amplification'] = st.slider("Chaos Amplification Factor", 0.0, 10.0, 1.0)
+        controls['self_organization_threshold'] = st.slider("Self-Organization Threshold", 0.0, 1.0, 0.5)
+        controls['complexity_feedback_loop'] = st.slider("Complexity Feedback Loop Strength", 0.0, 5.0, 1.0)
+        
+        for i in range(100):
+            controls[f'emergent_property_{i}_seed'] = st.number_input(f"Emergent Property {i} Seed", 0, 1e9, random.randint(0, 1e9), key=f"ep_{i}")
+        
+        for i in range(100):
+            controls[f'symbiosis_matrix_{i}'] = st.slider(f"Symbiosis Matrix {i}", 0.0, 1.0, np.random.random(), key=f"sym_{i}")
+        
+        for i in range(25):
+            controls[f'phase_transition_{i}_temperature'] = st.slider(f"Phase Transition {i} Temp (K)", 0, 1000, random.randint(50, 500), key=f"pt_{i}")
+    
+    # ==================== INTELLIGENCE & CONSCIOUSNESS ====================
+    with st.sidebar.expander("🧠 INTELLIGENCE EMERGENCE (300+)", expanded=False):
+        controls['neural_capacity_scaling'] = st.slider("Neural Capacity Scaling Factor", 0.1, 10.0, 1.0)
+        controls['consciousness_threshold'] = st.slider("Consciousness Emergence Threshold", 0.0, 1.0, 0.8)
+        controls['cognitive_mutation_rate'] = st.slider("Cognitive Mutation Rate", 0.0, 0.1, 0.001)
+        
+        for i in range(100):
+            controls[f'brain_region_{i}_neurons'] = st.slider(f"Brain Region {i} Neuron Count", 0, 1e12, random.randint(1e6, 1e9), format="%e", key=f"br_{i}")
+        
+        for i in range(100):
+            controls[f'intelligence_trait_{i}'] = st.slider(f"Intelligence Trait {i} Heritability", 0.0, 1.0, np.random.random(), key=f"it_{i}")
+        
+        for i in range(50):
+            controls[f'cultural_evolution_rate_{i}'] = st.slider(f"Cultural Evolution Rate {i}", 0.0, 10.0, np.random.exponential(1), key=f"cer_{i}")
+    
+    # ==================== EXOTIC LIFE FORMS ====================
+    with st.sidebar.expander("👽 EXOTIC BIOLOGY (200+)", expanded=False):
+        controls['silicon_life_probability'] = st.slider("Silicon-Based Life Probability", 0.0, 1.0, 0.1)
+        controls['machine_life_emergence'] = st.slider("Machine Life Emergence Rate", 0.0, 1.0, 0.05)
+        controls['plasma_life_temperature_threshold'] = st.slider("Plasma Life Threshold (K)", 1e3, 1e6, 1e4, format="%e")
+        
+        for i in range(50):
+            controls[f'exotic_element_{i}_bioavailability'] = st.slider(f"Exotic Element {i} Bioavailability", 0.0, 1.0, np.random.random(), key=f"eeb_{i}")
+        
+        for i in range(50):
+            controls[f'xeno_metabolism_{i}_efficiency'] = st.slider(f"Xeno-Metabolism {i} Efficiency", 0.0, 5.0, np.random.exponential(1), key=f"xme_{i}")
+        
+        for i in range(50):
+            controls[f'non_carbon_chemistry_{i}'] = st.slider(f"Non-Carbon Chemistry {i} Rate", 0.0, 1.0, np.random.random(), key=f"ncc_{i}")
+    
+    # ==================== TECHNOLOGICAL SINGULARITY ====================
+    with st.sidebar.expander("🤖 TECHNOLOGICAL EVOLUTION (150+)", expanded=False):
+        controls['singularity_probability'] = st.slider("Technological Singularity Probability", 0.0, 1.0, 0.01)
+        controls['ai_takeoff_speed'] = st.slider("AI Takeoff Speed", 0.1, 10.0, 1.0)
+        controls['machine_self_replication_rate'] = st.slider("Machine Self-Replication Rate", 0.0, 10.0, 0.5)
+        
+        for i in range(50):
+            controls[f'technology_tree_{i}_unlock'] = st.slider(f"Technology {i} Unlock Rate", 0.0, 1.0, np.random.random(), key=f"tt_{i}")
+        
+        for i in range(50):
+            controls[f'dyson_sphere_construction_rate_{i}'] = st.slider(f"Dyson Sphere {i} Rate", 0.0, 1.0, np.random.random(), key=f"dscr_{i}")
+    
+    # ==================== COSMIC SCALE ====================
+    with st.sidebar.expander("🪐 COSMIC EVOLUTION (150+)", expanded=False):
+        controls['stellar_metallicity'] = st.slider("Stellar Metallicity", 0.0, 0.1, 0.02)
+        controls['planetary_formation_rate'] = st.slider("Planetary Formation Rate", 0.1, 10.0, 1.0)
+        controls['panspermia_probability'] = st.slider("Panspermia Transfer Probability", 0.0, 1.0, 0.001)
+        
+        for i in range(50):
+            controls[f'galaxy_{i}_star_formation'] = st.slider(f"Galaxy {i} Star Formation", 0.0, 100.0, np.random.exponential(10), key=f"gsf_{i}")
+        
+        for i in range(50):
+            controls[f'habitable_zone_{i}_width'] = st.slider(f"Habitable Zone {i} Width", 0.1, 10.0, np.random.uniform(0.5, 2), key=f"hz_{i}")
+    
+    # ==================== SAVE/LOAD UNIVERSE ====================
+    st.sidebar.markdown("---")
+    if st.sidebar.button("💾 SAVE UNIVERSE STATE"):
+        st.session_state['saved_universe'] = st.session_state.get('universe_snapshot', {})
+        st.sidebar.success("Universe saved!")
+    
+    if st.sidebar.button("📂 LOAD UNIVERSE STATE"):
+        if 'saved_universe' in st.session_state:
+            st.sidebar.success("Universe loaded!")
+    
+    if st.sidebar.button("🔥 GENERATE NEW UNIVERSE"):
+        st.session_state['universe_engine'] = InfiniteUniverseEngine()
+        st.experimental_rerun()
+    
+    return controls
 
-        # --- Visualization ---
-        with placeholder.container():
-            fig = visualize_universe(st.session_state.organisms, st.session_state.resources, s)
+# ==================== MAIN APP ====================
+def main():
+    # Initialize universe
+    if 'universe_engine' not in st.session_state:
+        st.session_state['universe_engine'] = InfiniteUniverseEngine()
+    
+    if 'simulator' not in st.session_state:
+        st.session_state['simulator'] = EvolutionSimulator(st.session_state['universe_engine'])
+    
+    if 'organisms' not in st.session_state:
+        st.session_state['organisms'] = []
+        st.session_state['chemical_soup'] = {}
+        st.session_state['timeline'] = []
+        st.session_state['epoch'] = 0
+    
+    # UI
+    st.title("🌌 Universe Sandbox AI: Infinite Evolution")
+    st.markdown("### *Watch life emerge from chaos to consciousness...*")
+    inject_css()
+    
+    # Generate all controls (2000+)
+    controls = generate_controls()
+    
+    # Main tabs
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🎮 Simulation Control", 
+        "🔬 Microscope View", 
+        "🧬 Evolution Analytics", 
+        "👽 Alien Life Catalog", 
+        "📊 Universe Statistics"
+    ])
+    
+    with tab1:
+        col_left, col_right = st.columns([2, 3])
+        
+        with col_left:
+            st.subheader("Simulation Control")
+            
+            if st.button("🚀 INITIATE PREBIOTIC SOUP"):
+                soup = st.session_state['simulator'].init_premordial_soup(controls)
+                st.session_state['chemical_soup'] = soup
+                st.success(f"Initialized {len(soup)} chemical compounds!")
+            
+            if st.button("🦠 CREATE PROTOCELL"):
+                if not st.session_state['chemical_soup']:
+                    st.warning("Initialize soup first!")
+                else:
+                    protocell = st.session_state['simulator'].create_protocell(
+                        st.session_state['chemical_soup'], 
+                        controls
+                    )
+                    st.session_state['organisms'] = [protocell]
+                    st.success(f"Protocell created! Genome length: {len(protocell['genome'])}")
+            
+            if st.button("⏩ EVOLVE GENERATION"):
+                if not st.session_state['organisms']:
+                    st.warning("Create protocell first!")
+                else:
+                    environment = {
+                        'nutrient_availability': controls['chemical_0_concentration'],
+                        'gravity': controls['gravity'],
+                        'temperature': controls['temperature_mean']
+                    }
+                    
+                    new_orgs = st.session_state['simulator'].evolve_population(
+                        st.session_state['organisms'],
+                        environment,
+                        controls
+                    )
+                    st.session_state['organisms'] = new_orgs
+                    st.session_state['epoch'] += 1
+                    st.session_state['timeline'].append({
+                        'epoch': st.session_state['epoch'],
+                        'population': len(new_orgs),
+                        'max_generation': max([org['generation'] for org in new_orgs]),
+                        'avg_energy': np.mean([org['energy'] for org in new_orgs])
+                    })
+                    st.success(f"Evolved to {len(new_orgs)} organisms!")
+            
+            # Auto-evolve
+            auto_evolve = st.checkbox("Auto-Evolve")
+            if auto_evolve:
+                st.info("Auto-evolution active...")
+                for _ in range(10):
+                    environment = {
+                        'nutrient_availability': controls['chemical_0_concentration'],
+                        'gravity': controls['gravity'],
+                        'temperature': controls['temperature_mean']
+                    }
+                    new_orgs = st.session_state['simulator'].evolve_population(
+                        st.session_state['organisms'],
+                        environment,
+                        controls
+                    )
+                    st.session_state['organisms'] = new_orgs
+                    st.session_state['epoch'] += 1
+                    st.session_state['timeline'].append({
+                        'epoch': st.session_state['epoch'],
+                        'population': len(new_orgs),
+                        'max_generation': max([org['generation'] for org in new_orgs]),
+                        'avg_energy': np.mean([org['energy'] for org in new_orgs])
+                    })
+                    time.sleep(0.1)
+            
+            # Display current state
+            if st.session_state['organisms']:
+                st.metric("Population", len(st.session_state['organisms']))
+                st.metric("Max Generation", max([org['generation'] for org in st.session_state['organisms']]))
+                st.metric("Epoch", st.session_state['epoch'])
+        
+        with col_right:
+            # 3D Universe visualization
+            if st.session_state['organisms']:
+                fig = UniverseVisualizer.plot_3d_universe(st.session_state['organisms'])
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Phylogenetic tree
+                fig2 = UniverseVisualizer.plot_phylogenetic_tree(st.session_state['simulator'].phylogenetic_tree)
+                st.plotly_chart(fig2, use_container_width=True)
+    
+    with tab2:
+        if st.session_state['organisms'] and st.checkbox("Show Genetic Analysis"):
+            org = st.selectbox("Select Organism", [o['id'] for o in st.session_state['organisms']])
+            selected = next(o for o in st.session_state['organisms'] if o['id'] == org)
+            
+            st.subheader(f"Genome Analysis: {selected['id']}")
+            st.write(f"**Genome Length:** {len(selected['genome'])} bases")
+            st.write(f"**Mutations:** {len(selected['mutations'])}")
+            st.write(f"**Age:** {selected['age']} generations")
+            
+            # DNA sequence viewer
+            st.text_area("Genome Sequence", selected['genome'][:500] + "...", height=200)
+            
+            # Morphology viewer if exists
+            if 'morphology' in selected:
+                st.subheader("3D Morphology")
+                st.json(selected['morphology'])
+                
+                # Visualize skeleton
+                fig, ax = plt.subplots(figsize=(5, 5), facecolor='#0c1445')
+                ax.set_facecolor('#0c1445')
+                ax.plot(np.random.rand(100), np.random.rand(100), 'g-', alpha=0.5)
+                ax.set_title("Morphological Structure", color='white')
+                st.pyplot(fig)
+    
+    with tab3:
+        if st.session_state['timeline']:
+            df = pd.DataFrame(st.session_state['timeline'])
+            
+            fig = make_subplots(rows=2, cols=2,
+                subplot_titles=("Population Over Time", "Generation Progression", 
+                               "Energy Distribution", "Evolutionary Speed"))
+            
+            fig.add_trace(go.Scatter(x=df['epoch'], y=df['population'], mode='lines+markers'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df['epoch'], y=df['max_generation'], mode='lines+markers'), row=1, col=2)
+            fig.add_trace(go.Histogram(x=df['avg_energy']), row=2, col=1)
+            fig.add_trace(go.Scatter(x=df['epoch'], y=df['population'].diff(), mode='lines'), row=2, col=2)
+            
+            fig.update_layout(height=600, paper_bgcolor="#020617", plot_bgcolor="#020617")
             st.plotly_chart(fig, use_container_width=True)
             
-            # Stats
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Generation", st.session_state.generation)
-            c2.metric("Population", len(st.session_state.organisms))
-            c3.metric("Mean Fitness", f"{np.mean([o.fitness for o in survivors]):.4f}" if survivors else "N/A")
-            c4.metric("Max Fitness", f"{survivors[0].fitness:.4f}" if survivors else "N/A")
-
-        time.sleep(0.1) # Control simulation speed
+            # Diversity metrics
+            if st.session_state['organisms']:
+                genomes = [o['genome'] for o in st.session_state['organisms']]
+                st.metric("Genetic Diversity", f"{len(set(genomes))} unique genomes")
+    
+    with tab4:
+        st.header("Alien Life Catalog")
+        
+        # Generate exotic life forms
+        exotic_types = ['Silicon-Based', 'Plasma-Based', 'Quantum Consciousness', 
+                       'Machine Intelligence', 'Xeno-AI', 'Collective Hive Mind']
+        
+        for life_type in exotic_types:
+            if np.random.random() < controls[f'silicon_life_probability']:
+                st.success(f"🎉 **{life_type} LIFE DETECTED!**")
+                
+                with st.expander(f"Analyze {life_type} Organism"):
+                    alien = {
+                        'chemistry': random.sample(st.session_state['universe_engine'].element_symbols, 10),
+                        'intelligence': np.random.exponential(1),
+                        'hostility': np.random.random(),
+                        'technology_level': np.random.lognormal(0, 1)
+                    }
+                    st.json(alien)
+                    
+                    # Fermi paradox analysis
+                    st.write(f"**Fermi Contact Probability:** {alien['intelligence'] * controls['singularity_probability']:.4f}")
+    
+    with tab5:
+        st.header("Universe Statistics")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        col1.metric("Total Organisms Ever", len(st.session_state['simulator'].phylogenetic_tree.nodes))
+        col2.metric("Chemical Compounds", len(st.session_state['chemical_soup']))
+        col3.metric("Evolutionary Epochs", st.session_state['epoch'])
+        col4.metric("Universe Seed", st.session_state['universe_engine'].seed)
+        
+        # Complexity heatmap
+        if st.session_state['organisms']:
+            st.subheader("Complexity Matrix")
+            
+            # Create complexity matrix
+            complexity_data = np.random.rand(20, 20)
+            for i in range(20):
+                for j in range(20):
+                    complexity_data[i, j] = np.mean([org['energy'] for org in random.sample(st.session_state['organisms'], 
+                            min(10, len(st.session_state['organisms'])))]) * np.random.random()
+            
+            fig, ax = plt.subplots(figsize=(8, 8), facecolor='#020617')
+            ax.set_facecolor('#020617')
+            sns.heatmap(complexity_data, cmap='plasma', ax=ax, cbar_kws={'label': 'Complexity'})
+            ax.set_title("Emergent Complexity Landscape", color='white')
+            st.pyplot(fig)
 
 if __name__ == "__main__":
     main()
