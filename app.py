@@ -847,22 +847,22 @@ def visualize_phenotype_2d(phenotype: Phenotype, grid: UniverseGrid) -> go.Figur
 
 # --- Reuse visualization functions from GENEVO ---
 # (Slightly adapted for new metric names)
-def visualize_fitness_landscape(history_df: pd.DataFrame):
+def visualize_fitness_landscape(history_df: pd.DataFrame, settings: Dict):
     if history_df.empty or len(history_df) < 20:
         st.warning("Not enough data to render fitness landscape.")
         return
         
-    st.markdown("### 3D Fitness Landscape: (Fitness vs. Complexity vs. Cell Count)")
+    st.markdown("### Fitness Landscape")
     sample_size = min(len(history_df), 20000)
     df_sample = history_df.sample(n=sample_size)
     
     x_param = 'cell_count'
     y_param = 'complexity'
     z_param = 'fitness'
-    
-    # --- 1. Create the Fitness Surface ---
-    x_bins = np.linspace(df_sample[x_param].min(), df_sample[x_param].max(), 30)
-    y_bins = np.linspace(df_sample[y_param].min(), df_sample[y_param].max(), 30)
+
+    num_bins = 30
+    x_bins = np.linspace(df_sample[x_param].min(), df_sample[x_param].max(), num_bins)
+    y_bins = np.linspace(df_sample[y_param].min(), df_sample[y_param].max(), num_bins)
 
     df_sample['x_bin'] = pd.cut(df_sample[x_param], bins=x_bins, labels=False, include_lowest=True)
     df_sample['y_bin'] = pd.cut(df_sample[y_param], bins=y_bins, labels=False, include_lowest=True)
@@ -872,52 +872,68 @@ def visualize_fitness_landscape(history_df: pd.DataFrame):
     y_coords = (y_bins[:-1] + y_bins[1:]) / 2
     z_surface = grid.values
 
-    surface_trace = go.Surface(
-        x=x_coords, y=y_coords, z=z_surface,
-        colorscale='cividis', opacity=0.6,
-        name='Estimated Fitness Landscape',
-    )
+    col1, col2 = st.columns(2)
 
-    # --- 2. Calculate Evolutionary Trajectories ---
-    mean_trajectory = history_df.groupby('generation').agg({
-        x_param: 'mean', y_param: 'mean', z_param: 'mean'
-    }).reset_index()
-    apex_trajectory = history_df.loc[history_df.groupby('generation')['fitness'].idxmax()]
+    with col1:
+        st.markdown("##### 3D Landscape & Trajectories")
+        # --- 1. Create the Fitness Surface ---
+        surface_trace = go.Surface(
+            x=x_coords, y=y_coords, z=z_surface,
+            colorscale='cividis', opacity=0.6,
+            name='Estimated Fitness Landscape',
+        )
 
-    # --- 3. Create Trajectory Traces ---
-    mean_trajectory_trace = go.Scatter3d(
-        x=mean_trajectory[x_param], y=mean_trajectory[y_param], z=mean_trajectory[z_param],
-        mode='lines', line=dict(color='red', width=8),
-        name='Population Mean Trajectory'
-    )
-    apex_trajectory_trace = go.Scatter3d(
-        x=apex_trajectory[x_param], y=apex_trajectory[y_param], z=apex_trajectory[z_param],
-        mode='lines+markers', line=dict(color='cyan', width=4),
-        name='Apex (Best) Trajectory'
-    )
+        # --- 2. Calculate Evolutionary Trajectories ---
+        mean_trajectory = history_df.groupby('generation').agg({
+            x_param: 'mean', y_param: 'mean', z_param: 'mean'
+        }).reset_index()
+        apex_trajectory = history_df.loc[history_df.groupby('generation')['fitness'].idxmax()]
 
-    # --- 4. Create Final Population Scatter ---
-    final_gen_df = history_df[history_df['generation'] == history_df['generation'].max()]
-    final_pop_trace = go.Scatter3d(
-        x=final_gen_df[x_param], y=final_gen_df[y_param], z=final_gen_df[z_param],
-        mode='markers',
-        marker=dict(size=5, color=final_gen_df['fitness'], colorscale='Viridis', showscale=True),
-        name='Final Population',
-    )
+        # --- 3. Create Trajectory Traces ---
+        mean_trajectory_trace = go.Scatter3d(
+            x=mean_trajectory[x_param], y=mean_trajectory[y_param], z=mean_trajectory[z_param],
+            mode='lines', line=dict(color='red', width=8),
+            name='Population Mean Trajectory'
+        )
+        apex_trajectory_trace = go.Scatter3d(
+            x=apex_trajectory[x_param], y=apex_trajectory[y_param], z=apex_trajectory[z_param],
+            mode='lines+markers', line=dict(color='cyan', width=4),
+            name='Apex (Best) Trajectory'
+        )
 
-    # --- 5. Assemble Figure ---
-    fig = go.Figure(data=[surface_trace, mean_trajectory_trace, apex_trajectory_trace, final_pop_trace])
-    fig.update_layout(
-        title='<b>3D Fitness Landscape with Multi-Trajectory Analysis</b>',
-        scene=dict(
-            xaxis_title='Cell Count',
-            yaxis_title='Genomic Complexity',
-            zaxis_title='Fitness'
-        ),
-        height=700,
-        margin=dict(l=0, r=0, b=0, t=60)
-    )
-    st.plotly_chart(fig, width='stretch', key="fitness_landscape_3d_universe")
+        # --- 4. Create Final Population Scatter ---
+        final_gen_df = history_df[history_df['generation'] == history_df['generation'].max()]
+        final_pop_trace = go.Scatter3d(
+            x=final_gen_df[x_param], y=final_gen_df[y_param], z=final_gen_df[z_param],
+            mode='markers',
+            marker=dict(size=5, color=final_gen_df['fitness'], colorscale='Viridis', showscale=True),
+            name='Final Population',
+        )
+
+        # --- 5. Assemble Figure ---
+        fig3d = go.Figure(data=[surface_trace, mean_trajectory_trace, apex_trajectory_trace, final_pop_trace])
+        fig3d.update_layout(
+            scene=dict(
+                xaxis_title='Cell Count',
+                yaxis_title='Genomic Complexity',
+                zaxis_title='Fitness'
+            ),
+            height=600,
+            margin=dict(l=0, r=0, b=0, t=40)
+        )
+        st.plotly_chart(fig3d, use_container_width=True, key="fitness_landscape_3d_universe")
+
+    with col2:
+        st.markdown("##### 2D Fitness Heatmap")
+        fig2d = go.Figure(data=go.Heatmap(
+            z=z_surface,
+            x=x_coords,
+            y=y_coords,
+            colorscale='Viridis',
+            colorbar_title='Mean Fitness'
+        ))
+        fig2d.update_layout(height=600, margin=dict(l=0, r=0, b=0, t=40), xaxis_title="Cell Count", yaxis_title="Genomic Complexity")
+        st.plotly_chart(fig2d, use_container_width=True, key="fitness_landscape_2d_universe")
 
 def create_evolution_dashboard(history_df: pd.DataFrame, evolutionary_metrics_df: pd.DataFrame) -> go.Figure:
     """Comprehensive evolution analytics dashboard."""
@@ -1307,6 +1323,7 @@ def main():
         s['enable_early_stopping'] = st.checkbox("Enable Early Stopping", s.get('enable_early_stopping', True))
         s['early_stopping_patience'] = st.slider("Early Stopping Patience", 5, 100, s.get('early_stopping_patience', 25))
         
+    s['num_ranks_to_display'] = st.sidebar.slider("Number of Ranks to Display", 1, 10, s.get('num_ranks_to_display', 3), 1)
     st.sidebar.markdown("---")
     
     # --- END OF SIDEBAR ---
@@ -1498,7 +1515,7 @@ def main():
                 width='stretch',
                 key="main_dashboard_plot_universe"
             )
-            visualize_fitness_landscape(history_df)
+            visualize_fitness_landscape(history_df, s)
 
         with tab_viewer:
             st.header("🔬 Specimen Viewer")
@@ -1510,7 +1527,8 @@ def main():
                 gen_pop_df = history_df[history_df['generation'] == gen_to_view]
                 gen_pop_df = gen_pop_df.sort_values('fitness', ascending=False)
                 
-                top_lineages = gen_pop_df['lineage_id'].unique()[:3]
+                num_ranks = s.get('num_ranks_to_display', 3)
+                top_lineages = gen_pop_df['lineage_id'].unique()[:num_ranks]
                 
                 # Find the full genotype data
                 top_specimens = []
@@ -1522,7 +1540,7 @@ def main():
                         if specimen: top_specimens.append(specimen)
                 
                 if not top_specimens and population:
-                    top_specimens = sorted(population, key=lambda x: x.fitness, reverse=True)[:3]
+                    top_specimens = sorted(population, key=lambda x: x.fitness, reverse=True)[:num_ranks]
                     st.warning(f"Could not load historical genotypes for Gen {gen_to_view}. Showing top 3 from final population instead.")
                 
                 cols = st.columns(len(top_specimens))
@@ -1547,17 +1565,25 @@ def main():
             
             if population:
                 population.sort(key=lambda x: x.fitness, reverse=True)
-                for i, individual in enumerate(population[:3]):
+                num_ranks = s.get('num_ranks_to_display', 3)
+                for i, individual in enumerate(population[:num_ranks]):
                     with st.expander(f"**Rank {i+1}:** Lineage `{individual.lineage_id}` | Fitness: `{individual.fitness:.4f}`", expanded=(i==0)):
-                        col1, col2 = st.columns([1, 2])
+                        col1, col2, col3 = st.columns([1, 1, 1])
                         with col1:
+                            st.markdown("##### **Phenotype**")
+                            with st.spinner("Growing..."):
+                                vis_grid = UniverseGrid(s)
+                                phenotype = Phenotype(individual, vis_grid, s)
+                                fig = visualize_phenotype_2d(phenotype, vis_grid)
+                                st.plotly_chart(fig, use_container_width=True, key=f"elite_pheno_vis_{i}")
+                        with col2:
+                            st.markdown("##### **Metrics**")
                             st.metric("Cell Count", f"{individual.cell_count}")
                             st.metric("Complexity", f"{individual.compute_complexity():.2f}")
                             st.metric("Lifespan", f"{individual.lifespan} ticks")
                             st.metric("Energy Prod.", f"{individual.energy_production:.3f}")
                             st.metric("Energy Cons.", f"{individual.energy_consumption:.3f}")
-                        
-                        with col2:
+                        with col3:
                             st.markdown("##### **Genetic Code: Components (The 'Alphabet')**")
                             comp_data = []
                             for name, comp in individual.component_genes.items():
