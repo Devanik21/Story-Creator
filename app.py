@@ -476,7 +476,7 @@ class OrganismCell:
     energy: float = 1.0
     age: int = 0
     # --- Internal State for GRN ---
-    state_vector: Dict[str, float] = field(default_factory=dict) 
+    state_vector: Dict[str, Any] = field(default_factory=dict)
 
 class Phenotype:
     """
@@ -677,6 +677,18 @@ class Phenotype:
             elif source in context: # NEW 2.0: Check for dynamic senses
                 value = context.get(source, 0.0)
             
+            # --- ADD THIS NEW CONDITION ---
+            elif source.startswith('timer_'):
+                # Checks a timer. e.g., source: 'timer_grow_pulse'
+                timer_name = source.replace('timer_', '', 1)
+                if 'timers' in cell.state_vector:
+                    value = cell.state_vector['timers'].get(timer_name, 0)
+                else:
+                    value = 0 # No timers exist, so timer is 0
+            # --- END OF ADDITION ---
+
+            
+            
             op = cond['operator']
             target = cond['target_value']
             
@@ -749,6 +761,21 @@ class Phenotype:
                 # Set an internal state variable
                 cell.state_vector[param] = value
                 cost += self.settings.get('action_cost_compute', 0.02)
+
+            # --- ADD THESE NEW ACTIONS ---
+            elif action == "SET_TIMER":
+                # 'param' = timer name (e.g., "pulse_A"), 'value' = duration in ticks
+                if 'timers' not in cell.state_vector:
+                    cell.state_vector['timers'] = {}
+                cell.state_vector['timers'][param] = int(value)
+                cost += self.settings.get('action_cost_compute', 0.02)
+            
+            elif action == "MODIFY_TIMER":
+                # 'param' = timer name, 'value' = ticks to add/subtract
+                if 'timers' in cell.state_vector and param in cell.state_vector['timers']:
+                    cell.state_vector['timers'][param] += int(value)
+                cost += self.settings.get('action_cost_compute', 0.02)
+            # --- END OF ADDITION ---
                 
             elif action == "DIE":
                 cost = cell.energy # Cell expends all remaining energy to die
@@ -808,6 +835,23 @@ class Phenotype:
             
             cell.energy -= cost
             metabolic_cost += cost
+            # (After metabolic cost calculation, before energy distribution)
+            
+            # --- 1c. Run GRN for behavior (simplified) ---
+            # (A full sim would run the GRN here too for non-developmental actions)
+
+            # --- ADD THIS TIMER LOOP ---
+            # Update internal timers
+            if 'timers' in cell.state_vector:
+                for timer_name in list(cell.state_vector['timers'].keys()):
+                    if cell.state_vector['timers'][timer_name] > 0:
+                        cell.state_vector['timers'][timer_name] -= 1
+                    else:
+                        # Timer reached 0, remove it
+                        del cell.state_vector['timers'][timer_name]
+            # --- END OF ADDITION ---
+            
+        # --- 2. Energy Distribution (simplified) ---
             
             # --- 1c. Run GRN for behavior (simplified) ---
             # (A full sim would run the GRN here too for non-developmental actions)
@@ -1076,7 +1120,8 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
     # NEW 2.0: Use the evolvable list of sources
     available_sources = st.session_state.get('evolvable_condition_sources', [
         'self_energy', 'self_age', 'env_light', 'env_minerals', 'env_temp',
-        'neighbor_count_empty', 'neighbor_count_self'
+        'neighbor_count_empty', 'neighbor_count_self',
+        'timer_A', 'timer_B', 'timer_C' # <-- ADD THIS
     ])
     
     for _ in range(num_conditions):
@@ -1089,12 +1134,14 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
         elif source.startswith('env_'): target = random.uniform(0.1, 0.9)
         elif source.startswith('neighbor_'): target = random.randint(0, 5)
         elif source.startswith('sense_'): target = random.uniform(-0.5, 0.5)
+        elif source.startswith('timer_'): target = random.randint(0, 20)
         else: target = 0.0
         
         conditions.append({'source': source, 'operator': op, 'target_value': target})
 
     # --- 2. Create Action ---
-    action_type = random.choice(['GROW', 'DIFFERENTIATE', 'SET_STATE', 'TRANSFER_ENERGY', 'DIE'])
+    action_type = random.choice(['GROW', 'DIFFERENTIATE', 'SET_STATE', 'TRANSFER_ENERGY', 'DIE',
+                                'SET_TIMER', 'MODIFY_TIMER'])
     
     # Pick a random component from the genotype's "alphabet"
     if not genotype.component_genes:
@@ -1104,9 +1151,15 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
     action_param = random.choice(list(genotype.component_genes.keys()))
     
     if action_type == "SET_STATE":
-        action_param = f"state_{random.randint(0,2)}" # Set a random internal state
+        action_param = f"state_{random.randint(0,2)}"
     elif action_type == "TRANSFER_ENERGY":
         action_param = "NEIGHBORS"
+    elif action_type in ['SET_TIMER', 'MODIFY_TIMER']:
+        action_param = random.choice(['pulse_A', 'pulse_B', 'phase_C']) # Give it some timer names
+        if action_type == 'SET_TIMER':
+            action_value = random.randint(5, 50) # Set timer duration
+        else:
+            action_value = random.choice([-1, 1, 5, -5]) # Modify by value
         
     return RuleGene(
         conditions=conditions,
