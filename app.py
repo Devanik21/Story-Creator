@@ -2771,7 +2771,7 @@ def main():
                                 fig_pie = px.pie(comp_df, values='Count', names='Component', 
                                                  color='Component', color_discrete_map=color_map, title="Cell Type Distribution")
                                 fig_pie.update_layout(showlegend=True, margin=dict(l=0, r=0, t=30, b=0), height=300)
-                                st.plotly_chart(fig_pie, use_container_width=True)
+                                st.plotly_chart(fig_pie, use_container_width=True, key=f"elite_pie_{i}")
                             else:
                                 st.info("No cells to analyze.")
                                 
