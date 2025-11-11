@@ -2572,37 +2572,6 @@ def main():
                             
             else:
                 st.warning("No population data available to analyze.")
-
-        # --- NEW: Download All Results Button ---
-        st.markdown("---")
-        st.markdown("### 🗄️ Export Universe Data")
-
-        # Prepare data for download
-        # Convert Genotype objects (which are not directly JSON serializable) to dictionaries
-        final_population_serializable = [asdict(g) for g in st.session_state.get('current_population', [])]
-        # The gene archive can be very large, so we'll sample it if it's huge to keep downloads manageable
-        gene_archive_sample = st.session_state.get('gene_archive', [])
-        if len(gene_archive_sample) > 5000:
-            gene_archive_sample = random.sample(gene_archive_sample, 5000)
-        gene_archive_serializable = [asdict(g) for g in gene_archive_sample]
-
-        all_results = {
-            "experiment_name": st.session_state.get('settings', {}).get('experiment_name', 'default_run'),
-            "simulation_settings": st.session_state.get('settings', {}),
-            "evolution_history": st.session_state.get('history', []),
-            "evolutionary_metrics": st.session_state.get('evolutionary_metrics', []),
-            "final_population_genotypes": final_population_serializable,
-            "gene_archive_sample": gene_archive_serializable
-        }
-
-        # Use st.download_button to provide the data as a file
-        st.download_button(
-           label="📥 Download All Results as JSON",
-           data=json.dumps(all_results, indent=2),
-           file_name=f"universe_results_{all_results['experiment_name'].replace(' ', '_')}.json",
-           mime="application/json",
-           help="Downloads all settings, history, metrics, and final genotypes as a single JSON file."
-        )
         
 if __name__ == "__main__":
     import matplotlib
@@ -2610,4 +2579,3 @@ if __name__ == "__main__":
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     main()
-
