@@ -1329,6 +1329,7 @@ def main():
         s['random_seed'] = st.number_input("Random Seed", -1, value=s.get('random_seed', 42), help="-1 for random.")
         s['enable_early_stopping'] = st.checkbox("Enable Early Stopping", s.get('enable_early_stopping', True))
         s['early_stopping_patience'] = st.slider("Early Stopping Patience", 5, 100, s.get('early_stopping_patience', 25))
+        s['num_ranks_to_display'] = st.slider("Number of Elite Ranks to Display", 1, 10, s.get('num_ranks_to_display', 3))
         
     st.sidebar.markdown("---")
     
@@ -1566,25 +1567,34 @@ def main():
 
         with tab_elites:
             st.header("🧬 Elite Lineage Analysis")
-            st.markdown("A deep dive into the 'DNA' of the most successful organisms, ensuring a unique representative for each displayed rank.")
+            st.markdown("A deep dive into the 'DNA' of the most successful organisms. Each rank displays the best organism from a unique Kingdom, showcasing the diversity of life that has evolved.")
             
             if population:
-                # --- Unique Ranks Logic ---
-                # 1. Sort the entire population by fitness.
+                # --- Unique Ranks Logic to show diverse elites ---
+                # 1. Sort the entire population by fitness to find the best organisms first.
                 population.sort(key=lambda x: x.fitness, reverse=True)
-                num_ranks = s.get('num_ranks_to_display', 3)
+                num_ranks_to_display = s.get('num_ranks_to_display', 3)
 
-                # 2. Select the top N unique organisms based on their kingdom.
+                # 2. Select the top N unique organisms, ensuring one from each kingdom.
                 elite_specimens = []
                 seen_kingdoms = set()
                 for individual in population:
+                    # If we haven't seen this kingdom yet, add its best representative.
                     if individual.kingdom_id not in seen_kingdoms:
                         elite_specimens.append(individual)
                         seen_kingdoms.add(individual.kingdom_id)
-                    if len(elite_specimens) >= num_ranks:
+                    # Stop when we have enough unique ranks to display.
+                    if len(elite_specimens) >= num_ranks_to_display:
                         break
 
-                for i, individual in enumerate(elite_specimens[:num_ranks]):
+                # If there aren't enough unique kingdoms, fill the remaining spots with the next best organisms.
+                if len(elite_specimens) < num_ranks_to_display:
+                    remaining_needed = num_ranks_to_display - len(elite_specimens)
+                    elite_ids = {ind.id for ind in elite_specimens}
+                    next_best = [ind for ind in population if ind.id not in elite_ids][:remaining_needed]
+                    elite_specimens.extend(next_best)
+
+                for i, individual in enumerate(elite_specimens):
                     with st.expander(f"**Rank {i+1}:** Kingdom `{individual.kingdom_id}` | Fitness: `{individual.fitness:.4f}`", expanded=(i==0)):
                         col1, col2, col3 = st.columns([1, 1, 1])
                         with col1:
