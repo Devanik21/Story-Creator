@@ -495,9 +495,6 @@ class OrganismCell:
     y: int = 0
     energy: float = 1.0
     age: int = 0
-    # --- NEW: Data for advanced visualization ---
-    birth_step: int = 0 # The development step this cell was created on
-    net_energy_flow: float = 0.0 # Tracks energy production vs consumption
     # --- Internal State for GRN ---
     state_vector: Dict[str, float] = field(default_factory=dict) 
 
@@ -761,8 +758,7 @@ class Phenotype:
                         x=target_grid_cell.x,
                         y=target_grid_cell.y,
                         energy=new_cell_energy, # Starts with base energy
-                        state_vector={'type_id': hash(new_comp.id), 'energy': 1.0},
-                        birth_step=cell.age # Store the 'age' of the parent as the birth step
+                        state_vector={'type_id': hash(new_comp.id), 'energy': 1.0}
                     )
                     new_cells[(target_grid_cell.x, target_grid_cell.y)] = new_cell
                     target_grid_cell.organism_id = self.id
@@ -841,7 +837,6 @@ class Phenotype:
             # Cap gain by storage
             gain = min(gain, comp.energy_storage if comp.energy_storage > 0 else 1.0)
             cell.energy += gain
-            cell.net_energy_flow = gain # Start with gain
             energy_gain += gain
             
             # --- 1b. Metabolic Cost ---
@@ -853,7 +848,6 @@ class Phenotype:
             cost += comp.armor * self.settings.get('cost_of_armor', 0.05)
             
             cell.energy -= cost
-            cell.net_energy_flow -= cost # Subtract cost for net flow
             metabolic_cost += cost
             
             # --- 1c. Run GRN for behavior (simplified) ---
@@ -1387,159 +1381,6 @@ def visualize_phenotype_2d(phenotype: Phenotype, grid: UniverseGrid) -> go.Figur
         margin=dict(l=20, r=20, t=80, b=20),
         plot_bgcolor='rgba(0,0,0,0)'
     )
-    return fig
-
-def visualize_morphogenesis(phenotype: Phenotype, grid: UniverseGrid) -> go.Figure:
-    """
-    NEW: Creates a 2D heatmap showing the developmental timeline.
-    """
-    cell_data = np.full((grid.width, grid.height), np.nan)
-    cell_text = [["" for _ in range(grid.height)] for _ in range(grid.width)]
-    max_birth_step = 0
-
-    for (x, y), cell in phenotype.cells.items():
-        cell_data[x, y] = cell.birth_step
-        cell_text[x][y] = (
-            f"<b>{cell.component.name}</b><br>"
-            f"Born at Step: {cell.birth_step}"
-        )
-        if cell.birth_step > max_birth_step:
-            max_birth_step = cell.birth_step
-
-    fig = go.Figure(data=go.Heatmap(
-        z=cell_data,
-        text=cell_text,
-        hoverinfo="text",
-        colorscale='Plasma', # A good scale for time
-        showscale=True,
-        zmin=0,
-        zmax=max(1, max_birth_step),
-        colorbar=dict(title="Birth Step")
-    ))
-    
-    fig.update_layout(
-        title=f"Morphogenesis Timeline",
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x"),
-        height=300,
-        margin=dict(l=20, r=20, t=40, b=20),
-        plot_bgcolor='rgba(0,0,0,0)'
-    )
-    return fig
-
-def visualize_metabolism(phenotype: Phenotype, grid: UniverseGrid) -> go.Figure:
-    """
-    NEW: Creates a 2D heatmap showing the net energy flow of each cell.
-    """
-    cell_data = np.full((grid.width, grid.height), np.nan)
-    cell_text = [["" for _ in range(grid.height)] for _ in range(grid.width)]
-
-    for (x, y), cell in phenotype.cells.items():
-        cell_data[x, y] = cell.net_energy_flow
-        cell_text[x][y] = (
-            f"<b>{cell.component.name}</b><br>"
-            f"Net Energy: {cell.net_energy_flow:.3f}"
-        )
-
-    # Use a diverging colorscale to show production vs. consumption
-    # Positive = Blue (cool, productive), Negative = Red (hot, consumptive)
-    fig = go.Figure(data=go.Heatmap(
-        z=cell_data,
-        text=cell_text,
-        hoverinfo="text",
-        colorscale='RdBu',
-        reversescale=True,
-        zmid=0, # Center the colorscale on zero
-        colorbar=dict(title="Net Energy")
-    ))
-    
-    fig.update_layout(
-        title=f"Metabolic Heatmap",
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x"),
-        height=300,
-        margin=dict(l=20, r=20, t=40, b=20),
-        plot_bgcolor='rgba(0,0,0,0)'
-    )
-    return fig
-
-def visualize_component_adjacency(phenotype: Phenotype) -> go.Figure:
-    """
-    NEW: Creates a graph showing which components are physically next to each other.
-    """
-    adj_counts = Counter()
-    for (x, y), cell in phenotype.cells.items():
-        neighbors = phenotype.grid.get_neighbors(x, y)
-        organism_neighbors = [phenotype.cells.get((n.x, n.y)) for n in neighbors if phenotype.cells.get((n.x, n.y))]
-        
-        for neighbor_cell in organism_neighbors:
-            # To avoid double counting and self-loops, create a sorted tuple as the key
-            key = tuple(sorted((cell.component.name, neighbor_cell.component.name)))
-            adj_counts[key] += 1
-
-    G = nx.Graph()
-    for (comp1, comp2), weight in adj_counts.items():
-        G.add_edge(comp1, comp2, weight=weight)
-
-    if not G.nodes:
-        return go.Figure().update_layout(title="Component Adjacency (No connections)", height=300)
-
-    # Get colors for nodes
-    color_map = {comp.name: comp.color for comp in phenotype.genotype.component_genes.values()}
-    node_colors = [color_map.get(node, '#888888') for node in G.nodes()]
-
-    fig, ax = plt.subplots(figsize=(4, 3))
-    pos = nx.spring_layout(G, k=0.9, seed=42, iterations=50)
-    
-    # Draw edges with width proportional to weight
-    weights = [G[u][v]['weight'] for u, v in G.edges()]
-    if weights:
-        max_weight = max(weights)
-        edge_widths = [0.5 + 2.5 * (w / max_weight) for w in weights]
-    else:
-        edge_widths = 0.5
-
-    nx.draw(G, pos, ax=ax, with_labels=False, node_size=600, node_color=node_colors, width=edge_widths, edge_color='#cccccc')
-    labels = {n: n.split('-')[-1].split('_')[0] for n in G.nodes()} # Short labels
-    nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
-    
-    ax.set_title("Component Adjacency Graph", fontsize=10)
-    plt.tight_layout()
-    return fig
-
-def visualize_metabolic_flow(phenotype: Phenotype) -> go.Figure:
-    """
-    NEW: Creates a graph showing the net energy flow between component types.
-    This requires data that is not currently tracked. For now, this is a placeholder.
-    We will simulate a flow based on conductance for demonstration.
-    """
-    G = nx.DiGraph() # Directed graph
-    
-    # Simplified flow: High conductance cells give to neighbors
-    for (x, y), cell in phenotype.cells.items():
-        if cell.component.conductance > 0.5:
-            neighbors = phenotype.grid.get_neighbors(x, y)
-            self_neighbors = [phenotype.cells.get((n.x, n.y)) for n in neighbors if phenotype.cells.get((n.x, n.y))]
-            for neighbor_cell in self_neighbors:
-                # Add a directed edge from the conductor to the neighbor
-                G.add_edge(cell.component.name, neighbor_cell.component.name)
-
-    fig, ax = plt.subplots(figsize=(4, 3))
-    ax.set_title("Metabolic Flow Graph (Conceptual)", fontsize=10)
-    
-    if not G.nodes:
-        ax.text(0.5, 0.5, "No significant energy flow", ha='center', va='center')
-        return fig
-
-    color_map = {comp.name: comp.color for comp in phenotype.genotype.component_genes.values()}
-    node_colors = [color_map.get(node, '#888888') for node in G.nodes()]
-    
-    pos = nx.spring_layout(G, k=0.9, seed=42)
-    nx.draw(G, pos, ax=ax, with_labels=False, node_size=600, node_color=node_colors, width=0.7, arrowsize=10, connectionstyle='arc3,rad=0.1')
-    labels = {n: n.split('-')[-1].split('_')[0] for n in G.nodes()}
-    nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
-    
-    plt.tight_layout()
     return fig
 
 # --- Reuse visualization functions from GENEVO ---
@@ -2587,29 +2428,10 @@ def main():
                         st.metric("Fitness", f"{specimen.fitness:.4f}")
                         st.metric("Cell Count", f"{specimen.cell_count}")
 
-                        # --- Main Visualization ---
-                        fig_pheno = visualize_phenotype_2d(phenotype, vis_grid)
-                        st.plotly_chart(fig_pheno, use_container_width=True, key=f"viewer_pheno_{i}")
+                        fig = visualize_phenotype_2d(phenotype, vis_grid)
+                        st.plotly_chart(fig, use_container_width=True, key=f"pheno_vis_{i}")
 
-                        # --- NEW VISUALIZATIONS ---
-                        fig_morpho = visualize_morphogenesis(phenotype, vis_grid)
-                        st.plotly_chart(fig_morpho, use_container_width=True, key=f"viewer_morpho_{i}")
-                        fig_metab = visualize_metabolism(phenotype, vis_grid)
-                        st.plotly_chart(fig_metab, use_container_width=True, key=f"viewer_metab_{i}")
-
-                        st.markdown("##### **Analysis**")
-                        st.markdown("##### **Internal Architecture**")
-                        
-                        # --- NEW GRAPH PLOTS ---
-                        # These are matplotlib figures, so we use st.pyplot
-                        fig_adj = visualize_component_adjacency(phenotype)
-                        st.pyplot(fig_adj)
-                        plt.clf() # Clear the figure to prevent overlap
-
-                        fig_flow = visualize_metabolic_flow(phenotype)
-                        st.pyplot(fig_flow)
-                        plt.clf() # Clear the figure
-
+                        st.markdown("##### **Component Composition**")
                         component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
                         if component_counts:
                             comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
@@ -2619,7 +2441,6 @@ def main():
                                              color='Component', color_discrete_map=color_map)
                             fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
                             st.plotly_chart(fig_pie, use_container_width=True, key=f"pheno_pie_{i}")
-                            # This pie chart is now redundant with the more detailed graphs, so we can remove it.
                         else:
                             st.info("No cells to analyze.")
 
@@ -2653,7 +2474,7 @@ def main():
                                 labels = {n: n.split('\n')[0] for n in G.nodes()} # Short labels
                                 nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
                                 st.pyplot(fig_grn)
-                                plt.close(fig_grn) # Use plt.close(fig) for better memory management
+                                plt.clf()
                             except Exception as e:
                                 st.warning(f"Could not draw GRN: {e}")
                         else:
