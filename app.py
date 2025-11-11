@@ -1547,11 +1547,7 @@ def main():
     # --- MODIFICATION FOR STREAMLIT PERSISTENCE ---
     # Use CachingMiddleware with a write cache size of 0 to force immediate writes.
     # This prevents data loss if the Streamlit app doesn't shut down gracefully.
-    from tinydb.storages import JSONStorage
-    from tinydb.middlewares import CachingMiddleware
-    storage = CachingMiddleware(JSONStorage)
-    storage.WRITE_CACHE_SIZE = 1 # Force writes after every operation
-    db = TinyDB('universe_sandbox_db_v2.json', storage=storage, indent=4)
+    db = TinyDB('universe_sandbox_db_v2.json', indent=4)
     settings_table = db.table('settings')
     results_table = db.table('results')
     universe_presets_table = db.table('universe_presets') # For "Personal Universe"
@@ -1618,7 +1614,7 @@ def main():
     st.sidebar.markdown('<h1 style="text-align: center; color: #00aaff;">🌌<br>Universe Sandbox AI 2.0</h1>', unsafe_allow_html=True)
     st.sidebar.markdown("---")
     
-    s = st.session_state.settings # Use a mutable dict `s`
+    s = copy.deepcopy(st.session_state.settings) # Use a mutable dict `s`
 
     # --- Reset Button ---
     if st.sidebar.button("Reset Universe to Defaults", width='stretch', key="reset_defaults_button"):
