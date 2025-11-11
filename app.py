@@ -161,6 +161,17 @@ class Genotype:
         num_conditions = sum(len(r.conditions) for r in self.rule_genes)
         return (num_components * 0.4) + (num_rules * 0.3) + (num_conditions * 0.3)
 
+    def update_kingdom(self):
+        """Determine the organism's kingdom based on its dominant structural component."""
+        if not self.component_genes:
+            self.kingdom_id = "Unknown"
+            return
+
+        # Find the component with the highest structural value
+        dominant_comp = max(self.component_genes.values(), key=lambda c: c.structural)
+        
+        self.kingdom_id = dominant_comp.name
+
 # ========================================================
 #
 # PART 2: THE ENVIRONMENT (THE "SANDBOX")
@@ -681,6 +692,7 @@ def mutate(genotype: Genotype, settings: Dict) -> Genotype:
             st.toast(f"🔬 Chemical Innovation! New component discovered: **{new_component.name}**", icon="💡")
 
     mutated.complexity = mutated.compute_complexity()
+    mutated.update_kingdom() # Update kingdom in case dominant component changed
     return mutated
 
 def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
@@ -1561,12 +1573,22 @@ def main():
 
         with tab_elites:
             st.header("🧬 Elite Lineage Analysis")
-            st.markdown("A deep dive into the 'DNA' of the most successful organisms.")
+            st.markdown("Presenting the apex predators from each major biological kingdom. These are the most successful lifeforms evolved in this universe, showcasing a diverse museum of alien life.")
             
             if population:
-                population.sort(key=lambda x: x.fitness, reverse=True)
+                # --- Alien Museum Logic ---
+                # 1. Find the champion of each kingdom
+                kingdom_champions = {}
+                for individual in population:
+                    kingdom = individual.kingdom_id
+                    if kingdom not in kingdom_champions or individual.fitness > kingdom_champions[kingdom].fitness:
+                        kingdom_champions[kingdom] = individual
+                
+                # 2. Sort the champions by fitness
+                elite_specimens = sorted(list(kingdom_champions.values()), key=lambda x: x.fitness, reverse=True)
                 num_ranks = s.get('num_ranks_to_display', 3)
-                for i, individual in enumerate(population[:num_ranks]):
+
+                for i, individual in enumerate(elite_specimens[:num_ranks]):
                     with st.expander(f"**Rank {i+1}:** Lineage `{individual.lineage_id}` | Fitness: `{individual.fitness:.4f}`", expanded=(i==0)):
                         col1, col2, col3 = st.columns([1, 1, 1])
                         with col1:
