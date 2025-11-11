@@ -2416,26 +2416,15 @@ def main():
                         with col4:
                             st.markdown("##### **Genetic Regulatory Network (GRN Rules)**")
                             if individual.rule_genes:
-                                # This single loop replaces the two previous, buggy loops.
                                 for i, rule in enumerate(individual.rule_genes):
                                     cond_parts = []
                                     for c in rule.conditions:
                                         target_val = c['target_value']
-                                        
-                                        # This logic correctly handles floats, ints, AND strings
-                                        if isinstance(target_val, (int, float)):
-                                            val_str = f"{target_val:.1f}"
-                                        else:
-                                            # Put non-numeric values (like component names) in quotes
-                                            val_str = f"'{target_val}'" 
-                                        
+                                        val_str = f"{target_val:.1f}" if isinstance(target_val, (int, float)) else f"'{target_val}'"
                                         cond_parts.append(f"{c['source']} {c['operator']} {val_str}")
-                                    
                                     cond_str = " AND ".join(cond_parts) if cond_parts else "ALWAYS"
-                                    
-                                    # Create a unique key for Streamlit to prevent errors
+                                    # The key needs to be unique across the entire app run for this expander
                                     unique_key = f"elite_rule_{individual.id}_{i}"
-                                    
                                     st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql', key=unique_key)
                             else:
                                 st.info("No GRN rules.")
