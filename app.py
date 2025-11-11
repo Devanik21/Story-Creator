@@ -382,10 +382,10 @@ def generate_controls():
             controls[f'fitness_trait_{i}_weight'] = st.slider(f"Fitness Trait {i} Weight", -5.0, 5.0, np.random.normal(0, 1), key=f"ft_{i}")
         
         for i in range(100):
-            controls[f'niche_{i}_carrying_capacity'] = st.slider(f"Niche {i} Carrying Capacity", 0, 10000, random.randint(100, 1000), key=f"cc_{i}")
+            controls[f'niche_{i}_carrying_capacity'] = st.slider(f"Niche {i} Carrying Capacity", 0, 10000, random.randint(100, 1000), key=f"cc6g2f_{i}"+1)
         
         for i in range(50):
-            controls[f'evolutionary_constraint_{i}'] = st.slider(f"Evolutionary Constraint {i}", 0.0, 1.0, np.random.random(), key=f"ec_{i}")
+            controls[f'evolutionary_constraint_{i}'] = st.slider(f"Evolutionary Constraint {i}", 0.0, 1.0, np.random.random(), key=f"ecf4_{i}")
     
     # ==================== MULTIDIMENSIONAL PHYSICS ====================
     with st.sidebar.expander("🌀 MULTIVERSE PARAMETERS (200+)", expanded=False):
