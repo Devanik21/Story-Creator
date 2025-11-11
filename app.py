@@ -137,6 +137,11 @@ class Genotype:
     # This is determined by the *dominant* structural component.
     kingdom_id: str = "Carbon" 
     
+    # --- Meta-Evolution (Hyperparameters) ---
+    # These can be evolved if s['enable_hyperparameter_evolution'] is True
+    evolvable_mutation_rate: float = 0.2
+    evolvable_innovation_rate: float = 0.05
+
     def __post_init__(self):
         if not self.lineage_id:
             self.lineage_id = f"L{random.randint(0, 999999):06d}"
@@ -150,7 +155,9 @@ class Genotype:
             age=0,
             generation=self.generation,
             parent_ids=[self.id],
-            kingdom_id=self.kingdom_id
+            kingdom_id=self.kingdom_id,
+            evolvable_mutation_rate=self.evolvable_mutation_rate,
+            evolvable_innovation_rate=self.evolvable_innovation_rate
         )
         return new_genotype
     
@@ -670,10 +677,15 @@ def mutate(genotype: Genotype, settings: Dict) -> Genotype:
     # It's good practice to check for the existence of a key before using it.
     if 'current_population' not in st.session_state:
         st.session_state.current_population = [] # Initialize if it doesn't exist
-    mutated = genotype.copy() # The error points here, but the cause is likely an access to st.session_state.population
+    mutated = genotype.copy()
     
-    mut_rate = settings.get('mutation_rate', 0.2)
-    innov_rate = settings.get('innovation_rate', 0.05)
+    # --- Use evolvable hyperparameters if enabled ---
+    if settings.get('enable_hyperparameter_evolution', False):
+        mut_rate = mutated.evolvable_mutation_rate
+        innov_rate = mutated.evolvable_innovation_rate
+    else:
+        mut_rate = settings.get('mutation_rate', 0.2)
+        innov_rate = settings.get('innovation_rate', 0.05)
     
     # --- 1. Parameter Mutations (tweak existing rules) ---
     for rule in mutated.rule_genes:
@@ -701,6 +713,15 @@ def mutate(genotype: Genotype, settings: Dict) -> Genotype:
         if new_component.name not in mutated.component_genes:
             mutated.component_genes[new_component.name] = new_component
             st.toast(f"🔬 Chemical Innovation! New component discovered: **{new_component.name}**", icon="💡")
+
+    # --- 4. Hyperparameter Mutation (Evolving Evolution Itself) ---
+    if settings.get('enable_hyperparameter_evolution', False):
+        hyper_mut_rate = settings.get('hyper_mutation_rate', 0.05)
+        if random.random() < hyper_mut_rate and 'mutation_rate' in settings.get('evolvable_params', []):
+            mutated.evolvable_mutation_rate = np.clip(mutated.evolvable_mutation_rate * np.random.lognormal(0, 0.1), 0.01, 0.9)
+        if random.random() < hyper_mut_rate and 'innovation_rate' in settings.get('evolvable_params', []):
+            mutated.evolvable_innovation_rate = np.clip(mutated.evolvable_innovation_rate * np.random.lognormal(0, 0.1), 0.01, 0.5)
+
 
     mutated.complexity = mutated.compute_complexity()
     mutated.update_kingdom() # Update kingdom in case dominant component changed
@@ -1450,16 +1471,44 @@ def main():
                 # (Simplified reproduction loop)
                 parent1 = random.choice(survivors)
                 parent2 = random.choice(survivors)
-                
-                # (Crossover is complex, we'll use mutation-only for this demo)
-                child = parent1.copy()
-                
-                # Mutate
-                child = mutate(child, s)
-                
-                child.generation = gen + 1
-                offspring.append(child)
-                st.session_state.gene_archive.append(child.copy()) # Add to archive
+
+                # --- Endosymbiosis Event ---
+                if s.get('enable_endosymbiosis', True) and random.random() < s.get('endosymbiosis_rate', 0.005):
+                    host = parent1.copy()
+                    symbiote = parent2.copy()
+
+                    # Merge Genomes: Combine components and rules
+                    # This is a powerful way to jump across the fitness landscape
+                    for comp_name, comp_gene in symbiote.component_genes.items():
+                        if comp_name not in host.component_genes:
+                            host.component_genes[comp_name] = comp_gene
+                    
+                    # Add a fraction of the symbiote's rules
+                    num_rules_to_take = int(len(symbiote.rule_genes) * random.uniform(0.2, 0.5))
+                    rules_to_take = random.sample(symbiote.rule_genes, num_rules_to_take)
+                    host.rule_genes.extend(rules_to_take)
+
+                    # Update metadata
+                    host.parent_ids.extend(symbiote.parent_ids)
+                    host.update_kingdom()
+                    host.generation = gen + 1
+                    
+                    # Mutate the new chimeric organism
+                    child = mutate(host, s)
+                    offspring.append(child)
+                    st.toast(f"💥 ENDOSYMBIOSIS! Organisms merged into a new lifeform!", icon="🧬")
+
+                else:
+                    # --- Standard Reproduction ---
+                    # (Crossover is complex, we'll use mutation-only for this demo)
+                    child = parent1.copy()
+                    
+                    # Mutate
+                    child = mutate(child, s)
+                    
+                    child.generation = gen + 1
+                    offspring.append(child)
+                    st.session_state.gene_archive.append(child.copy()) # Add to archive
 
             population = survivors + offspring
             
