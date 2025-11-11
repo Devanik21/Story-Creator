@@ -1688,8 +1688,23 @@ def main():
                             st.metric("Energy Cons.", f"{individual.energy_consumption:.3f}")
                         
                         with col2:
+                top_elites = elite_specimens[:num_ranks_to_display]
+                if top_elites:
+                    cols = st.columns(len(top_elites))
+                    for i, individual in enumerate(top_elites):
+                        with cols[i]:
+                            st.markdown(f"#### Rank {i+1}: `{individual.kingdom_id}`")
+                            st.metric("Fitness", f"{individual.fitness:.4f}")
+                            
+                            # --- Grow phenotype once for all visualizations ---
+                            with st.spinner(f"Growing Rank {i+1}..."):
+                                vis_grid = UniverseGrid(s)
+                                phenotype = Phenotype(individual, vis_grid, s)
+    
+                            # --- Phenotype (Body Plan) ---
                             st.markdown("##### **Phenotype (Body Plan)**")
                             fig = visualize_phenotype_2d(phenotype, vis_grid)
+                            fig.update_layout(title=None, margin=dict(l=0, r=0, t=0, b=0), height=300)
                             st.plotly_chart(fig, use_container_width=True, key=f"elite_pheno_vis_{i}")
 
                         st.markdown("---")
@@ -1698,6 +1713,8 @@ def main():
                         col3, col4, col5 = st.columns(3)
 
                         with col3:
+    
+                            # --- Component Composition ---
                             st.markdown("##### **Component Composition**")
                             component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
                             if component_counts:
@@ -1708,10 +1725,14 @@ def main():
                                                  color='Component', color_discrete_map=color_map)
                                 fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=250)
                                 st.plotly_chart(fig_pie, use_container_width=True)
+                                fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
+                                st.plotly_chart(fig_pie, use_container_width=True, key=f"elite_pie_{i}")
                             else:
                                 st.info("No cells to analyze.")
 
                         with col4:
+    
+                            # --- Genetic Regulatory Network (GRN) ---
                             st.markdown("##### **Genetic Regulatory Network (GRN)**")
                             G = nx.DiGraph()
                             for comp_name, comp_gene in individual.component_genes.items():
@@ -1725,16 +1746,24 @@ def main():
                                 G.add_edge(list(individual.component_genes.keys())[0], action_node, label=f"P={rule.probability:.1f}") # Simplified source
                                 G.add_edge(action_node, rule.action_param)
 
+    
                             if G.nodes:
                                 pos = nx.spring_layout(G, k=0.9)
+                                fig_grn, ax = plt.subplots(figsize=(4, 3))
+                                pos = nx.spring_layout(G, k=0.9, seed=42)
                                 node_colors = [data['color'] for _, data in G.nodes(data=True)]
                                 nx.draw(G, pos, with_labels=True, node_size=800, node_color=node_colors, font_size=8, width=0.5, arrowsize=10)
                                 st.pyplot(plt.gcf())
                                 plt.clf() # Clear figure for next iteration
+                                nx.draw(G, pos, ax=ax, with_labels=True, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                st.pyplot(fig_grn)
+                                plt.close(fig_grn) # Prevent display bleed-through
                             else:
                                 st.info("No GRN to display.")
 
                         with col5:
+    
+                            # --- Evolved Objectives ---
                             st.markdown("##### **Evolved Objectives**")
                             if individual.objective_weights:
                                 obj_df = pd.DataFrame.from_dict(individual.objective_weights, orient='index', columns=['Weight']).reset_index()
@@ -1742,6 +1771,8 @@ def main():
                                 fig_bar = px.bar(obj_df, x='Objective', y='Weight', color='Objective')
                                 fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=250)
                                 st.plotly_chart(fig_bar, use_container_width=True)
+                                fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
+                                st.plotly_chart(fig_bar, use_container_width=True, key=f"elite_bar_{i}")
                             else:
                                 st.info("Global objectives are in use.")
                             
