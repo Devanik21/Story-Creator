@@ -1567,7 +1567,7 @@ def main():
             st.session_state.evolutionary_metrics = []
             
         st.session_state.current_population = None
-        st.session_state.universe_presets = {doc['name']: doc['settings'] for doc in universe_presets_table.all()}
+        st.session_state.universe_presets = {doc['name']: doc for doc in universe_presets_table.all()}
         
         # NEW 2.0: Initialize evolvable condition sources
         st.session_state.evolvable_condition_sources = [
@@ -1595,7 +1595,7 @@ def main():
         
     if 'universe_presets' not in st.session_state:
         # This check will fix your exact 'universe_presets' AttributeError
-        st.session_state.universe_presets = {doc['name']: doc['settings'] for doc in universe_presets_table.all()}
+        st.session_state.universe_presets = {doc['name']: doc for doc in universe_presets_table.all()}
         
     if 'evolvable_condition_sources' not in st.session_state:
         # This fixes the latent bug with 'evolvable_condition_sources'
@@ -1646,14 +1646,35 @@ def main():
             if st.button("💾 Save Current Universe", width='stretch'):
                 if new_preset_name:
                     # 's' is the deepcopy from line 1311 that holds your
-                    # CURRENT slider values. This is what we must save.
+                    # CURRENT slider values.
                     current_settings_snapshot = s 
                     
-                    presets[new_preset_name] = copy.deepcopy(current_settings_snapshot)
-                    universe_presets_table.upsert({'name': new_preset_name, 'settings': current_settings_snapshot}, Query().name == new_preset_name)
+                    # --- NEW: Get the current results to save them ---
+                    current_history = st.session_state.get('history', [])
+                    current_metrics = st.session_state.get('evolutionary_metrics', [])
                     
-                    st.toast(f"Universe '{new_preset_name}' saved!", icon="💾")
-                    st.session_state.universe_presets = presets # Update state
+                    # Serialize the population into a list of dictionaries
+                    current_pop_data = []
+                    if st.session_state.get('current_population'):
+                        try:
+                            current_pop_data = [asdict(g) for g in st.session_state.current_population]
+                        except Exception as e:
+                            st.warning(f"Could not serialize population: {e}")
+
+                    # --- NEW: Create the full preset document ---
+                    preset_data_to_save = {
+                        'name': new_preset_name,
+                        'settings': current_settings_snapshot,
+                        'history': current_history,
+                        'evolutionary_metrics': current_metrics,
+                        'final_population_genotypes': current_pop_data
+                    }
+                    
+                    presets[new_preset_name] = preset_data_to_save # Save to in-memory dict
+                    universe_presets_table.upsert(preset_data_to_save, Query().name == new_preset_name)
+                    
+                    st.toast(f"Universe '{new_preset_name}' (with results) saved!", icon="💾")
+                    st.session_state.universe_presets = presets # Update session state
                     st.rerun()
                 else:
                     st.warning("Please enter a name for your universe.")
@@ -1663,17 +1684,59 @@ def main():
         if selected_preset != "<Select a Preset to Load>":
             c1, c2 = st.columns(2)
             if c1.button("LOAD UNIVERSE", width='stretch', type="primary"):
-                # 1. Load the preset into session state
-                loaded_settings = copy.deepcopy(presets[selected_preset])
+                # 1. Load the full preset doc from the in-memory dict
+                preset_to_load = presets[selected_preset]
+                
+                # 2. Extract settings and save them as the "active" settings
+                loaded_settings = copy.deepcopy(preset_to_load['settings'])
                 st.session_state.settings = loaded_settings
                 
-                # 2. ALSO save it directly to the database file
+                # Save to the main settings DB file
                 if settings_table.get(doc_id=1):
                     settings_table.update(loaded_settings, doc_ids=[1])
                 else:
                     settings_table.insert(loaded_settings)
                     
-                st.toast(f"Loaded universe '{selected_preset}'!", icon="🌠")
+                # 3. Extract results and load them into session_state
+                st.session_state.history = preset_to_load.get('history', [])
+                st.session_state.evolutionary_metrics = preset_to_load.get('evolutionary_metrics', [])
+                
+                # 4. De-serialize the population (rebuild the Genotype objects)
+                pop_data = preset_to_load.get('final_population_genotypes', [])
+                loaded_population = []
+                if pop_data:
+                    try:
+                        for geno_dict in pop_data:
+                            # Reconstruct ComponentGene dict
+                            comp_genes_dict = geno_dict.get('component_genes', {})
+                            re_comp_genes = {}
+                            for comp_id, comp_dict in comp_genes_dict.items():
+                                re_comp_genes[comp_id] = ComponentGene(**comp_dict)
+                            geno_dict['component_genes'] = re_comp_genes
+                            
+                            # Reconstruct RuleGene list
+                            rule_genes_list = geno_dict.get('rule_genes', [])
+                            re_rule_genes = [RuleGene(**rule_dict) for rule_dict in rule_genes_list]
+                            geno_dict['rule_genes'] = re_rule_genes
+                            
+                            # Create the main Genotype object
+                            loaded_population.append(Genotype(**geno_dict))
+                    except Exception as e:
+                        st.error(f"Error de-serializing population: {e}")
+                        
+                st.session_state.current_population = loaded_population
+                
+                # 5. Save these loaded results to the 'active' results_table
+                results_to_save = {
+                    'history': st.session_state.history,
+                    'evolutionary_metrics': st.session_state.evolutionary_metrics,
+                }
+                if results_table.get(doc_id=1):
+                    results_table.update(results_to_save, doc_ids=[1])
+                else:
+                    results_table.insert(results_to_save)
+
+                st.toast(f"Loaded universe '{selected_preset}' (with results)!", icon="🌠")
                 st.rerun()
             if c2.button("DELETE", width='stretch'):
                 # Removed the nested button, which cannot work in Streamlit.
