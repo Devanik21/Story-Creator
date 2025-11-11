@@ -2428,6 +2428,9 @@ def main():
                                         cond_parts.append(f"{c['source']} {c['operator']} {val_str}")
                                     cond_str = " AND ".join(cond_parts) if cond_parts else "ALWAYS"
                                     st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql', key=f"rule_{individual.id}_{i}")
+                                    # The key needs to be unique across the entire app run for this expander
+                                    unique_key = f"elite_rule_{individual.id}_{i}"
+                                    st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql', key=unique_key)
                             else:
                                 st.info("No GRN rules.")
                             
