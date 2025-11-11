@@ -1671,49 +1671,83 @@ def main():
                 # 3. Display the unique elites, up to the desired number of ranks.
                 for i, individual in enumerate(elite_specimens[:num_ranks_to_display]):
                     with st.expander(f"**Rank {i+1}:** Kingdom `{individual.kingdom_id}` | Fitness: `{individual.fitness:.4f}`", expanded=(i==0)):
-                        col1, col2, col3 = st.columns([1, 1, 1])
+                        
+                        # --- Grow phenotype once for all visualizations ---
+                        with st.spinner(f"Growing Rank {i+1}..."):
+                            vis_grid = UniverseGrid(s)
+                            phenotype = Phenotype(individual, vis_grid, s)
+
+                        # --- Main Info Row ---
+                        col1, col2 = st.columns([1, 1])
                         with col1:
+                            st.markdown("##### **Core Metrics**")
                             st.metric("Cell Count", f"{individual.cell_count}")
                             st.metric("Complexity", f"{individual.compute_complexity():.2f}")
                             st.metric("Lifespan", f"{individual.lifespan} ticks")
                             st.metric("Energy Prod.", f"{individual.energy_production:.3f}")
                             st.metric("Energy Cons.", f"{individual.energy_consumption:.3f}")
                         
-                        with col2, st.spinner("Growing..."):
-                            st.markdown("##### **Phenotype**")
-                            vis_grid = UniverseGrid(s)
-                            phenotype = Phenotype(individual, vis_grid, s)
+                        with col2:
+                            st.markdown("##### **Phenotype (Body Plan)**")
                             fig = visualize_phenotype_2d(phenotype, vis_grid)
                             st.plotly_chart(fig, use_container_width=True, key=f"elite_pheno_vis_{i}")
 
+                        st.markdown("---")
+                        
+                        # --- Detailed Analysis Row ---
+                        col3, col4, col5 = st.columns(3)
+
                         with col3:
-                            st.markdown("##### **Genetic Code: Components (The 'Alphabet')**")
-                            comp_data = []
-                            for name, comp in individual.component_genes.items():
-                                comp_data.append({
-                                    'Name': name,
-                                    'Mass': f"{comp.mass:.2f}",
-                                    'Struct': f"{comp.structural:.2f}",
-                                    'Photo': f"{comp.photosynthesis:.2f}",
-                                    'Compute': f"{comp.compute:.2f}",
-                                    'Color': comp.color
-                                })
-                            st.dataframe(comp_data, height=150)
-                            
-                            st.markdown("##### **Genetic Code: Rules (The 'Grammar')**")
-                            rule_data = []
+                            st.markdown("##### **Component Composition**")
+                            component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
+                            if component_counts:
+                                comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
+                                comp_df = comp_df.rename(columns={'index': 'Component'})
+                                color_map = {c.name: c.color for c in individual.component_genes.values()}
+                                fig_pie = px.pie(comp_df, values='Count', names='Component', 
+                                                 color='Component', color_discrete_map=color_map)
+                                fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=250)
+                                st.plotly_chart(fig_pie, use_container_width=True)
+                            else:
+                                st.info("No cells to analyze.")
+
+                        with col4:
+                            st.markdown("##### **Genetic Regulatory Network (GRN)**")
+                            G = nx.DiGraph()
+                            for comp_name, comp_gene in individual.component_genes.items():
+                                G.add_node(comp_name, type='component', color=comp_gene.color)
                             for rule in individual.rule_genes:
-                                cond_parts = []
-                                for c in rule.conditions:
-                                    target_val = c['target_value']
-                                    val_str = f"{target_val:.1f}" if isinstance(target_val, (int, float)) else str(target_val)
-                                    cond_parts.append(f"{c['source']} {c['operator']} {val_str}")
-                                conds = " AND ".join(cond_parts)
-                                act = f"{rule.action_type}({rule.action_param})"
-                                rule_data.append(f"IF [{conds}] THEN {act} (P={rule.probability:.2f})")
-                            st.json(rule_data)
+                                action_node = f"{rule.action_type}\n({rule.action_param})"
+                                G.add_node(action_node, type='action', color='#FFB347') # Orange for actions
+                                
+                                # Find which components are involved in conditions
+                                involved_comps = {c['source'] for c in rule.conditions} # Simplified
+                                G.add_edge(list(individual.component_genes.keys())[0], action_node, label=f"P={rule.probability:.1f}") # Simplified source
+                                G.add_edge(action_node, rule.action_param)
+
+                            if G.nodes:
+                                pos = nx.spring_layout(G, k=0.9)
+                                node_colors = [data['color'] for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos, with_labels=True, node_size=800, node_color=node_colors, font_size=8, width=0.5, arrowsize=10)
+                                st.pyplot(plt.gcf())
+                                plt.clf() # Clear figure for next iteration
+                            else:
+                                st.info("No GRN to display.")
+
+                        with col5:
+                            st.markdown("##### **Evolved Objectives**")
+                            if individual.objective_weights:
+                                obj_df = pd.DataFrame.from_dict(individual.objective_weights, orient='index', columns=['Weight']).reset_index()
+                                obj_df = obj_df.rename(columns={'index': 'Objective'})
+                                fig_bar = px.bar(obj_df, x='Objective', y='Weight', color='Objective')
+                                fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=250)
+                                st.plotly_chart(fig_bar, use_container_width=True)
+                            else:
+                                st.info("Global objectives are in use.")
+                            
             else:
                 st.warning("No population data available to analyze.")
         
 if __name__ == "__main__":
+    import matplotlib.pyplot as plt
     main()
