@@ -680,11 +680,19 @@ class Phenotype:
             op = cond['operator']
             target = cond['target_value']
             
-            if op == '>' and not (value > target): return False
-            if op == '<' and not (value < target): return False
-            if op == '==' and not (value == target): return False
-            if op == '!=' and not (value != target): return False
-            
+            try:
+                if op == '>':
+                    if not (value > target): return False
+                elif op == '<':
+                    if not (value < target): return False
+                elif op == '==':
+                    if not (value == target): return False
+                elif op == '!=':
+                    if not (value != target): return False
+            except TypeError:
+                # This happens if comparing incompatible types, e.g., string and float.
+                # In this case, the condition is considered not met.
+                return False
         return True # All conditions passed
 
     def execute_action(self, rule: RuleGene, cell: OrganismCell, new_cells: Dict) -> float:
