@@ -1617,6 +1617,8 @@ def main():
                 gen_pop_df = gen_pop_df.sort_values('fitness', ascending=False)
                 
                 top_lineages = gen_pop_df['lineage_id'].unique()[:3]
+                num_to_display = s.get('num_ranks_to_display', 3)
+                top_lineages = gen_pop_df['lineage_id'].unique()[:num_to_display]
                 
                 # Find the full genotype data
                 top_specimens = []
@@ -1629,6 +1631,7 @@ def main():
                 
                 if not top_specimens and population:
                     top_specimens = sorted(population, key=lambda x: x.fitness, reverse=True)[:3]
+                    top_specimens = sorted(population, key=lambda x: x.fitness, reverse=True)[:num_to_display]
                     st.warning(f"Could not load historical genotypes for Gen {gen_to_view}. Showing top 3 from final population instead.")
                 
                 cols = st.columns(len(top_specimens))
