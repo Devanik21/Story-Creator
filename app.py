@@ -644,7 +644,11 @@ def mutate(genotype: Genotype, settings: Dict) -> Genotype:
     The core of "infinite" evolution. Mutates parameters,
     rules, and *invents new components and rules*.
     """
-    mutated = genotype.copy()
+    # In a complex Streamlit app, session state can sometimes be unpredictable.
+    # It's good practice to check for the existence of a key before using it.
+    if 'current_population' not in st.session_state:
+        st.session_state.current_population = [] # Initialize if it doesn't exist
+    mutated = genotype.copy() # The error points here, but the cause is likely an access to st.session_state.population
     
     mut_rate = settings.get('mutation_rate', 0.2)
     innov_rate = settings.get('innovation_rate', 0.05)
@@ -1311,7 +1315,10 @@ def main():
     current_settings = s.copy()
     if current_settings != st.session_state.settings:
         st.session_state.settings = current_settings
-        settings_table.upsert(current_settings, doc_id=1)
+        if settings_table.get(doc_id=1):
+            settings_table.update(current_settings, doc_ids=[1])
+        else:
+            settings_table.insert(current_settings)
         st.toast("Universe constants saved.", icon="⚙️")
 
     # ===============================================
@@ -1460,8 +1467,10 @@ def main():
             'history': st.session_state.history,
             'evolutionary_metrics': st.session_state.evolutionary_metrics,
         }
-        results_table.upsert(results_to_save, doc_id=1)
-        
+        if results_table.get(doc_id=1):
+            results_table.update(results_to_save, doc_ids=[1])
+        else:
+            results_table.insert(results_to_save)
 
     # ===============================================
     # --- MAIN PAGE DISPLAY ---
