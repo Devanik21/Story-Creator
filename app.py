@@ -2420,6 +2420,14 @@ def main():
                                     cond_str = " AND ".join([f"{c['source']} {c['operator']} {c['target_value']:.1f}" for c in rule.conditions])
                                     if not cond_str: cond_str = "ALWAYS"
                                     st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql')
+                                for i, rule in enumerate(individual.rule_genes):
+                                    cond_parts = []
+                                    for c in rule.conditions:
+                                        target_val = c['target_value']
+                                        val_str = f"{target_val:.1f}" if isinstance(target_val, (int, float)) else f"'{target_val}'"
+                                        cond_parts.append(f"{c['source']} {c['operator']} {val_str}")
+                                    cond_str = " AND ".join(cond_parts) if cond_parts else "ALWAYS"
+                                    st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql', key=f"rule_{individual.id}_{i}")
                             else:
                                 st.info("No GRN rules.")
                             
