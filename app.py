@@ -917,51 +917,63 @@ class Phenotype:
 
 def get_primordial_soup_genotype(settings: Dict) -> Genotype:
     """Creates the 'Adam/Eve' genotype with procedurally generated components."""
-    
-    # 1. Define primordial components by innovating from the base registry
+
+    # --- NEW: Supercharged Primordial Soup ---
+    # Create a richer, more specialized set of starting components to accelerate morphological diversity.
+
+    # 1. Zygote (The Seed)
     comp_zygote = innovate_component(None, settings, force_base='Carbon')
     comp_zygote.name = f"Zygote_{uuid.uuid4().hex[:4]}"
     comp_zygote.energy_storage *= 2.0 # Boost zygote storage
-    
-    comp_struct = innovate_component(None, settings)
-    comp_struct.name = f"Struct_{uuid.uuid4().hex[:4]}"
-    comp_struct.structural *= 1.5 # Boost structure
-    
-    comp_energy = innovate_component(None, settings)
-    comp_energy.name = f"Energy_{uuid.uuid4().hex[:4]}"
+    comp_zygote.structural = 0.1 # Give it a tiny bit of structure
 
-    components = {c.name: c for c in [comp_struct, comp_energy, comp_zygote]}
-    
-    # 2. Define primordial rules that refer to the new components
+    # 2. Meso-Shell (Basic Structure)
+    comp_shell = innovate_component(None, settings, force_base='Silicon')
+    comp_shell.name = f"Meso-Shell_{uuid.uuid4().hex[:4]}"
+    comp_shell.structural = np.clip(comp_shell.structural * 1.5, 1.0, 3.0)
+    comp_shell.mass *= 1.2
+
+    # 3. Photo-Core (Energy Production)
+    comp_energy = innovate_component(None, settings, force_base='Plasma')
+    comp_energy.name = f"Photo-Core_{uuid.uuid4().hex[:4]}"
+    comp_energy.photosynthesis = np.clip(comp_energy.photosynthesis * 2.0, 1.0, 3.0)
+    comp_energy.structural = 0.0 # Pure energy
+
+    # 4. Neuro-Spine (Energy Conduction)
+    comp_conduct = innovate_component(None, settings, force_base='Aether')
+    comp_conduct.name = f"Neuro-Spine_{uuid.uuid4().hex[:4]}"
+    comp_conduct.conductance = np.clip(comp_conduct.conductance * 2.0, 0.8, 2.0)
+    comp_conduct.structural = 0.1
+
+    # 5. Armor-Plate (Defense)
+    comp_armor = innovate_component(None, settings, force_base='Metallic')
+    comp_armor.name = f"Armor-Plate_{uuid.uuid4().hex[:4]}"
+    comp_armor.armor = np.clip(comp_armor.armor * 2.0, 1.0, 3.0)
+    comp_armor.mass *= 2.0
+    comp_armor.structural = 0.5
+
+    components = {c.name: c for c in [comp_zygote, comp_shell, comp_energy, comp_conduct, comp_armor]}
+
+    # Define more specific primordial rules for this richer toolkit
     rules = [
-        # Rule 1: If neighbor is empty and I have energy, grow a structural cell
-        RuleGene(
-            conditions=[
-                {'source': 'neighbor_count_empty', 'operator': '>', 'target_value': 0},
-                {'source': 'self_energy', 'operator': '>', 'target_value': random.uniform(1.5, 3.0)},
-            ],
-            action_type="GROW",
-            action_param=comp_struct.name,
-            priority=10
-        ),
-        # Rule 2: If neighbor is empty and I have lots of energy, grow an energy cell
-        RuleGene(
-            conditions=[
-                {'source': 'neighbor_count_empty', 'operator': '>', 'target_value': 0},
-                {'source': 'self_energy', 'operator': '>', 'target_value': random.uniform(4.0, 6.0)},
-            ],
-            action_type="GROW",
-            action_param=comp_energy.name,
-            priority=11
-        ),
-        # Rule 3: If I am a Zygote and old, differentiate into a Struct
+        # Rule 1: If I am a Zygote, grow a Shell around me.
         RuleGene(
             conditions=[
                 {'source': 'self_type', 'operator': '==', 'target_value': comp_zygote.name},
-                {'source': 'self_age', 'operator': '>', 'target_value': 2},
+                {'source': 'self_age', 'operator': '<', 'target_value': 2},
+            ],
+            action_type="GROW",
+            action_param=comp_shell.name,
+            priority=20
+        ),
+        # Rule 2: After initial growth, differentiate the Zygote into an Energy core.
+        RuleGene(
+            conditions=[
+                {'source': 'self_type', 'operator': '==', 'target_value': comp_zygote.name},
+                {'source': 'self_age', 'operator': '>', 'target_value': 1},
             ],
             action_type="DIFFERENTIATE",
-            action_param=comp_struct.name,
+            action_param=comp_energy.name,
             priority=100 # High priority
         )
     ]
