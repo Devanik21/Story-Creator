@@ -2774,8 +2774,10 @@ def main():
         # Prepare data for download
         # Convert Genotype objects (which are not directly JSON serializable) to dictionaries
         final_population_serializable = [asdict(g) for g in st.session_state.get('current_population', [])]
+        final_population_serializable = [asdict(g) for g in (st.session_state.get('current_population') or [])]
         # The gene archive can be very large, so we'll sample it if it's huge to keep downloads manageable
         gene_archive_sample = st.session_state.get('gene_archive', [])
+        gene_archive_sample = st.session_state.get('gene_archive') or []
         if len(gene_archive_sample) > 5000:
             gene_archive_sample = random.sample(gene_archive_sample, 5000)
         gene_archive_serializable = [asdict(g) for g in gene_archive_sample]
