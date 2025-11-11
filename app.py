@@ -2416,16 +2416,14 @@ def main():
                         with col4:
                             st.markdown("##### **Genetic Regulatory Network (GRN Rules)**")
                             if individual.rule_genes:
-                                for i, rule in enumerate(individual.rule_genes):
+                                for rule in individual.rule_genes:
                                     cond_parts = []
                                     for c in rule.conditions:
                                         target_val = c['target_value']
                                         val_str = f"{target_val:.1f}" if isinstance(target_val, (int, float)) else f"'{target_val}'"
                                         cond_parts.append(f"{c['source']} {c['operator']} {val_str}")
                                     cond_str = " AND ".join(cond_parts) if cond_parts else "ALWAYS"
-                                    # The key needs to be unique across the entire app run for this expander
-                                    unique_key = f"elite_rule_{individual.id}_{i}"
-                                    st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql', key=unique_key)
+                                    st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql')
                             else:
                                 st.info("No GRN rules.")
                             
