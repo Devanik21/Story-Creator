@@ -495,6 +495,9 @@ class OrganismCell:
     y: int = 0
     energy: float = 1.0
     age: int = 0
+    # --- NEW: Data for advanced visualization ---
+    birth_step: int = 0 # The development step this cell was created on
+    net_energy_flow: float = 0.0 # Tracks energy production vs consumption
     # --- Internal State for GRN ---
     state_vector: Dict[str, float] = field(default_factory=dict) 
 
@@ -758,7 +761,8 @@ class Phenotype:
                         x=target_grid_cell.x,
                         y=target_grid_cell.y,
                         energy=new_cell_energy, # Starts with base energy
-                        state_vector={'type_id': hash(new_comp.id), 'energy': 1.0}
+                        state_vector={'type_id': hash(new_comp.id), 'energy': 1.0},
+                        birth_step=cell.age # Store the 'age' of the parent as the birth step
                     )
                     new_cells[(target_grid_cell.x, target_grid_cell.y)] = new_cell
                     target_grid_cell.organism_id = self.id
@@ -837,6 +841,7 @@ class Phenotype:
             # Cap gain by storage
             gain = min(gain, comp.energy_storage if comp.energy_storage > 0 else 1.0)
             cell.energy += gain
+            cell.net_energy_flow = gain # Start with gain
             energy_gain += gain
             
             # --- 1b. Metabolic Cost ---
@@ -848,6 +853,7 @@ class Phenotype:
             cost += comp.armor * self.settings.get('cost_of_armor', 0.05)
             
             cell.energy -= cost
+            cell.net_energy_flow -= cost # Subtract cost for net flow
             metabolic_cost += cost
             
             # --- 1c. Run GRN for behavior (simplified) ---
@@ -1379,6 +1385,80 @@ def visualize_phenotype_2d(phenotype: Phenotype, grid: UniverseGrid) -> go.Figur
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x"),
         height=500,
         margin=dict(l=20, r=20, t=80, b=20),
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    return fig
+
+def visualize_morphogenesis(phenotype: Phenotype, grid: UniverseGrid) -> go.Figure:
+    """
+    NEW: Creates a 2D heatmap showing the developmental timeline.
+    """
+    cell_data = np.full((grid.width, grid.height), np.nan)
+    cell_text = [["" for _ in range(grid.height)] for _ in range(grid.width)]
+    max_birth_step = 0
+
+    for (x, y), cell in phenotype.cells.items():
+        cell_data[x, y] = cell.birth_step
+        cell_text[x][y] = (
+            f"<b>{cell.component.name}</b><br>"
+            f"Born at Step: {cell.birth_step}"
+        )
+        if cell.birth_step > max_birth_step:
+            max_birth_step = cell.birth_step
+
+    fig = go.Figure(data=go.Heatmap(
+        z=cell_data,
+        text=cell_text,
+        hoverinfo="text",
+        colorscale='Plasma', # A good scale for time
+        showscale=True,
+        zmin=0,
+        zmax=max(1, max_birth_step),
+        colorbar=dict(title="Birth Step")
+    ))
+    
+    fig.update_layout(
+        title=f"Morphogenesis Timeline",
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x"),
+        height=300,
+        margin=dict(l=20, r=20, t=40, b=20),
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+    return fig
+
+def visualize_metabolism(phenotype: Phenotype, grid: UniverseGrid) -> go.Figure:
+    """
+    NEW: Creates a 2D heatmap showing the net energy flow of each cell.
+    """
+    cell_data = np.full((grid.width, grid.height), np.nan)
+    cell_text = [["" for _ in range(grid.height)] for _ in range(grid.width)]
+
+    for (x, y), cell in phenotype.cells.items():
+        cell_data[x, y] = cell.net_energy_flow
+        cell_text[x][y] = (
+            f"<b>{cell.component.name}</b><br>"
+            f"Net Energy: {cell.net_energy_flow:.3f}"
+        )
+
+    # Use a diverging colorscale to show production vs. consumption
+    # Positive = Blue (cool, productive), Negative = Red (hot, consumptive)
+    fig = go.Figure(data=go.Heatmap(
+        z=cell_data,
+        text=cell_text,
+        hoverinfo="text",
+        colorscale='RdBu',
+        reversescale=True,
+        zmid=0, # Center the colorscale on zero
+        colorbar=dict(title="Net Energy")
+    ))
+    
+    fig.update_layout(
+        title=f"Metabolic Heatmap",
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="x"),
+        height=300,
+        margin=dict(l=20, r=20, t=40, b=20),
         plot_bgcolor='rgba(0,0,0,0)'
     )
     return fig
@@ -2430,8 +2510,18 @@ def main():
 
                         fig = visualize_phenotype_2d(phenotype, vis_grid)
                         st.plotly_chart(fig, use_container_width=True, key=f"pheno_vis_{i}")
+                        # --- Main Visualization ---
+                        fig_pheno = visualize_phenotype_2d(phenotype, vis_grid)
+                        st.plotly_chart(fig_pheno, use_container_width=True, key=f"pheno_vis_{i}")
 
                         st.markdown("##### **Component Composition**")
+                        # --- NEW VISUALIZATIONS ---
+                        fig_morpho = visualize_morphogenesis(phenotype, vis_grid)
+                        st.plotly_chart(fig_morpho, use_container_width=True, key=f"morpho_vis_{i}")
+                        fig_metab = visualize_metabolism(phenotype, vis_grid)
+                        st.plotly_chart(fig_metab, use_container_width=True, key=f"metab_vis_{i}")
+
+                        st.markdown("##### **Analysis**")
                         component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
                         if component_counts:
                             comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
