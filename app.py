@@ -1645,8 +1645,13 @@ def main():
             st.write(" ") # Spacer
             if st.button("💾 Save Current Universe", width='stretch'):
                 if new_preset_name:
-                    presets[new_preset_name] = copy.deepcopy(st.session_state.settings)
-                    universe_presets_table.upsert({'name': new_preset_name, 'settings': st.session_state.settings}, Query().name == new_preset_name)
+                    # 's' is the deepcopy from line 1311 that holds your
+                    # CURRENT slider values. This is what we must save.
+                    current_settings_snapshot = s 
+                    
+                    presets[new_preset_name] = copy.deepcopy(current_settings_snapshot)
+                    universe_presets_table.upsert({'name': new_preset_name, 'settings': current_settings_snapshot}, Query().name == new_preset_name)
+                    
                     st.toast(f"Universe '{new_preset_name}' saved!", icon="💾")
                     st.session_state.universe_presets = presets # Update state
                     st.rerun()
@@ -1658,16 +1663,26 @@ def main():
         if selected_preset != "<Select a Preset to Load>":
             c1, c2 = st.columns(2)
             if c1.button("LOAD UNIVERSE", width='stretch', type="primary"):
-                st.session_state.settings = copy.deepcopy(presets[selected_preset])
+                # 1. Load the preset into session state
+                loaded_settings = copy.deepcopy(presets[selected_preset])
+                st.session_state.settings = loaded_settings
+                
+                # 2. ALSO save it directly to the database file
+                if settings_table.get(doc_id=1):
+                    settings_table.update(loaded_settings, doc_ids=[1])
+                else:
+                    settings_table.insert(loaded_settings)
+                    
                 st.toast(f"Loaded universe '{selected_preset}'!", icon="🌠")
                 st.rerun()
             if c2.button("DELETE", width='stretch'):
-                if st.button("Confirm Delete", width='stretch'): # Simple confirm
-                    del presets[selected_preset]
-                    universe_presets_table.remove(Query().name == selected_preset)
-                    st.session_state.universe_presets = presets
-                    st.toast(f"Deleted universe '{selected_preset}'.", icon="🗑️")
-                    st.rerun()
+                # Removed the nested button, which cannot work in Streamlit.
+                # This will now delete on the first click.
+                del presets[selected_preset] 
+                universe_presets_table.remove(Query().name == selected_preset)
+                st.session_state.universe_presets = presets
+                st.toast(f"Deleted universe '{selected_preset}'.", icon="🗑️")
+                st.rerun()
                     
     st.sidebar.markdown("---")
         
