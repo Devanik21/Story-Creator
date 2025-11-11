@@ -618,6 +618,8 @@ class Phenotype:
                         
                     if self.check_conditions(rule, context, cell, neighbors):
                         actions_to_take.append((rule, cell))
+
+                    
             
             # --- 2. Execute all valid actions (in priority order) ---
             actions_to_take.sort(key=lambda x: x[0].priority, reverse=True)
@@ -753,6 +755,19 @@ class Phenotype:
             elif action == "DIE":
                 cost = cell.energy # Cell expends all remaining energy to die
                 self.prune_cell(cell.x, cell.y) # Cell suicide
+
+            elif action == "SET_TIMER":
+                # 'param' is timer name, 'value' is ticks to set
+                if 'timers' not in cell.state_vector:
+                    cell.state_vector['timers'] = {}
+                cell.state_vector['timers'][param] = int(value)
+                cost += self.settings.get('action_cost_compute', 0.02)
+            
+            elif action == "MODIFY_TIMER":
+                # 'param' is timer name, 'value' is ticks to add/subtract
+                if 'timers' in cell.state_vector and param in cell.state_vector['timers']:
+                    cell.state_vector['timers'][param] += int(value)
+                cost += self.settings.get('action_cost_compute', 0.02)
                 
             elif action == "TRANSFER_ENERGY":
                 # 'param' is direction (e.g., 'N', 'S', 'E', 'W') or 'NEIGHBORS'
@@ -782,10 +797,18 @@ class Phenotype:
         metabolic_cost = 0.0
         
         # --- 1. Run all cells ---
+        # --- 2. Update Timers ---
         for (x, y), cell in self.cells.items():
-            comp = cell.component
-            grid_cell = self.grid.get_cell(x, y)
-            if not grid_cell: continue # Should not happen
+            if 'timers' in cell.state_vector:
+                for timer_name in list(cell.state_vector['timers'].keys()):
+                    if cell.state_vector['timers'][timer_name] > 0:
+                        cell.state_vector['timers'][timer_name] -= 1
+                    else:
+                        # Remove timer when it hits 0 to save memory
+                        del cell.state_vector['timers'][timer_name]
+
+        # --- 3. Prune dead cells and check for life ---
+        dead_cells = []
             
             # --- 1a. Energy Gain ---
             gain = 0
