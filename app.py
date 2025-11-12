@@ -1243,29 +1243,12 @@ def evaluate_fitness(genotype: Genotype, grid: UniverseGrid, settings: Dict) -> 
         
     # --- Complexity Pressure (from settings) ---
     # --- Complexity Pressure (from settings) ---
-    # --- Complexity Pressure (from settings) ---
     complexity = genotype.compute_complexity()
     complexity_pressure = weights.get('w_complexity_pressure', 0.0)
-
-    # --- Exponential GRN Complexity Score (FIXED) ---
-
-    # 1. The stable, linear bonus (what you had before)
-    # This rewards complexity in a predictable way.
-    linear_bonus = complexity * complexity_pressure
-
-    # 2. The new "Exponential Bomb"
-    # This bonus is non-linear and creates a runaway effect.
-    # It's scaled by lifespan_score, so an organism MUST survive to get this reward.
-    # This prevents "cancers" (complex but dead organisms) from winning.
-    exponent = (complexity * complexity_pressure * 0.5) # We keep one small (0.5) scalar for stability
-    exponential_bonus = (np.exp(exponent) - 1.0) * lifespan_score
-
-    # 3. The final score is the sum of both.
-    final_complexity_score = linear_bonus + exponential_bonus
-    # --- End Exponential GRN Complexity Score ---
-
+    complexity_score = complexity * complexity_pressure
+    
     # --- Final Fitness ---
-    total_fitness = base_fitness + repro_bonus + final_complexity_score
+    total_fitness = base_fitness + repro_bonus + complexity_score
     
     # Apply fitness floor
     return max(1e-6, total_fitness)
