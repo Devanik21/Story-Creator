@@ -1928,7 +1928,7 @@ def main():
         # --- NEW 2.0: Uses the full registry ---
         s['chemical_bases'] = st.multiselect("Allowed Chemical Bases (Kingdoms)", 
                                              list(CHEMICAL_BASES_REGISTRY.keys()), 
-                                             s.get('chemical_bases', ['Carbon', 'Silicon', 'Plasma']))
+                                             s.get('chemical_bases', list(CHEMICAL_BASES_REGISTRY.keys())))
                                              
     st.sidebar.markdown("### ⚖️ Fundamental Pressures of Life")
     with st.sidebar.expander("Multi-Objective Fitness Weights", expanded=False):
