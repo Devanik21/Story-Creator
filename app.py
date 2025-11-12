@@ -2945,7 +2945,7 @@ def main():
                                 nx.draw(G, pos, ax=ax, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
                                 labels = {n: n.split('\n')[0] for n in G.nodes()} # Short labels
                                 nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
-                                st.pyplot(fig_grn, key=f"grn_plot_1_{i}")
+                                st.pyplot(fig_grn)
                                 plt.clf()
                             except Exception as e:
                                 st.warning(f"Could not draw GRN: {e}")
