@@ -2054,7 +2054,8 @@ def main():
         s['chemical_bases'] = st.multiselect("Allowed Chemical Bases (Kingdoms)", 
                                              list(CHEMICAL_BASES_REGISTRY.keys()), 
                                              s.get('chemical_bases', list(CHEMICAL_BASES_REGISTRY.keys())))
-                                             
+
+    
     st.sidebar.markdown("### ⚖️ Fundamental Pressures of Life")
     with st.sidebar.expander("Multi-Objective Fitness Weights", expanded=False):
         st.markdown("Define what 'success' means. (Normalized)")
