@@ -721,20 +721,17 @@ class Phenotype:
                 else:
                     value = 0 # No timers exist, so timer is 0
             # --- END OF ADDITION ---
+            # --- END OF ADDITION ---
+
+            # --- ADD THIS NEW CONDITION ---
             elif source.startswith('signal_'):
+                # Checks an incoming signal. e.g., source: 'signal_inhibitor'
                 signal_name = source.replace('signal_', '', 1)
                 if 'signals_in' in cell.state_vector:
                     value = cell.state_vector['signals_in'].get(signal_name, 0.0)
-                
                 else:
                     value = 0.0 # No signals in, so value is 0
-                 # No signals in, so value is 0
-        # --- END OF ADDITION ---
-            # Checks an incoming signal. e.g., source: 'signal_inhibitor'
-            
-            
-                
-
+            # --- END OF ADDITION ---
             
             
             op = cond['operator']
