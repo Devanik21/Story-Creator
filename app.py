@@ -2961,7 +2961,7 @@ def main():
                                 nx.draw(G, pos_2, ax=ax_2, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
                                 labels = {n: n.split('\n')[0] for n in G.nodes()}
                                 nx.draw_networkx_labels(G, pos_2, labels=labels, font_size=7, ax=ax_2)
-                                st.pyplot(fig_grn_2, key=f"grn_plot_2_{i}")
+                                st.pyplot(fig_grn_2)
                                 plt.clf()
                             except Exception as e:
                                 st.warning(f"Could not draw GRN 2: {e}")
@@ -2977,7 +2977,7 @@ def main():
                                 nx.draw(G, pos_3, ax=ax_3, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
                                 labels = {n: n.split('\n')[0] for n in G.nodes()}
                                 nx.draw_networkx_labels(G, pos_3, labels=labels, font_size=7, ax=ax_3)
-                                st.pyplot(fig_grn_3, key=f"grn_plot_3_{i}")
+                                st.pyplot(fig_grn_3)
                                 plt.clf()
                             except Exception as e:
                                 st.warning(f"Could not draw GRN 3: {e}")
