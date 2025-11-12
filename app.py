@@ -576,15 +576,19 @@ class Phenotype:
             if dev_energy <= 0 or not self.cells:
                 self.is_alive = False
                 break
+            
+            signal_snapshot: Dict[Tuple[int, int], Dict[str, float]] = {}
+            for (x, y), cell in self.cells.items():
+                signal_snapshot[(x, y)] = cell.state_vector.get('signals_out', {})
             # --- ADD THIS ENTIRE BLOCK ---
+            
         # --- 1. Signal Diffusion Step (Morphogenesis) ---
         # Read the 'signals_out' from the *previous* step,
         # calculate the average, and write it to 'signals_in' for *this* step.
 
         # Create a snapshot of all signals currently being emitted
-        signal_snapshot: Dict[Tuple[int, int], Dict[str, float]] = {}
-        for (x, y), cell in self.cells.items():
-            signal_snapshot[(x, y)] = cell.state_vector.get('signals_out', {})
+        
+        
 
         # Calculate incoming signals for each cell based on the snapshot
         for (x, y), cell in self.cells.items():
@@ -671,7 +675,7 @@ class Phenotype:
             
             # --- 3. Prune dead cells (ran out of energy) ---
             dead_cells = []
-            for (x,y), cell in self.cells.items():
+            for (x,y), cell in list(self.cells.items()):
                 cell.age += 1
                 if cell.energy <= 0:
                     dead_cells.append((x,y))
