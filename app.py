@@ -2283,6 +2283,52 @@ def main():
             * This means life can *never* find one single, perfect solution. The very ground beneath its feet is shifting. It is forced to adapt, innovate, and evolve... truly, infinitely.
             
             ---
+
+            ---
+---
+
+### **PART III: THE NEW CODES OF LIFE (MASTERING BIZARRE GENETICS)**
+
+You have successfully upgraded the very "language" of genetics in your universe. Your organisms are no longer limited to simple, reactive logic. You have given them the tools for true computation.
+
+But what did you *actually* do?
+
+#### **Section 3.1: You Gave Life MEMORY (Proposal A: Timers)**
+
+* **The Old Limit:** Your cells had no concept of time. They were "goldfish" with no memory, only reacting to the present moment. They couldn't run a sequence of events, like "first grow a stem, *then* grow a leaf."
+* **The New Power (Temporal Logic):** By adding `SET_TIMER` and `timer_` conditions, you've given cells an **internal clock**.
+* **What It Unlocks (Oscillators & Sequences):** A GRN can now evolve logic like:
+    * `IF timer_pulse == 0 THEN GROW("Struct") AND SET_TIMER("pulse", 10)`
+    * This creates an **oscillator**. The organism will grow in 10-tick "bursts," creating segmented body plans (like a worm or a tree ring) instead of a simple blob.
+    * It also allows **developmental stages**: `IF self_age < 3 THEN SET_TIMER("phase_B", 5)`... `IF timer_phase_B == 1 THEN DIFFERENTIATE("Neuro-Gel")`. This cell *waits* 5 ticks, then becomes a brain.
+
+#### **Section 3.2: You Gave Life LOGIC (Proposal B: Cascades)**
+
+* **The Old Limit:** Your GRN was a "flat list." Every rule was checked on every tick. It was a simple checklist, not a program.
+* **The New Power (Genetic Cascades):** By adding `ENABLE_RULE` and `DISABLE_RULE`, you've turned your flat list into a **computational network**. Rules can now *trigger other rules*.
+* **What It Unlocks (Genetic Switches & Programs):** This is the core of real genetics. You can now evolve:
+    * **A "Genetic Switch":** `IF self_age < 5 THEN GROW("Struct") AND DISABLE_RULE("this_rule") AND ENABLE_RULE("adult_rule")`
+    * This is a one-way path. The "embryo" rule runs, builds the foundation, then *permanently switches itself off* and "wakes up" the "adult" logic.
+    * You can now evolve feedback loops, logic gates, and complex programs where one gene (rule) controls the expression of 10 others.
+
+#### **Section 3.3: You Gave Life SENSES (Proposal C: Signaling)**
+
+* **The Old Limit:** Your cells were "deaf and blind" to each other. A cell knew its *neighbor* existed, but it had no idea what that neighbor was *thinking* or *doing*. They couldn't coordinate to build a pattern.
+* **The New Power (Morphogenesis):** By adding `EMIT_SIGNAL` and `signal_` conditions, you've given cells a way to **talk to each other**. This is **morphogenesis**: the creation of shape.
+* **What It Unlocks (Reaction-Diffusion & Patterns):** You've unlocked the logic behind spots, stripes, and organs. A GRN can now evolve:
+    * `Rule 1: IF self_type == "Core" THEN EMIT_SIGNAL("inhibitor", 1.0)`
+    * `Rule 2: IF signal_inhibitor > 0.5 THEN DIFFERENTIATE("Shell")`
+    * This simple logic creates a "Shell" cell *around* every "Core" cell, forming a boundary. This is how you get layers, skins, and self-organizing structures. You've given your cells the power to create **Turing Patterns**.
+
+### **FINAL COMMANDMENT: USE YOUR NEW POWER**
+
+This new, complex "language" of life is powerful, but it's also *expensive* for evolution to use. It will be "lazy" and *avoid* using these tools unless you force it.
+
+You **must** use your God-Panel to create evolutionary pressure.
+* **Turn ON `enable_red_queen`:** This punishes simple, common GRNs.
+* **Turn UP `w_complexity_pressure`:** This *rewards* organisms for evolving complex, bizarre GRNs.
+
+Combine your new code with these settings, and you will finally force life to evolve the truly alien and intelligent forms you've been looking for.
             
             ### **CONCLUSION: YOUR MANDATE**
             
