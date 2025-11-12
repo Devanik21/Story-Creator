@@ -350,6 +350,23 @@ class ComponentGene:
     def __hash__(self):
         return hash(self.id)
 
+
+
+# --- ADD THIS NEW CLASS ---
+import dataclasses # Ensure dataclasses is imported globally (it is)
+import json # Ensure json is imported globally (it is)
+
+class GenotypeJSONEncoder(json.JSONEncoder):
+    """
+    Custom encoder to handle dataclasses. 
+    It recursively converts any dataclass object it finds into a dictionary.
+    """
+    def default(self, o):
+        if dataclasses.is_dataclass(o):
+            return dataclasses.asdict(o)
+        return super().default(o)
+# --- END NEW CLASS ---
+
 @dataclass
 class RuleGene:
     """
@@ -3039,7 +3056,7 @@ def main():
                 "evolutionary_metrics": st.session_state.evolutionary_metrics,
                 "final_population_genotypes": [asdict(g) for g in population] if population else []
             }
-            json_string = json.dumps(download_data, indent=4)
+            json_string = json.dumps(download_data, indent=4, cls=GenotypeJSONEncoder) # <-- ADD cls=...
             
             st.download_button(
                 label="📥 Download All Results as JSON",
