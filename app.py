@@ -1547,7 +1547,7 @@ def visualize_fitness_landscape(history_df: pd.DataFrame):
         height=700,
         margin=dict(l=0, r=0, b=0, t=60)
     )
-    st.plotly_chart(fig, use_container_width=True, key="fitness_landscape_3d_universe")
+    st.plotly_chart(fig, width='stretch, key="fitness_landscape_3d_universe")
 
 def create_evolution_dashboard(history_df: pd.DataFrame, evolutionary_metrics_df: pd.DataFrame) -> go.Figure:
     """Comprehensive evolution analytics dashboard."""
@@ -2705,7 +2705,7 @@ def main():
             st.header("Evolutionary Trajectory Dashboard")
             st.plotly_chart(
                 create_evolution_dashboard(history_df, metrics_df),
-                use_container_width=True,
+                width='stretch,
                 key="main_dashboard_plot_universe"
             )
             visualize_fitness_landscape(history_df)
@@ -2747,7 +2747,7 @@ def main():
                         st.metric("Cell Count", f"{specimen.cell_count}")
 
                         fig = visualize_phenotype_2d(phenotype, vis_grid)
-                        st.plotly_chart(fig, use_container_width=True, key=f"pheno_vis_{i}")
+                        st.plotly_chart(fig, width='stretch, key=f"pheno_vis_{i}")
 
                         st.markdown("##### **Component Composition**")
                         component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
@@ -2758,7 +2758,7 @@ def main():
                             fig_pie = px.pie(comp_df, values='Count', names='Component', 
                                              color='Component', color_discrete_map=color_map)
                             fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
-                            st.plotly_chart(fig_pie, use_container_width=True, key=f"pheno_pie_{i}")
+                            st.plotly_chart(fig_pie, width='stretch, key=f"pheno_pie_{i}")
                         else:
                             st.info("No cells to analyze.")
 
@@ -2804,7 +2804,7 @@ def main():
                             obj_df = obj_df.rename(columns={'index': 'Objective'})
                             fig_bar = px.bar(obj_df, x='Objective', y='Weight', color='Objective')
                             fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
-                            st.plotly_chart(fig_bar, use_container_width=True, key=f"pheno_bar_{i}")
+                            st.plotly_chart(fig_bar, width='stretch, key=f"pheno_bar_{i}")
                         else:
                             st.info("Global objectives are in use.")
             else:
@@ -2849,7 +2849,7 @@ def main():
                         with col2:
                             st.markdown("##### **Phenotype (Body Plan)**")
                             fig = visualize_phenotype_2d(phenotype, vis_grid)
-                            st.plotly_chart(fig, use_container_width=True, key=f"elite_pheno_vis_{i}")
+                            st.plotly_chart(fig, width='stretch, key=f"elite_pheno_vis_{i}")
 
                         st.markdown("---")
                         
@@ -2866,7 +2866,7 @@ def main():
                                 fig_pie = px.pie(comp_df, values='Count', names='Component', 
                                                  color='Component', color_discrete_map=color_map, title="Cell Type Distribution")
                                 fig_pie.update_layout(showlegend=True, margin=dict(l=0, r=0, t=30, b=0), height=300)
-                                st.plotly_chart(fig_pie, use_container_width=True, key=f"elite_pie_{i}")
+                                st.plotly_chart(fig_pie, width='stretch, key=f"elite_pie_{i}")
                             else:
                                 st.info("No cells to analyze.")
                                 
