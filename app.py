@@ -1547,7 +1547,7 @@ def visualize_fitness_landscape(history_df: pd.DataFrame):
         height=700,
         margin=dict(l=0, r=0, b=0, t=60)
     )
-    st.plotly_chart(fig, width='stretch, key="fitness_landscape_3d_universe")
+    st.plotly_chart(fig, width='stretch', key="fitness_landscape_3d_universe")
 
 def create_evolution_dashboard(history_df: pd.DataFrame, evolutionary_metrics_df: pd.DataFrame) -> go.Figure:
     """Comprehensive evolution analytics dashboard."""
@@ -1761,13 +1761,13 @@ def main():
     s = copy.deepcopy(st.session_state.settings) # Use a mutable dict `s`
 
     # --- Reset Button ---
-    if st.sidebar.button("Reset Universe to Defaults", width='stretch', key="reset_defaults_button"):
+    if st.sidebar.button("Reset Universe to Defaults", width='stretch'', key="reset_defaults_button"):
         st.session_state.settings.clear() # Clear the dict
         st.toast("Universe parameters reset to defaults!", icon="⚙️")
         time.sleep(1)
         st.rerun()
 
-    if st.sidebar.button("Wipe & Restart Universe", width='stretch', key="clear_state_button"):
+    if st.sidebar.button("Wipe & Restart Universe", width='stretch'', key="clear_state_button"):
         db.truncate()
         st.session_state.clear()
         st.toast("Cleared all saved data. The universe has been reset.", icon="🗑️")
@@ -1787,7 +1787,7 @@ def main():
             new_preset_name = st.text_input("New Universe Name", placeholder="e.g., 'My Plasma World'")
         with c2:
             st.write(" ") # Spacer
-            if st.button("💾 Save Current Universe", width='stretch'):
+            if st.button("💾 Save Current Universe", width='stretch''):
                 if new_preset_name:
                     # 's' is the deepcopy from line 1311 that holds your
                     # CURRENT slider values.
@@ -1827,7 +1827,7 @@ def main():
         
         if selected_preset != "<Select a Preset to Load>":
             c1, c2 = st.columns(2)
-            if c1.button("LOAD UNIVERSE", width='stretch', type="primary"):
+            if c1.button("LOAD UNIVERSE", width='stretch'', type="primary"):
                 # 1. Load the full preset doc from the in-memory dict
                 preset_to_load = presets[selected_preset]
                 
@@ -1882,7 +1882,7 @@ def main():
 
                 st.toast(f"Loaded universe '{selected_preset}' (with results)!", icon="🌠")
                 st.rerun()
-            if c2.button("DELETE", width='stretch'):
+            if c2.button("DELETE", width='stretch''):
                 # Removed the nested button, which cannot work in Streamlit.
                 # This will now delete on the first click.
                 del presets[selected_preset] 
@@ -2367,7 +2367,7 @@ def main():
     # --- Main Control Buttons ---
     col1, col2 = st.sidebar.columns(2)
     
-    if col1.button("🚀 IGNITE BIG BANG", type="primary", width='stretch', key="initiate_evolution_button"):
+    if col1.button("🚀 IGNITE BIG BANG", type="primary", width='stretch'', key="initiate_evolution_button"):
         st.session_state.history = []
         st.session_state.evolutionary_metrics = [] # type: ignore
         st.session_state.gene_archive = []
@@ -2705,7 +2705,7 @@ def main():
             st.header("Evolutionary Trajectory Dashboard")
             st.plotly_chart(
                 create_evolution_dashboard(history_df, metrics_df),
-                width='stretch,
+                width='stretch',
                 key="main_dashboard_plot_universe"
             )
             visualize_fitness_landscape(history_df)
@@ -2747,7 +2747,7 @@ def main():
                         st.metric("Cell Count", f"{specimen.cell_count}")
 
                         fig = visualize_phenotype_2d(phenotype, vis_grid)
-                        st.plotly_chart(fig, width='stretch, key=f"pheno_vis_{i}")
+                        st.plotly_chart(fig, width='stretch', key=f"pheno_vis_{i}")
 
                         st.markdown("##### **Component Composition**")
                         component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
@@ -2758,7 +2758,7 @@ def main():
                             fig_pie = px.pie(comp_df, values='Count', names='Component', 
                                              color='Component', color_discrete_map=color_map)
                             fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
-                            st.plotly_chart(fig_pie, width='stretch, key=f"pheno_pie_{i}")
+                            st.plotly_chart(fig_pie, width='stretch', key=f"pheno_pie_{i}")
                         else:
                             st.info("No cells to analyze.")
 
@@ -2804,7 +2804,7 @@ def main():
                             obj_df = obj_df.rename(columns={'index': 'Objective'})
                             fig_bar = px.bar(obj_df, x='Objective', y='Weight', color='Objective')
                             fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
-                            st.plotly_chart(fig_bar, width='stretch, key=f"pheno_bar_{i}")
+                            st.plotly_chart(fig_bar, width='stretch', key=f"pheno_bar_{i}")
                         else:
                             st.info("Global objectives are in use.")
             else:
@@ -2849,7 +2849,7 @@ def main():
                         with col2:
                             st.markdown("##### **Phenotype (Body Plan)**")
                             fig = visualize_phenotype_2d(phenotype, vis_grid)
-                            st.plotly_chart(fig, width='stretch, key=f"elite_pheno_vis_{i}")
+                            st.plotly_chart(fig, width='stretch', key=f"elite_pheno_vis_{i}")
 
                         st.markdown("---")
                         
@@ -2866,7 +2866,7 @@ def main():
                                 fig_pie = px.pie(comp_df, values='Count', names='Component', 
                                                  color='Component', color_discrete_map=color_map, title="Cell Type Distribution")
                                 fig_pie.update_layout(showlegend=True, margin=dict(l=0, r=0, t=30, b=0), height=300)
-                                st.plotly_chart(fig_pie, width='stretch, key=f"elite_pie_{i}")
+                                st.plotly_chart(fig_pie, width='stretch', key=f"elite_pie_{i}")
                             else:
                                 st.info("No cells to analyze.")
                                 
