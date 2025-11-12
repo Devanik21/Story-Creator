@@ -392,7 +392,6 @@ class RuleGene:
     is_disabled: bool = False # <-- ADD THIS
 
 @dataclass
-@dataclass
 class Genotype:
     """
     The complete "DNA" of an organism.
@@ -415,13 +414,10 @@ class Genotype:
     
     # --- Phenotypic Summary (filled after development) ---
     cell_count: int = 0
-    # DEPRECATED: complexity: float = 0.0 # e.g., number of rules + components
+    complexity: float = 0.0 # e.g., number of rules + components
     energy_production: float = 0.0
     energy_consumption: float = 0.0
     lifespan: int = 0
-    
-    # --- NEW: Rich complexity metrics ---
-    complexity_metrics: Dict[str, float] = field(default_factory=dict)
     
     # --- Speciation (from GENEVO) ---
     # The 'Form ID' is now the 'Kingdom' (e.g., Carbon-based, Silicon-based)
@@ -459,130 +455,34 @@ class Genotype:
             evolvable_mutation_rate=self.evolvable_mutation_rate,
             evolvable_innovation_rate=self.evolvable_innovation_rate,
             objective_weights=self.objective_weights.copy()
-            # complexity_metrics will be re-calculated after mutation
         )
         return new_genotype
     
-    def compute_complexity(self) -> Dict[str, float]:
-        """
-        Computes a rich set of complexity metrics by analyzing the
-        Genotype's GRN (Genetic Regulatory Network) as a directed graph.
-        
-        This moves beyond simple counts to measure the *topology* and
-        *information content* of the genetic code.
-        """
-        
-        # --- 1. Basic Counts ---
-        num_components = float(len(self.component_genes))
-        num_rules = float(len(self.rule_genes))
-        num_conditions = float(sum(len(r.conditions) for r in self.rule_genes))
-        
-        if num_rules == 0:
-            # Organism is inert, return zero for all structural metrics
-            return {
-                'num_components': num_components,
-                'num_rules': num_rules,
-                'num_conditions': num_conditions,
-                'graph_density': 0.0,
-                'avg_clustering': 0.0,
-                'num_simple_cycles': 0.0,
-                'action_entropy': 0.0,
-                'avg_rule_conditions': 0.0
-            }
+    def compute_complexity(self) -> float:
+        """Kolmogorov complexity approximation"""
+        num_components = len(self.component_genes)
+        num_rules = len(self.rule_genes)
+        num_conditions = sum(len(r.conditions) for r in self.rule_genes)
+        return (num_components * 0.4) + (num_rules * 0.3) + (num_conditions * 0.3)
 
-        # --- 2. Build the GRN Graph ---
-        G = nx.DiGraph()
-        signal_nodes = set()
+    def update_kingdom(self):
+        """Determine the organism's kingdom based on its dominant structural component."""
+        if not self.component_genes:
+            self.kingdom_id = "Unknown"
+            return
+
+        # Find the component with the highest structural value
+        dominant_comp = max(self.component_genes.values(), key=lambda c: c.structural, default=None)
         
-        # Add nodes for components and rules
-        for comp_name in self.component_genes:
-            G.add_node(comp_name, type='component')
-        for rule in self.rule_genes:
-            G.add_node(rule.id, type='rule')
-
-        # Add edges based on rule logic (IF -> THEN)
-        for rule in self.rule_genes:
-            # Edges: Conditions -> Rule
-            for cond in rule.conditions:
-                source_node = None
-                if cond['source'] == 'self_type' and cond['target_value'] in G:
-                    source_node = cond['target_value'] # e.g., Component_A -> Rule_1
-                elif cond['source'].startswith('signal_'):
-                    signal_name = cond['source']
-                    signal_nodes.add(signal_name)
-                    G.add_node(signal_name, type='signal')
-                    source_node = signal_name # e.g., Signal_B -> Rule_1
-                
-                if source_node:
-                    G.add_edge(source_node, rule.id)
-
-            # Edges: Rule -> Actions
-            action_type = rule.action_type
-            action_param = rule.action_param
-            
-            target_node = None
-            if action_type in ('GROW', 'DIFFERENTIATE') and action_param in G:
-                target_node = action_param # e.g., Rule_1 -> Component_B
-            elif action_type in ('ENABLE_RULE', 'DISABLE_RULE') and action_param in G:
-                target_node = action_param # e.g., Rule_1 -> Rule_2 (a genetic cascade!)
-            elif action_type == 'EMIT_SIGNAL':
-                signal_name = action_param
-                signal_nodes.add(signal_name)
-                G.add_node(signal_name, type='signal')
-                target_node = signal_name # e.g., Rule_1 -> Signal_B (a feedback loop!)
-            
-            if target_node:
-                G.add_edge(rule.id, target_node)
-
-        # --- 3. Calculate Graph-Theoretic Metrics ---
-        num_nodes = float(G.number_of_nodes())
-        num_edges = float(G.number_of_edges())
-        
-        # Graph Density: How interconnected is the network?
-        # (0 = no connections, 1 = all possible connections)
-        if num_nodes < 2:
-            graph_density = 0.0
+        if dominant_comp:
+            self.kingdom_id = dominant_comp.base_kingdom
         else:
-            graph_density = num_edges / (num_nodes * (num_nodes - 1))
-            
-        # Average Clustering Coefficient: How "modular" is the network?
-        # Does the network form local "cliques" or "motifs"?
-        # (0 = no clustering, 1 = perfect clustering)
-        try:
-            # Use the *undirected* version for clustering, as it's about neighborhood
-            avg_clustering = nx.average_clustering(G.to_undirected())
-        except ZeroDivisionError:
-            avg_clustering = 0.0
-            
-        # Cycles: Does the network have feedback loops?
-        # (e.g., A -> B -> C -> A) This is crucial for complex, stable states.
-        try:
-            # This finds all simple (non-repeating node) cycles
-            cycles = list(nx.simple_cycles(G))
-            num_simple_cycles = float(len(cycles))
-        except Exception:
-            num_simple_cycles = 0.0 # Failsafe
-
-        # --- 4. Calculate Information-Theoretic Metrics ---
-        
-        # Action Entropy: How "bizarre" and varied is the rule set?
-        # (0 = all rules do the same thing, high = many different actions)
-        action_counts = Counter(r.action_type for r in self.rule_genes)
-        action_entropy = entropy(list(action_counts.values()), base=2)
-        
-        # Average conditions per rule
-        avg_rule_conditions = num_conditions / num_rules
-
-        return {
-            'num_components': num_components,
-            'num_rules': num_rules,
-            'num_conditions': num_conditions,
-            'graph_density': graph_density,
-            'avg_clustering': avg_clustering,
-            'num_simple_cycles': num_simple_cycles,
-            'action_entropy': action_entropy,
-            'avg_rule_conditions': avg_rule_conditions
-        }
+            # Failsafe: if no components, or all have 0 structure
+            comp_counts = Counter(c.base_kingdom for c in self.component_genes.values())
+            if comp_counts:
+                self.kingdom_id = comp_counts.most_common(1)[0][0]
+            else:
+                self.kingdom_id = "Unclassified"
 
 # ========================================================
 #
@@ -1294,7 +1194,7 @@ def get_primordial_soup_genotype(settings: Dict) -> Genotype:
 def evaluate_fitness(genotype: Genotype, grid: UniverseGrid, settings: Dict) -> float:
     """
     Simulates the life of an organism and returns its fitness.
-    Fitness = (Lifespan * EnergyEfficiency) + ReproductionBonus + AdvancedComplexityScore
+    Fitness = (Lifespan * EnergyEfficiency) + ComplexityBonus + ReproductionBonus
     """
     
     # --- 1. Development ---
@@ -1330,8 +1230,7 @@ def evaluate_fitness(genotype: Genotype, grid: UniverseGrid, settings: Dict) -> 
     total_cost = organism.genotype.energy_consumption
     if total_cost == 0: total_cost = 1.0
     
-    # Add 1 to lifespan in denominator to avoid division by zero if lifespan is 0
-    energy_efficiency = total_energy_gathered / (total_cost * (lifespan + 1.0) + 1.0)
+    energy_efficiency = total_energy_gathered / (total_cost * lifespan + 1.0)
     lifespan_score = lifespan / max_lifespan
     
     base_fitness = (lifespan_score * weights.get('w_lifespan', 0.4)) + (energy_efficiency * weights.get('w_efficiency', 0.3))
@@ -1342,73 +1241,15 @@ def evaluate_fitness(genotype: Genotype, grid: UniverseGrid, settings: Dict) -> 
     if organism.total_energy > repro_threshold:
         repro_bonus = weights.get('w_reproduction', 0.3) * (organism.total_energy / repro_threshold)
         
-    # ====================================================================
-    # --- NEW: ADVANCED COMPLEXITY SCORE (REPLACES OLD CODE) ---
-    # ====================================================================
+    # --- Complexity Pressure (from settings) ---
+    # --- Complexity Pressure (from settings) ---
+    complexity = genotype.compute_complexity()
+    complexity_pressure = weights.get('w_complexity_pressure', 0.0)
+    complexity_score = complexity * complexity_pressure
     
-    # Get the rich metrics dictionary
-    complexity_metrics = genotype.complexity_metrics # We use the stored metrics
-    
-    # Get the master complexity pressure weight
-    master_complexity_pressure = weights.get('w_complexity_pressure', 0.0)
-    
-    if master_complexity_pressure != 0.0:
-        # --- 1. Normalized Size Component (Rewarding "large numbers") ---
-        # We use a logarithmic scale (np.log1p which is log(1 + x))
-        # to reward growth, but with diminishing returns.
-        norm_comp = np.log1p(complexity_metrics['num_components']) * weights.get('w_comp_count', 0.1)
-        norm_rules = np.log1p(complexity_metrics['num_rules']) * weights.get('w_rule_count', 0.1)
-        norm_cond = np.log1p(complexity_metrics['num_conditions']) * weights.get('w_condition_count', 0.1)
-        
-        # Linear sum of log-scaled size components
-        size_score = norm_comp + norm_rules + norm_cond
-
-        # --- 2. Structural/Topological Component (Rewarding "complex, bizarre shapes") ---
-        
-        # Density: Rewards a "sweet spot" of density (not too simple, not a messy hairball).
-        # We use a Gaussian (bell curve) centered at a target density.
-        target_density = weights.get('target_grn_density', 0.15)
-        density_std_dev = weights.get('density_grn_std_dev', 0.1)
-        density_score = np.exp(-((complexity_metrics['graph_density'] - target_density)**2) / (2 * (density_std_dev**2)))
-        density_score *= weights.get('w_density_pressure', 0.2)
-        
-        # Clustering: Rewards modularity. Higher is more "motif-like".
-        # We use a non-linear quadratic (x^2) to strongly favor high clustering.
-        clustering_score = (complexity_metrics['avg_clustering'] ** 2) * weights.get('w_clustering_pressure', 0.2)
-        
-        # Cycles: Rewards feedback loops, but with diminishing returns (log).
-        cycles_score = np.log1p(complexity_metrics['num_simple_cycles']) * weights.get('w_cycles_pressure', 0.2)
-
-        # Action Entropy: Rewards "bizarre" and varied logic.
-        # We normalize by the theoretical max entropy (log(num_action_types))
-        num_action_types = len(set(r.action_type for r in genotype.rule_genes if r.action_type != "IDLE"))
-        if num_action_types > 1:
-            max_entropy = np.log2(num_action_types)
-            norm_entropy = complexity_metrics['action_entropy'] / max_entropy
-        else:
-            norm_entropy = 0.0
-        entropy_score = norm_entropy * weights.get('w_entropy_pressure', 0.2)
-        
-        # --- 3. Interaction Term (The "mathematically complex" part) ---
-        # This is the non-linear magic. We reward organisms that are
-        # BOTH large (size_score) AND structurally complex (structure_score).
-        # An organism that is just "big but dumb" or "complex but tiny" gets less reward.
-        structure_score = density_score + clustering_score + cycles_score + entropy_score
-        interaction_bonus = (size_score * structure_score) * weights.get('w_interaction_bonus', 0.5)
-
-        # --- 4. Final Complexity Score ---
-        # Combine the scores and scale by the master pressure
-        total_complexity_contribution = size_score + structure_score + interaction_bonus
-        complexity_score = total_complexity_contribution * master_complexity_pressure
-    else:
-        complexity_score = 0.0
-
     # --- Final Fitness ---
     total_fitness = base_fitness + repro_bonus + complexity_score
-    # ====================================================================
-    # --- END OF REPLACEMENT ---
-    # ====================================================================
-
+    
     # Apply fitness floor
     return max(1e-6, total_fitness)
 
@@ -1481,7 +1322,7 @@ def mutate(genotype: Genotype, settings: Dict) -> Genotype:
             mutated.objective_weights[objective_to_change] = current_val + np.random.normal(0, 0.05)
             # (No clipping here to allow for negative weights, which can be interesting)
 
-    mutated.complexity_metrics = mutated.compute_complexity()
+    mutated.complexity = mutated.compute_complexity()
     mutated.update_kingdom() # Update kingdom in case dominant component changed
     return mutated
 
@@ -2255,27 +2096,6 @@ def main():
         s['w_compute_pressure'] = st.slider("Pressure: Intelligence", 0.0, 1.0, s.get('w_compute_pressure', 0.0), 0.01, help="Reward for evolving 'compute' genes.")
         s['reproduction_energy_threshold'] = st.slider("Reproduction Energy Threshold", 10.0, 200.0, s.get('reproduction_energy_threshold', 50.0))
         s['reproduction_bonus'] = st.slider("Reproduction Bonus", 0.0, 2.0, s.get('reproduction_bonus', 0.5))
-        # --- ADD THIS ENTIRE NEW SECTION ---
-        st.markdown("---")
-        st.markdown("##### **Advanced GRN Complexity Weights**")
-        st.markdown("Controls for the new topological fitness function.")
-        
-        st.markdown("**1. Size Component (Log-Scaled)**")
-        s['w_comp_count'] = st.slider("Weight: Component Count", 0.0, 1.0, s.get('w_comp_count', 0.1), 0.01)
-        s['w_rule_count'] = st.slider("Weight: Rule Count", 0.0, 1.0, s.get('w_rule_count', 0.1), 0.01)
-        s['w_condition_count'] = st.slider("Weight: Condition Count", 0.0, 1.0, s.get('w_condition_count', 0.1), 0.01)
-
-        st.markdown("**2. Structural Component (Bizarre Shapes)**")
-        s['w_density_pressure'] = st.slider("Pressure: GRN Density", 0.0, 1.0, s.get('w_density_pressure', 0.2), 0.01)
-        s['target_grn_density'] = st.slider("Target GRN Density (Sweet Spot)", 0.01, 0.5, s.get('target_grn_density', 0.15), 0.01)
-        s['density_grn_std_dev'] = st.slider("Density 'Sweet Spot' Width", 0.01, 0.5, s.get('density_grn_std_dev', 0.1), 0.01)
-        s['w_clustering_pressure'] = st.slider("Pressure: GRN Clustering (Modularity)", 0.0, 1.0, s.get('w_clustering_pressure', 0.2), 0.01)
-        s['w_cycles_pressure'] = st.slider("Pressure: GRN Feedback Loops", 0.0, 1.0, s.get('w_cycles_pressure', 0.2), 0.01)
-        s['w_entropy_pressure'] = st.slider("Pressure: GRN 'Bizarre' Logic", 0.0, 1.0, s.get('w_entropy_pressure', 0.2), 0.01)
-        
-        st.markdown("**3. Non-Linear Interaction**")
-        s['w_interaction_bonus'] = st.slider("Bonus: Size * Structure Interaction", 0.0, 2.0, s.get('w_interaction_bonus', 0.5), 0.05, help="Rewards organisms that are BOTH large AND structurally complex.")
-        # --- END OF NEW SECTION ---
 
     # --- Re-skinning all of GENEVO's advanced controls ---
     # This is how we achieve the massive control panel the user wants.
@@ -2869,31 +2689,16 @@ def main():
             
             # --- 2. Record History ---
             for individual in population:
-
-                if not individual.complexity_metrics:
-                     individual.complexity_metrics = individual.compute_complexity()
-                
-                # Calculate the simple 'complexity' score for the dashboard
-                simple_complexity_score = (
-                    individual.complexity_metrics.get('num_components', 0) + 
-                    individual.complexity_metrics.get('num_rules', 0) + 
-                    individual.complexity_metrics.get('num_conditions', 0)
-                )
                 st.session_state.history.append({
                     'generation': gen,
                     'kingdom_id': individual.kingdom_id,
                     'fitness': individual.fitness,
                     'cell_count': individual.cell_count,
-                    'complexity': simple_complexity_score,
+                    'complexity': individual.compute_complexity(),
                     'lifespan': individual.lifespan,
                     'energy_production': individual.energy_production,
                     'energy_consumption': individual.energy_consumption,
                     'lineage_id': individual.lineage_id,
-                    # --- ADD THESE NEW METRICS FOR THE DASHBOARD ---
-                    'grn_density': individual.complexity_metrics.get('graph_density', 0),
-                    'grn_clustering': individual.complexity_metrics.get('avg_clustering', 0),
-                    'grn_cycles': individual.complexity_metrics.get('num_simple_cycles', 0),
-                    'grn_entropy': individual.complexity_metrics.get('action_entropy', 0),
                 })
             
             # --- 3. Evolutionary Metrics ---
