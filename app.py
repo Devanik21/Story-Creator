@@ -2051,9 +2051,20 @@ def main():
         s['development_steps'] = st.slider("Development Steps (Embryogeny)", 10, 200, s.get('development_steps', 50), 5)
         s['max_organism_lifespan'] = st.slider("Max Organism Lifespan (Ticks)", 50, 1000, s.get('max_organism_lifespan', 200), 10)
         # --- NEW 2.0: Uses the full registry ---
+        # --- NEW 2.0: Uses the full registry ---
+        all_bases = list(CHEMICAL_BASES_REGISTRY.keys())
+        saved_bases = s.get('chemical_bases')
+
+        # Check if the saved settings are stale (from the old, small list)
+        # We'll check if the saved list has less than 20 bases.
+        if not saved_bases or len(saved_bases) < 20:
+            default_selection = all_bases # Force the default to be the new, full list
+        else:
+            default_selection = saved_bases # Use the user's existing (new) selection
+
         s['chemical_bases'] = st.multiselect("Allowed Chemical Bases (Kingdoms)", 
-                                             list(CHEMICAL_BASES_REGISTRY.keys()), 
-                                             s.get('chemical_bases', list(CHEMICAL_BASES_REGISTRY.keys())))
+                                             all_bases, 
+                                             default_selection)
 
     
     st.sidebar.markdown("### ⚖️ Fundamental Pressures of Life")
