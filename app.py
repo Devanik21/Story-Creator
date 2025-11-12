@@ -578,7 +578,7 @@ class Phenotype:
                 break
             
             signal_snapshot: Dict[Tuple[int, int], Dict[str, float]] = {}
-            for (x, y), cell in self.cells.items():
+            for (x, y), cell in list(self.cells.items()):
                 signal_snapshot[(x, y)] = cell.state_vector.get('signals_out', {})
             # --- ADD THIS ENTIRE BLOCK ---
             
@@ -591,7 +591,7 @@ class Phenotype:
         
 
         # Calculate incoming signals for each cell based on the snapshot
-        for (x, y), cell in self.cells.items():
+        for (x, y), cell in list(self.cells.items()):
             cell.state_vector['signals_in'] = {} # Reset incoming signals
             neighbors = self.grid.get_neighbors(x, y)
 
@@ -883,7 +883,7 @@ class Phenotype:
         metabolic_cost = 0.0
         
         # --- 1. Run all cells ---
-        for (x, y), cell in self.cells.items():
+        for (x, y), cell in list(self.cells.items()):
             comp = cell.component
             grid_cell = self.grid.get_cell(x, y)
             if not grid_cell: continue # Should not happen
@@ -932,7 +932,7 @@ class Phenotype:
             
         # --- 2. Energy Distribution (simplified) ---
         # Cells with high conductance share energy
-        for (x, y), cell in self.cells.items():
+        for (x, y), cell in list(self.cells.items()):
             if cell.component.conductance > 0.5:
                 neighbors = self.grid.get_neighbors(x, y)
                 self_neighbors = [self.cells.get((n.x, n.y)) for n in neighbors if self.cells.get((n.x, n.y)) is not None]
@@ -964,7 +964,7 @@ class Phenotype:
         self.total_energy_production = 0.0
         if not self.cells: return
         
-        for (x, y), cell in self.cells.items():
+        for (x, y), cell in list(self.cells.items()):
             comp = cell.component
             grid_cell = self.grid.get_cell(x, y)
             if not grid_cell: continue
