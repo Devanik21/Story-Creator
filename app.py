@@ -1243,110 +1243,15 @@ def evaluate_fitness(genotype: Genotype, grid: UniverseGrid, settings: Dict) -> 
         
     # --- Complexity Pressure (from settings) ---
     # --- Complexity Pressure (from settings) ---
-    # --- Complexity Pressure (from settings) ---
-    # This is the updated, mathematically complex calculation for complexity.
-    # It rewards both a complex Genotype (GRN) and a complex Phenotype (shape).
-    
+    complexity = genotype.compute_complexity()
     complexity_pressure = weights.get('w_complexity_pressure', 0.0)
-    complexity_score = 0.0
-
-    # Only run this expensive calculation if the user actually wants complexity pressure
-    # and the organism is alive and has cells to measure.
-    if complexity_pressure != 0.0 and organism.is_alive and organism.cells:
-        
-        # --- 1. GRN Complexity (Nodes, Connections, Density) ---
-        # We measure the "brain" of the organism
-        grn_nodes = len(genotype.component_genes)
-        grn_rules = len(genotype.rule_genes)
-        grn_active_rules = sum(1 for r in genotype.rule_genes if not r.is_disabled)
-        grn_conditions = sum(len(r.conditions) for r in genotype.rule_genes if not r.is_disabled)
-
-        # GRN Scale: A logarithmic score for the raw number of components ("nodes")
-        # and rules ("connections"). We use np.log1p for log(1+x) to handle zeros.
-        grn_scale_score = np.log1p(grn_nodes + grn_rules)
-        
-        # GRN Density: Rewards highly interconnected networks.
-        # (More conditions per rule/node). This rewards "smarter," not just "bigger," GRNs.
-        # We add 1 to denominators to avoid division by zero.
-        grn_density_score = (grn_conditions + 1) / (grn_active_rules * grn_nodes + 1)
-        
-        # GRN Interaction Score: A non-linear term.
-        # This *massively* rewards GRNs that are both LARGE (scale) and DENSE (density).
-        grn_interaction_score = grn_scale_score * (grn_density_score**2)
-        
-        
-        # --- 2. Phenotype Complexity (Bizarre Shapes, Asymmetry) ---
-        # We measure the "body" of the organism
-        cell_count = organism.genotype.cell_count
-        cell_coords = list(organism.cells.keys())
-        
-        # Shape Eccentricity: Measures how "non-circular" or "non-blob-like" the organism is.
-        # 0 = a perfect circle/square. ~1.0 = a long, thin line.
-        # This rewards elongated, asymmetric, and "bizarre" shapes.
-        try:
-            if cell_count > 1:
-                coords_array = np.array(cell_coords)
-                # Calculate covariance matrix of cell positions
-                cov_matrix = np.cov(coords_array, rowvar=False)
-                # Get eigenvalues to find principal axes of the shape
-                eigenvalues = np.linalg.eigvals(cov_matrix)
-                max_eig = np.max(eigenvalues)
-                min_eig = np.min(eigenvalues)
-                # Calculate eccentricity (how "stretched" the shape is)
-                # Add epsilon to prevent division by zero for perfect circles
-                eccentricity = np.sqrt(1 - (min_eig / (max_eig + 1e-6)))
-                # Scale eccentricity score, as it's normally 0-1
-                eccentricity_score = eccentricity * 5.0 
-            else:
-                eccentricity_score = 0.0 # A single cell has no eccentricity
-        except Exception:
-            # Failsafe for linear algebra errors (e.g., all cells in a perfect line)
-            eccentricity_score = 0.0 
-
-        # Shape Compactness (Inverse): Rewards high surface area for a given cell count.
-        # A simple blob has a low surface area. "Bizarre" shapes (tendrils,
-        # hollow rings, fractal patterns) have a very high surface area.
-        surface_area = 0
-        for (x, y) in cell_coords:
-            # Check 4 neighbors (N, S, E, W)
-            for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
-                if (x+dx, y+dy) not in organism.cells:
-                    surface_area += 1 # This edge is exposed to the environment
-        
-        # Baseline for a "simple" compact shape (a filled square)
-        # The minimum possible surface area for N cells is roughly 4 * sqrt(N).
-        min_possible_surface = 4 * np.sqrt(cell_count)
-        
-        # This ratio is 1.0 for a simple blob and > 1.0 for a complex/bizarre shape.
-        # We use np.log1p to reward this, but not exponentially.
-        shape_complexity_score = np.log1p(surface_area / (min_possible_surface + 1e-6))
-        
-        
-        # --- 3. Final Complexity Score Calculation ---
-        
-        # Combine the "brain" and "body" scores
-        grn_base_score = grn_scale_score + grn_interaction_score
-        phenotype_shape_score = eccentricity_score + shape_complexity_score
-        
-        # Final combined score:
-        # We multiply them to reward genotypes that are *both* complex in code (GRN)
-        # AND complex in physical expression (Phenotype).
-        # We use np.tanh to bound the final score, preventing it from
-        # runaway-exploding and dominating all other fitness metrics.
-        combined_score = np.tanh(grn_base_score * (phenotype_shape_score + 1.0))
-        
-        # Scale the final bounded score by the user's master "pressure" setting
-        complexity_score = combined_score * complexity_pressure
-
+    complexity_score = complexity * complexity_pressure
     
     # --- Final Fitness ---
     total_fitness = base_fitness + repro_bonus + complexity_score
     
     # Apply fitness floor
     return max(1e-6, total_fitness)
-    
-    # Apply fitness floor
-
 
 # ========================================================
 #
