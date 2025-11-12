@@ -2943,13 +2943,44 @@ def main():
                                 pos = nx.spring_layout(G, k=0.9, seed=42)
                                 node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
                                 nx.draw(G, pos, ax=ax, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
-                                # Add labels manually to avoid overlap
                                 labels = {n: n.split('\n')[0] for n in G.nodes()} # Short labels
                                 nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
-                                st.pyplot(fig_grn)
+                                st.pyplot(fig_grn, key=f"grn_plot_1_{i}")
                                 plt.clf()
                             except Exception as e:
                                 st.warning(f"Could not draw GRN: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 2**")
+                        if G.nodes:
+                            try:
+                                fig_grn_2, ax_2 = plt.subplots(figsize=(4, 3))
+                                pos_2 = nx.kamada_kawai_layout(G) # Use a different layout for variety
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_2, ax=ax_2, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_2, labels=labels, font_size=7, ax=ax_2)
+                                st.pyplot(fig_grn_2, key=f"grn_plot_2_{i}")
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 2: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 3**")
+                        if G.nodes:
+                            try:
+                                fig_grn_3, ax_3 = plt.subplots(figsize=(4, 3))
+                                pos_3 = nx.circular_layout(G) # Use another layout
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_3, ax=ax_3, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_3, labels=labels, font_size=7, ax=ax_3)
+                                st.pyplot(fig_grn_3, key=f"grn_plot_3_{i}")
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 3: {e}")
                         else:
                             st.info("No GRN to display.")
 
