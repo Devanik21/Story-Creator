@@ -576,11 +576,43 @@ class Phenotype:
             if dev_energy <= 0 or not self.cells:
                 self.is_alive = False
                 break
+            # --- ADD THIS ENTIRE BLOCK ---
+        # --- 1. Signal Diffusion Step (Morphogenesis) ---
+        # Read the 'signals_out' from the *previous* step,
+        # calculate the average, and write it to 'signals_in' for *this* step.
+
+        # Create a snapshot of all signals currently being emitted
+        signal_snapshot: Dict[Tuple[int, int], Dict[str, float]] = {}
+        for (x, y), cell in self.cells.items():
+            signal_snapshot[(x, y)] = cell.state_vector.get('signals_out', {})
+
+        # Calculate incoming signals for each cell based on the snapshot
+        for (x, y), cell in self.cells.items():
+            cell.state_vector['signals_in'] = {} # Reset incoming signals
+            neighbors = self.grid.get_neighbors(x, y)
+
+            # Tally all signals from neighbors
+            incoming_signals_tally: Dict[str, List[float]] = {}
+            for n in neighbors:
+                neighbor_pos = (n.x, n.y)
+                # Check if neighbor is part of this organism
+                if neighbor_pos in signal_snapshot:
+                    for signal_name, signal_value in signal_snapshot[neighbor_pos].items():
+                        if signal_name not in incoming_signals_tally:
+                            incoming_signals_tally[signal_name] = []
+                        incoming_signals_tally[signal_name].append(signal_value)
+
+            # Average the tallied signals and store in 'signals_in'
+            for signal_name, values in incoming_signals_tally.items():
+                if values:
+                    cell.state_vector['signals_in'][signal_name] = np.mean(values)
+        # --- END OF SIGNAL DIFFUSION BLOCK ---
             
             actions_to_take = []
             
             # --- 1. Evaluate all rules for all cells ---
             for (x, y), cell in list(self.cells.items()):
+                cell.state_vector['signals_out'] = {}
                 grid_cell = self.grid.get_cell(x, y)
                 if not grid_cell: continue # Cell is somehow off-grid, prune
                 
@@ -689,6 +721,19 @@ class Phenotype:
                 else:
                     value = 0 # No timers exist, so timer is 0
             # --- END OF ADDITION ---
+            elif source.startswith('signal_'):
+                signal_name = source.replace('signal_', '', 1)
+                if 'signals_in' in cell.state_vector:
+                    value = cell.state_vector['signals_in'].get(signal_name, 0.0)
+                
+                else:
+                    value = 0.0 # No signals in, so value is 0
+                 # No signals in, so value is 0
+        # --- END OF ADDITION ---
+            # Checks an incoming signal. e.g., source: 'signal_inhibitor'
+            
+            
+                
 
             
             
@@ -797,6 +842,13 @@ class Phenotype:
                     cell.state_vector['timers'][param] += int(value)
                 cost += self.settings.get('action_cost_compute', 0.02)
             # --- END OF ADDITION ---
+            
+            elif action == "EMIT_SIGNAL":
+                if 'signals_out' not in cell.state_vector:
+                    cell.state_vector['signals_out'] = {}                   
+                cell.state_vector['signals_out'][param] = value
+                cost += self.settings.get('action_cost_compute', 0.02)
+
                 
             elif action == "DIE":
                 cost = cell.energy # Cell expends all remaining energy to die
@@ -1142,7 +1194,7 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
     available_sources = st.session_state.get('evolvable_condition_sources', [
         'self_energy', 'self_age', 'env_light', 'env_minerals', 'env_temp',
         'neighbor_count_empty', 'neighbor_count_self',
-        'timer_A', 'timer_B', 'timer_C' # <-- ADD THIS
+        'timer_A', 'timer_B', 'timer_C','signal_A', 'signal_B' # <-- ADD THIS
     ])
     
     for _ in range(num_conditions):
@@ -1156,13 +1208,14 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
         elif source.startswith('neighbor_'): target = random.randint(0, 5)
         elif source.startswith('sense_'): target = random.uniform(-0.5, 0.5)
         elif source.startswith('timer_'): target = random.randint(0, 20)
+        elif source.startswith('signal_'): target = random.uniform(0.1, 1.0)
         else: target = 0.0
         
         conditions.append({'source': source, 'operator': op, 'target_value': target})
 
     # --- 2. Create Action ---
     action_type = random.choice(['GROW', 'DIFFERENTIATE', 'SET_STATE', 'TRANSFER_ENERGY', 'DIE',
-                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE'])
+                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE','EMIT_SIGNAL'])
     
     # Pick a random component from the genotype's "alphabet"
     if not genotype.component_genes:
@@ -1192,7 +1245,12 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
             action_value = random.randint(5, 50) # Set timer duration
         else:
             action_value = random.choice([-1, 1, 5, -5]) # Modify by value
-        
+        # --- ADD THIS BLOCK ---
+    elif action_type == 'EMIT_SIGNAL':
+        action_param = random.choice(['signal_A', 'signal_B']) # Name of signal
+        action_value = random.uniform(0.5, 2.0) # Strength of signal
+# --- END OF ADDITION ---
+
     return RuleGene(
         conditions=conditions,
         action_type=action_type,
