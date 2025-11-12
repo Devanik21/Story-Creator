@@ -1242,12 +1242,27 @@ def evaluate_fitness(genotype: Genotype, grid: UniverseGrid, settings: Dict) -> 
         repro_bonus = weights.get('w_reproduction', 0.3) * (organism.total_energy / repro_threshold)
         
     # --- Complexity Pressure (from settings) ---
+    # --- Complexity Pressure (from settings) ---
     complexity = genotype.compute_complexity()
     complexity_pressure = weights.get('w_complexity_pressure', 0.0)
-    complexity_score = complexity * complexity_pressure
     
+    # --- Exponential GRN Complexity Score ---
+    # The complexity bonus is now exponential, driven by its own evolved age.
+    # We use exp(complexity_pressure * complexity) scaled by lifespan_score.
+    # This creates a non-linear, runaway reward for complexity.
+    # The complexity multiplier is reduced by the current generation number to
+    # prevent immediate instability and force the organism to earn its bonus.
+    complexity_boost = np.exp(complexity * complexity_pressure * 0.1) 
+    
+    # Scale the massive exponential bonus by its lifespan success
+    complexity_score = (complexity_boost - 1.0) * complexity_pressure * lifespan_score * 0.5 
+    
+    # Apply a gentle linear complexity multiplier to ensure complexity is factored in
+    final_complexity_score = complexity * complexity_pressure + complexity_score
+    # --- End Exponential GRN Complexity Score ---
+
     # --- Final Fitness ---
-    total_fitness = base_fitness + repro_bonus + complexity_score
+    total_fitness = base_fitness + repro_bonus + final_complexity_score
     
     # Apply fitness floor
     return max(1e-6, total_fitness)
