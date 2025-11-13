@@ -3389,6 +3389,79 @@ def main():
                                 fig_age.update_xaxes(showticklabels=False).update_yaxes(showticklabels=False)
                                 st.plotly_chart(fig_age, use_container_width=True, key=f"galleriey_age_{i}")
                             st.markdown("---")
+                
+                # --- NEW: Epochs & Phylogeny Section ---
+                st.markdown("---")
+                st.markdown("### 📖 Epochs & Phylogeny")
+                st.markdown("A macro-level analysis of your universe's history, identifying distinct eras and visualizing the evolutionary tree of its kingdoms.")
+
+                col1, col2 = st.columns([2, 1])
+
+                with col1:
+                    st.markdown("#### The Great Epochs of History")
+                    # Identify break points for epochs
+                    break_points = {0, history_df['generation'].max()}
+                    major_events = [e for e in events if e['type'] in ['Cataclysm', 'Genesis', 'Succession']]
+                    for event in major_events:
+                        break_points.add(event['generation'])
+                    
+                    sorted_breaks = sorted(list(break_points))
+                    
+                    if len(sorted_breaks) < 2:
+                        st.info("Not enough major events have occurred to define distinct historical epochs.")
+                    else:
+                        for i in range(len(sorted_breaks) - 1):
+                            start_gen = sorted_breaks[i]
+                            end_gen = sorted_breaks[i+1]
+                            
+                            epoch_df = history_df[(history_df['generation'] >= start_gen) & (history_df['generation'] <= end_gen)]
+                            if epoch_df.empty: continue
+
+                            # Determine epoch name from the event that started it
+                            start_event = next((e for e in major_events if e['generation'] == start_gen), None)
+                            epoch_name = f"Epoch {i+1}"
+                            if i == 0 and not start_event: epoch_name = "The Primordial Era"
+                            elif start_event: epoch_name = f"The {start_event['title']} Era"
+
+                            with st.expander(f"**{epoch_name}** (Generations {start_gen} - {end_gen})"):
+                                dominant_kingdom = epoch_df['kingdom_id'].mode()[0] if not epoch_df['kingdom_id'].mode().empty else "N/A"
+                                mean_fitness = epoch_df['fitness'].mean()
+                                max_complexity = epoch_df['complexity'].max()
+                                
+                                st.metric(f"Dominant Kingdom", dominant_kingdom)
+                                st.metric(f"Mean Fitness", f"{mean_fitness:.3f}")
+                                st.metric(f"Peak Complexity", f"{max_complexity:.2f}")
+
+                with col2:
+                    st.markdown("#### The Tree of Life (Phylogeny)")
+                    phylogeny_graph = nx.DiGraph()
+                    # Find the first occurrence of each kingdom
+                    first_occurrence = history_df.loc[history_df.groupby('kingdom_id')['generation'].idxmin()]
+                    
+                    for _, row in first_occurrence.iterrows():
+                        kingdom = row['kingdom_id']
+                        gen = row['generation']
+                        phylogeny_graph.add_node(kingdom, label=f"{kingdom}\n(Gen {gen})")
+
+                        # Find parent lineage
+                        parent_lineage_id = history_df.loc[history_df['lineage_id'] == row['lineage_id'], 'parent_ids'].iloc[0]
+                        if parent_lineage_id:
+                            parent_df = history_df[history_df['lineage_id'] == parent_lineage_id[0]]
+                            if not parent_df.empty:
+                                parent_kingdom = parent_df.iloc[0]['kingdom_id']
+                                if parent_kingdom != kingdom and parent_kingdom in phylogeny_graph.nodes():
+                                    phylogeny_graph.add_edge(parent_kingdom, kingdom)
+
+                    if not phylogeny_graph.nodes():
+                        st.info("No kingdom data to build a tree of life.")
+                    else:
+                        fig_tree, ax_tree = plt.subplots(figsize=(5, 4))
+                        pos = nx.spring_layout(phylogeny_graph, seed=42, k=0.9)
+                        labels = nx.get_node_attributes(phylogeny_graph, 'label')
+                        nx.draw(phylogeny_graph, pos, labels=labels, with_labels=True, node_size=3000, node_color='#00aaff', font_size=8, font_color='white', arrowsize=20, ax=ax_tree)
+                        ax_tree.set_title("Kingdom Phylogeny")
+                        st.pyplot(fig_tree)
+                        plt.clf()
 
         
         st.markdown("---")
