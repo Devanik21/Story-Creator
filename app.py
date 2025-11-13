@@ -2332,7 +2332,7 @@ def main():
         s['w_lifespan'] = st.slider("Weight: Longevity", 0.0, 1.0, s.get('w_lifespan', 0.4), 0.01)
         s['w_efficiency'] = st.slider("Weight: Energy Efficiency", 0.0, 1.0, s.get('w_efficiency', 0.3), 0.01)
         s['w_reproduction'] = st.slider("Weight: Reproduction", 0.0, 1.0, s.get('w_reproduction', 0.3), 0.01)
-        s['w_complexity_pressure'] = st.slider("Pressure: Complexity", -1.0, 1.0, s.get('w_complexity_pressure', 0.0), 0.01, help="Push for/against complexity.")
+        s['w_complexity_pressure'] = st.slider("Pressure: Complexity", -3.0, 3.0, s.get('w_complexity_pressure', 0.0), 0.01, help="Push for/against complexity.")
         s['w_motility_pressure'] = st.slider("Pressure: Motility", 0.0, 1.0, s.get('w_motility_pressure', 0.0), 0.01, help="Reward for evolving movement.")
         s['w_compute_pressure'] = st.slider("Pressure: Intelligence", 0.0, 1.0, s.get('w_compute_pressure', 0.0), 0.01, help="Reward for evolving 'compute' genes.")
         s['reproduction_energy_threshold'] = st.slider("Reproduction Energy Threshold", 10.0, 200.0, s.get('reproduction_energy_threshold', 50.0))
