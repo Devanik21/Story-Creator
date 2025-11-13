@@ -1540,6 +1540,16 @@ def apply_physics_drift(settings: Dict):
         if drift_magnitude != 0:
             st.toast(f"🌌 Physics Drift! Archetype '{base_name}' property '{prop_to_mutate}' has mutated.", icon="🌀")
 
+            # --- NEW: Log this event to the Genesis Chronicle ---
+            event_desc = f"The fundamental physical properties of the '{base_name}' chemical archetype have mutated. The property '{prop_to_mutate}' drifted, subtly altering the rules of chemistry and biology for all life based on it."
+            st.session_state.genesis_events.append({
+                'generation': st.session_state.history[-1]['generation'] if st.session_state.history else 0,
+                'type': 'Physics Drift',
+                'title': f"Physics Drift in '{base_name}'",
+                'description': event_desc,
+                'icon': '🌀'
+            })
+
 # ========================================================
 #
 # PART 6: VISUALIZATION (THE "VIEWSCREEN")
@@ -2538,6 +2548,12 @@ def main():
         st.session_state.history = []
         st.session_state.evolutionary_metrics = [] # type: ignore
         st.session_state.genesis_events = []
+        
+        # --- NEW: Reset chronicle-specific state trackers ---
+        st.session_state.seen_kingdoms = set()
+        st.session_state.crossed_complexity_thresholds = set()
+        st.session_state.last_dominant_kingdom = None
+
         st.session_state.gene_archive = []
         
         # --- Seeding ---
@@ -2581,6 +2597,12 @@ def main():
         # --- Initialize Red Queen Parasite ---
         red_queen = RedQueenParasite()
         
+        # --- NEW: Initialize Chronicle State ---
+        if 'seen_kingdoms' not in st.session_state: st.session_state.seen_kingdoms = set()
+        if 'crossed_complexity_thresholds' not in st.session_state: st.session_state.crossed_complexity_thresholds = set()
+        if 'last_dominant_kingdom' not in st.session_state: st.session_state.last_dominant_kingdom = None
+        complexity_thresholds_to_log = [10, 25, 50, 100, 200, 500]
+
         for gen in range(s.get('num_generations', 200)):
             status_text.markdown(f"### 🌌 Generation {gen + 1}/{s.get('num_generations', 200)}")
             
@@ -2716,6 +2738,52 @@ def main():
                 
             fitness_array = np.array(fitness_scores)
             
+            # --- NEW: Genesis Chronicle Complex Event Logging ---
+            current_kingdoms = set(g.kingdom_id for g in population)
+            
+            # 1. First Emergence of a Kingdom
+            newly_emerged_kingdoms = current_kingdoms - st.session_state.seen_kingdoms
+            for kingdom in newly_emerged_kingdoms:
+                if kingdom != "Unknown" and kingdom != "Unclassified":
+                    event_desc = f"For the first time in this universe's history, life based on the **{kingdom}** chemical archetype has emerged from the primordial soup, opening a new evolutionary frontier."
+                    st.session_state.genesis_events.append({
+                        'generation': gen, 'type': 'Genesis', 'title': f"Genesis of {kingdom} Life",
+                        'description': event_desc, 'icon': '✨'
+                    })
+                    st.session_state.seen_kingdoms.add(kingdom)
+
+            # 2. Major Kingdom Shift
+            kingdom_counts = Counter(g.kingdom_id for g in population)
+            if kingdom_counts:
+                current_dominant_kingdom, _ = kingdom_counts.most_common(1)[0]
+                if st.session_state.last_dominant_kingdom and current_dominant_kingdom != st.session_state.last_dominant_kingdom:
+                    event_desc = f"A major ecological shift has occurred. Life based on **{current_dominant_kingdom}** has overthrown the previous era's dominant **{st.session_state.last_dominant_kingdom}**-based lifeforms."
+                    st.session_state.genesis_events.append({
+                        'generation': gen, 'type': 'Succession', 'title': f"The {current_dominant_kingdom} Era Begins",
+                        'description': event_desc, 'icon': '👑'
+                    })
+                st.session_state.last_dominant_kingdom = current_dominant_kingdom
+
+            # 3. Complexity Thresholds Crossed
+            max_complexity_in_gen = 0
+            if population:
+                max_complexity_in_gen = max(p.compute_complexity() for p in population)
+            
+            for threshold in complexity_thresholds_to_log:
+                if max_complexity_in_gen >= threshold and threshold not in st.session_state.crossed_complexity_thresholds:
+                    fittest_organism = max(population, key=lambda p: p.fitness)
+                    event_desc = f"A new era of biological organization has been reached. An organism from the **{fittest_organism.kingdom_id}** kingdom has achieved a genomic complexity of over **{threshold}**, enabling far more sophisticated body plans and behaviors."
+                    st.session_state.genesis_events.append({
+                        'generation': gen, 'type': 'Complexity Leap', 'title': f"Complexity Barrier Broken ({threshold})",
+                        'description': event_desc, 'icon': '🧠'
+                    })
+                    st.session_state.crossed_complexity_thresholds.add(threshold)
+
+            # --- Update seen kingdoms for the next generation ---
+            st.session_state.seen_kingdoms.update(current_kingdoms)
+            # --- END of Genesis Chronicle Logging ---
+
+
             # --- 2. Record History ---
             for individual in population:
                 st.session_state.history.append({
@@ -3168,6 +3236,7 @@ def main():
                 st.markdown("A showcase of the most novel organisms that emerged directly after key evolutionary leaps.")
 
                 innovation_events = [e for e in filtered_events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis']]
+                innovation_events = [e for e in filtered_events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis', 'Genesis', 'Complexity Leap']]
                 if not innovation_events:
                     st.info("No innovation events found in the selected range.")
                 else:
@@ -3241,7 +3310,7 @@ if __name__ == "__main__":
                 'description': f"A new cellular component, '{body.split('**')[1]}', was invented, expanding the chemical and functional possibilities for life.", 'icon': '💡'
             })
         if "new sense" in body:
-            st.session_state.genesis_events.append({
+            st.session_state.genesis_events.append({ # type: ignore
                 'generation': st.session_state.history[-1]['generation'] if st.session_state.history else 0,
                 'type': 'Sense Innovation', 'title': f"New Sense: {body.split('**')[1]}",
                 'description': f"Life has evolved a new way to perceive its environment: '{body.split('**')[1]}'. This opens up entirely new evolutionary pathways.", 'icon': '🧠'
