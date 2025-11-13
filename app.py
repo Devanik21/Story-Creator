@@ -3425,13 +3425,48 @@ def main():
                             elif start_event: epoch_name = f"The {start_event['title']} Era"
 
                             with st.expander(f"**{epoch_name}** (Generations {start_gen} - {end_gen})"):
-                                dominant_kingdom = epoch_df['kingdom_id'].mode()[0] if not epoch_df['kingdom_id'].mode().empty else "N/A"
-                                mean_fitness = epoch_df['fitness'].mean()
-                                max_complexity = epoch_df['complexity'].max()
+                                # --- NEW: More complex and shocking details ---
+                                c1, c2, c3 = st.columns(3)
                                 
-                                st.metric(f"Dominant Kingdom", dominant_kingdom)
-                                st.metric(f"Mean Fitness", f"{mean_fitness:.3f}")
-                                st.metric(f"Peak Complexity", f"{max_complexity:.2f}")
+                                # 1. Core Metrics
+                                with c1:
+                                    st.markdown("##### Core Metrics")
+                                    dominant_kingdom = epoch_df['kingdom_id'].mode()[0] if not epoch_df['kingdom_id'].mode().empty else "N/A"
+                                    mean_fitness = epoch_df['fitness'].mean()
+                                    peak_complexity = epoch_df['complexity'].max()
+                                    st.metric("Dominant Kingdom", dominant_kingdom)
+                                    st.metric("Mean Fitness", f"{mean_fitness:.3f}")
+                                    st.metric("Peak Complexity", f"{peak_complexity:.2f}")
+
+                                # 2. Evolutionary Dynamics
+                                with c2:
+                                    st.markdown("##### Dynamics")
+                                    start_fitness = history_df[history_df['generation'] == start_gen]['fitness'].mean()
+                                    end_fitness = history_df[history_df['generation'] == end_gen]['fitness'].mean()
+                                    velocity = (end_fitness - start_fitness) / max(1, end_gen - start_gen)
+                                    st.metric("Evolutionary Velocity", f"{velocity*100:.2f} ΔF/100gen")
+
+                                    apex_organism_idx = epoch_df['fitness'].idxmax()
+                                    apex_organism = epoch_df.loc[apex_organism_idx]
+                                    st.markdown(f"**Apex Predator:** A `{apex_organism['kingdom_id']}` organism reached a peak fitness of **{apex_organism['fitness']:.3f}** with complexity **{apex_organism['complexity']:.1f}**.")
+
+                                # 3. Innovations and Extinctions
+                                with c3:
+                                    st.markdown("##### Historical Events")
+                                    epoch_events = [e for e in events if start_gen <= e['generation'] < end_gen]
+                                    innovations = [e['title'] for e in epoch_events if 'Innovation' in e['type']]
+                                    if innovations:
+                                        st.markdown("**Key Innovations:**")
+                                        for innov in innovations[:3]:
+                                            st.markdown(f"- `{innov.replace('New Component: ', '').replace('New Sense: ', '')}`")
+                                    
+                                    kingdoms_at_start = set(history_df[history_df['generation'] == start_gen]['kingdom_id'].unique())
+                                    kingdoms_at_end = set(history_df[history_df['generation'] == end_gen]['kingdom_id'].unique())
+                                    extinct_kingdoms = kingdoms_at_start - kingdoms_at_end
+                                    if extinct_kingdoms:
+                                        st.markdown("**Extinctions:**")
+                                        for kingdom in extinct_kingdoms:
+                                            st.markdown(f"- The **{kingdom}** kingdom perished.")
 
                 with col2:
                     st.markdown("#### The Tree of Life (Phylogeny)")
