@@ -3321,7 +3321,7 @@ def main():
                 st.markdown("A showcase of the most novel organisms that emerged directly after key evolutionary leaps.")
 
                 # innovation_events = [e for e in filtered_events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis']]
-                innovation_events = [e for e in filtered_events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis', 'Genesis', 'Complexity Leap']]
+                innovation_events = [e for e in filtered_events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis', 'Genesis', 'Complexity Leap', 'Major Transition', 'Cognitive Leap']]
                 if not innovation_events:
                     st.info("No innovation events found in the selected range.")
                 else:
@@ -3329,23 +3329,38 @@ def main():
                     gallery_specimens = []
                     generations_to_check = sorted(list(set(e['generation'] + 1 for e in innovation_events)))
                     
-                    for gen in generations_to_check:
-                        next_gen_df = history_df[history_df['generation'] == gen]
+                    # --- REVISED LOGIC: Find the actual historical specimen ---
+                    # This is more complex because we need to find the specific organism in the gene_archive
+                    
+                    # Create a lookup for lineage_id -> genotype from the final population for efficiency
+                    lineage_lookup = {p.lineage_id: p for p in population}
+
+                    for event in innovation_events:
+                        next_gen = event['generation'] + 1
+                        next_gen_df = history_df[history_df['generation'] == next_gen]
                         if not next_gen_df.empty:
                             best_in_gen_idx = next_gen_df['fitness'].idxmax()
-                            best_lineage_id = next_gen_df.loc[best_in_gen_idx, 'lineage_id']
+                            best_organism_info = next_gen_df.loc[best_in_gen_idx]
+                            best_lineage_id = best_organism_info['lineage_id']
                             
-                            # Find this organism in the final population (simplification)
-                            specimen = next((p for p in population if p.lineage_id == best_lineage_id), None)
-                            if specimen and not any(s.id == specimen.id for s in gallery_specimens):
-                                gallery_specimens.append(specimen)
+                            # Find the descendant of this organism in the final population
+                            specimen = lineage_lookup.get(best_lineage_id)
+                            
+                            if specimen and not any(s['specimen'].id == specimen.id for s in gallery_specimens):
+                                # Store the specimen AND the context of its innovation
+                                gallery_specimens.append({
+                                    'specimen': specimen,
+                                    'innovation_title': event['title'],
+                                    'innovation_gen': next_gen 
+                                })
                     
                     if not gallery_specimens:
                         st.warning("Could not find representative specimens for the selected innovations.")
                     else:
                         # --- NEW: More detailed gallery layout ---
-                        for i, specimen in enumerate(gallery_specimens[:3]): # Show top 3 for more detail
-                            st.markdown(f"#### 🏅 Post-Innovation Specimen (From Gen {specimen.generation})")
+                        for i, item in enumerate(gallery_specimens[:3]): # Show top 3 for more detail
+                            specimen = item['specimen']
+                            st.markdown(f"#### 🏅 Specimen from Gen {item['innovation_gen']} (Post-'*{item['innovation_title']}*')")
                             
                             with st.spinner(f"Growing and analyzing specimen {i+1}..."):
                                 # Grow the phenotype once for all plots
@@ -3369,7 +3384,6 @@ def main():
                                     fig_pie = px.pie(comp_df, values='Count', names='Component', color='Component', color_discrete_map=color_map)
                                     fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
                                     st.plotly_chart(fig_pie, use_container_width=True, key=f"gallery_pyie_{i}")
-
                             with col2:
                                 st.markdown("**Internal Energy Distribution**")
                                 energy_data = np.full((vis_grid.width, vis_grid.height), np.nan)
