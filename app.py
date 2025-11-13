@@ -1805,6 +1805,74 @@ def create_evolution_dashboard(history_df: pd.DataFrame, evolutionary_metrics_df
 
 # ========================================================
 #
+# PART 7.5: CUSTOM ANALYTICS PLOTS (NEW)
+#
+# ========================================================
+
+def plot_fitness_vs_complexity(df: pd.DataFrame, key: str) -> go.Figure:
+    """Scatter plot of fitness vs. complexity, colored by kingdom."""
+    fig = px.scatter(
+        df.sample(min(len(df), 5000)), 
+        x='complexity', 
+        y='fitness', 
+        color='kingdom_id',
+        title='Fitness vs. Complexity',
+        hover_data=['generation', 'cell_count']
+    )
+    fig.update_layout(height=400)
+    return fig
+
+def plot_lifespan_vs_cell_count(df: pd.DataFrame, key: str) -> go.Figure:
+    """Scatter plot of lifespan vs. cell count, colored by fitness."""
+    fig = px.scatter(
+        df.sample(min(len(df), 5000)),
+        x='cell_count',
+        y='lifespan',
+        color='fitness',
+        color_continuous_scale='Viridis',
+        title='Lifespan vs. Cell Count',
+        hover_data=['generation', 'complexity']
+    )
+    fig.update_layout(height=400)
+    return fig
+
+def plot_energy_dynamics(df: pd.DataFrame, key: str) -> go.Figure:
+    """Scatter plot of energy production vs. consumption."""
+    fig = px.scatter(
+        df.sample(min(len(df), 5000)),
+        x='energy_consumption',
+        y='energy_production',
+        color='fitness',
+        color_continuous_scale='Plasma',
+        title='Energy Production vs. Consumption',
+        hover_data=['generation', 'lifespan']
+    )
+    fig.update_layout(height=400)
+    return fig
+
+def plot_complexity_density(df: pd.DataFrame, key: str) -> go.Figure:
+    """2D histogram showing the density of organisms in the complexity/cell_count space."""
+    fig = px.density_heatmap(
+        df,
+        x='complexity',
+        y='cell_count',
+        nbinsx=50, nbinsy=50,
+        title='Density of Morphological Space'
+    )
+    fig.update_layout(height=400)
+    return fig
+
+def plot_fitness_violin_by_kingdom(df: pd.DataFrame, key: str) -> go.Figure:
+    """Violin plot showing fitness distribution for each kingdom."""
+    final_gen_df = df[df['generation'] == df['generation'].max()]
+    if final_gen_df.empty:
+        final_gen_df = df
+    fig = px.violin(final_gen_df, x='kingdom_id', y='fitness', color='kingdom_id', box=True, points="all", title="Final Generation Fitness Distribution by Kingdom")
+    fig.update_layout(height=400)
+    return fig
+
+# ========================================================
+#
 # PART 7: THE STREAMLIT APP (THE "GOD-PANEL")
 #
 # ========================================================
@@ -2349,6 +2417,10 @@ def main():
         s['enable_early_stopping'] = st.checkbox("Enable Early Stopping", s.get('enable_early_stopping', True))
         s['early_stopping_patience'] = st.slider("Early Stopping Patience", 5, 100, s.get('early_stopping_patience', 25))
         s['num_ranks_to_display'] = st.slider("Number of Elite Ranks to Display", 1, 10, s.get('num_ranks_to_display', 3))
+
+    with st.sidebar.expander("📊 Custom Analytics Lab", expanded=False):
+        st.markdown("Configure the custom analytics tab.")
+        s['num_custom_plots'] = st.slider("Number of Custom Plots", 1, 100, s.get('num_custom_plots', 4), 1)
         
     st.sidebar.markdown("---") # --- This is the separator you wanted ---
 
@@ -3042,13 +3114,14 @@ def main():
         population = st.session_state.current_population
         
         # --- Create Tabs ---
-        
-        tab_dashboard, tab_viewer, tab_elites, tab_genesis = st.tabs([
+        tab_list = [
             "📈 Universe Dashboard", 
             "🔬 Specimen Viewer", 
             "🧬 Elite Lineage Analysis",
-            "🌌 The Genesis Chronicle"
-        ])
+            "🌌 The Genesis Chronicle",
+            "📊 Custom Analytics Lab" # New 5th Tab
+        ]
+        tab_dashboard, tab_viewer, tab_elites, tab_genesis, tab_analytics_lab = st.tabs(tab_list)
         
         with tab_dashboard:
             st.header("Evolutionary Trajectory Dashboard")
@@ -3731,6 +3804,30 @@ def main():
                             st.plotly_chart(fig_conds, use_container_width=True, key="pantheon_elite_conditions")
 
 
+        with tab_analytics_lab:
+            st.header("📊 Custom Analytics Lab")
+            st.markdown("A flexible laboratory for generating custom 2D plots to explore the relationships within your universe's evolutionary history. Configure the number of plots in the sidebar.")
+            st.markdown("---")
+
+            num_plots = s.get('num_custom_plots', 4)
+            
+            # A list of available plotting functions
+            plot_functions = [
+                plot_fitness_vs_complexity,
+                plot_lifespan_vs_cell_count,
+                plot_energy_dynamics,
+                plot_complexity_density,
+                plot_fitness_violin_by_kingdom
+            ]
+
+            # Create a two-column layout
+            cols = st.columns(2)
+            for i in range(num_plots):
+                with cols[i % 2]:
+                    # Cycle through the plot functions
+                    plot_func = plot_functions[i % len(plot_functions)]
+                    fig = plot_func(history_df, key=f"custom_plot_{i}")
+                    st.plotly_chart(fig, use_container_width=True, key=f"custom_plotly_chart_{i}")
         
         st.markdown("---")
         
