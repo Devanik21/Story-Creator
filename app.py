@@ -53,7 +53,6 @@ import uuid
 import hashlib
 import colorsys
 import copy # Added for deep copying presets
-import seaborn as sns
 
 # =G=E=N=E=V=O= =2=.=0= =N=E=W= =F=E=A=T=U=R=E=S=T=A=R=T=S= =H=E=R=E=
 #
@@ -3357,27 +3356,12 @@ def main():
 
                         if G.nodes:
                             try:
-                                sns.set_style("darkgrid", {"axes.facecolor": "#0E1117", "figure.facecolor": "#0E1117",
-                                                           "grid.color": "#222b38", "axes.labelcolor": "white",
-                                                           "xtick.color": "white", "ytick.color": "white"})
                                 fig_grn, ax = plt.subplots(figsize=(4, 3))
-                                ax.set_facecolor('#0E1117')
-                                
                                 pos = nx.spring_layout(G, k=0.9, seed=42)
                                 node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
-                                
-                                # Draw the network with futuristic colors
-                                nx.draw(G, pos, ax=ax, 
-                                        with_labels=False, 
-                                        node_size=500, 
-                                        node_color=node_colors, 
-                                        width=0.75,          # Slightly thicker edges
-                                        edge_color='#00aaff',  # Cyan edges
-                                        arrowsize=10)
-
+                                nx.draw(G, pos, ax=ax, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
                                 labels = {n: n.split('\n')[0] for n in G.nodes()} # Short labels
-                                nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax, font_color='white') # White labels
-                                
+                                nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
                                 st.pyplot(fig_grn)
                                 plt.clf()
                             except Exception as e:
@@ -3388,22 +3372,12 @@ def main():
                         st.markdown("##### **Genetic Regulatory Network (GRN) 2**")
                         if G.nodes:
                             try:
-                                sns.set_style("darkgrid", {"axes.facecolor": "#0E1117", "figure.facecolor": "#0E1117",
-                                                           "grid.color": "#222b38", "axes.labelcolor": "white",
-                                                           "xtick.color": "white", "ytick.color": "white"})
                                 fig_grn_2, ax_2 = plt.subplots(figsize=(4, 3))
-                                ax_2.set_facecolor('#0E1117')
                                 pos_2 = nx.kamada_kawai_layout(G) # Use a different layout for variety
                                 node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
-                                nx.draw(G, pos_2, ax=ax_2, 
-                                        with_labels=False, 
-                                        node_size=500, 
-                                        node_color=node_colors, 
-                                        width=0.75, 
-                                        edge_color='#00aaff', 
-                                        arrowsize=10)
+                                nx.draw(G, pos_2, ax=ax_2, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
                                 labels = {n: n.split('\n')[0] for n in G.nodes()}
-                                nx.draw_networkx_labels(G, pos_2, labels=labels, font_size=7, ax=ax_2, font_color='white')
+                                nx.draw_networkx_labels(G, pos_2, labels=labels, font_size=7, ax=ax_2)
                                 st.pyplot(fig_grn_2)
                                 plt.clf()
                             except Exception as e:
@@ -3414,22 +3388,12 @@ def main():
                         st.markdown("##### **Genetic Regulatory Network (GRN) 3**")
                         if G.nodes:
                             try:
-                                sns.set_style("darkgrid", {"axes.facecolor": "#0E1117", "figure.facecolor": "#0E1117",
-                                                           "grid.color": "#222b38", "axes.labelcolor": "white",
-                                                           "xtick.color": "white", "ytick.color": "white"})
                                 fig_grn_3, ax_3 = plt.subplots(figsize=(4, 3))
-                                ax_3.set_facecolor('#0E1117')
                                 pos_3 = nx.circular_layout(G) # Use another layout
                                 node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
-                                nx.draw(G, pos_3, ax=ax_3, 
-                                        with_labels=False, 
-                                        node_size=500, 
-                                        node_color=node_colors, 
-                                        width=0.75, 
-                                        edge_color='#00aaff', 
-                                        arrowsize=10)
+                                nx.draw(G, pos_3, ax=ax_3, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
                                 labels = {n: n.split('\n')[0] for n in G.nodes()}
-                                nx.draw_networkx_labels(G, pos_3, labels=labels, font_size=7, ax=ax_3, font_color='white')
+                                nx.draw_networkx_labels(G, pos_3, labels=labels, font_size=7, ax=ax_3)
                                 st.pyplot(fig_grn_3)
                                 plt.clf()
                             except Exception as e:
