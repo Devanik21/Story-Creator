@@ -2487,8 +2487,6 @@ def main():
             * **Turn UP `w_complexity_pressure`:** This *rewards* organisms for evolving complex, bizarre GRNs.
 
             Combine your new code with these settings, and you will finally force life to evolve the truly alien and intelligent forms you've been looking for. Now go, and create.
-            A detailed guide on how to use the sandbox to achieve "truly infinite" evolution.
-            **Please see the '🌌 The Creator's Codex' tab on the main page for the full guide.**
             """
         )
 
@@ -2852,13 +2850,10 @@ def main():
         population = st.session_state.current_population
         
         # --- Create Tabs ---
-        
-        tab_dashboard, tab_viewer, tab_elites, tab_codex = st.tabs([
+        tab_dashboard, tab_viewer, tab_elites = st.tabs([
             "📈 Universe Dashboard", 
             "🔬 Specimen Viewer", 
             "🧬 Elite Lineage Analysis"
-            "🧬 Elite Lineage Analysis",
-            "🌌 The Creator's Codex"
         ])
         
         with tab_dashboard:
@@ -3081,167 +3076,6 @@ def main():
                             
             else:
                 st.warning("No population data available to analyze.")
-
-        with tab_codex:
-            st.header("🌌 The Creator's Codex: A Guide to Infinite Life")
-            st.markdown(
-            """
-            ### **PART I: A BEGINNER'S GUIDE TO CREATION**
-            
-            Welcome, Creator. You have been given a "God-Panel"—a set of dials that define the fundamental laws of a new universe. Your goal is to breathe life into this void and nurture it from a simple, primordial soup into a complex, diverse ecosystem.
-            
-            This guide will walk you through handling your first universe and then mastering the advanced principles of "infinite" evolution.
-            
-            ---
-            
-            #### **Section 1.1: Your First "Big Bang"**
-            
-            The core loop of this sandbox is simple: **Tweak, Run, Observe.**
-            
-            1.  **Do Nothing.** For your very first universe, the best choice is to change nothing at all. The default settings are a good starting point.
-            2.  **Ignite:** Find the **"🚀 IGNITE BIG BANG"** button at the top of the sidebar. This will begin the simulation.
-            3.  **Observe:** As the simulation runs, you will see the **"📈 Universe Dashboard"** on the main page come to life. This is the "book of life" for your universe, showing you the average fitness, complexity, and population of your new creatures.
-            4.  **Meet Your Creatures:** When the run is complete, click the **"🔬 Specimen Viewer"** tab. Here you will see the "phenotypes" (the body plans) of the organisms that evolved. They are the first lifeforms in your new reality.
-            
-            You have just completed your first act of creation.
-            
-            ---
-            
-            #### **Section 1.2: Reading the Book of Life**
-            
-            The main screen gives you three critical views:
-            
-            * **📈 Universe Dashboard:** This is your high-level overview. The most important chart is **"Kingdom Dominance Over Time."** You will often see one color (e.g., 'Carbon') completely take over. This is called **convergence,** and it's the enemy of diversity. The **"3D Fitness Landscape"** shows you the "peaks" that evolution is trying to climb.
-            
-            * **🔬 Specimen Viewer:** This is your microscope. It shows you the physical bodies of your most successful organisms. You can see their **"Component Composition"** (what they're made of) and their **"Genetic Regulatory Network (GRN)"** (the "code" or "DNA" that built them).
-            
-            * **🧬 Elite Lineage Analysis:** This is your "Hall of Fame." It shows you the *best* organism from each **Kingdom** (e.g., the best 'Carbon' life, the best 'Silicon' life, etc.). This is the best place to find and analyze the most interesting and diverse creatures that emerged.
-            
-            ---
-            
-            #### **Section 1.3: Playing God (Your First Experiment)**
-            
-            Now you are ready for your first true experiment.
-            
-            1.  Go to the sidebar and open the **"Grid & Resource Distribution"** expander.
-            2.  Find the **"Light Energy Intensity"** slider and move it all the way to the maximum.
-            3.  Find the **"Mineral Richness"** slider and move it all the way to the *minimum*.
-            
-            You have just created a universe that is *drowning* in light but *starving* for minerals.
-            
-            Hit **"🚀 IGNITE BIG BANG"** again.
-            
-            Now, go to the **"🔬 Specimen Viewer."** Your new organisms will look completely different. They will have evolved to have massive `photosynthesis` values and almost zero `chemosynthesis`. Their body plans will be different. Their GRNs will be different.
-            
-            You have just performed your first act of *intelligent design* by shaping the evolutionary pressures of your universe.
-            
-            ---
-            
-            ### **PART II: THE PATH TO INFINITY (A TREATISE ON EMERGENT COMPLEXITY)**
-            
-            You will soon discover a problem. After a few runs, all your creatures look the same. You'll get simple, 10-cell blobs. Every. Single. Time.
-            
-            This is the **"Convergence Trap."** Evolution is lazy. It will *always* find the simplest, "good enough" solution and stop.
-            
-            Your goal as a Creator is to *fight convergence* and *force novelty.* You must create a universe that *rewards* complexity and *punishes* boredom. This is how you achieve "truly infinite" forms.
-            
-            ---
-            
-            #### **Section 2.1: The Engine of Creation (Mastering Innovation)**
-            
-            You must give your organisms the "building blocks" of complexity.
-            
-            * **The "Words" (`component_innovation_rate`):** This is the rate at which life *invents new body parts.* If this is zero, your organisms will *never* evolve beyond the basic "Struct" and "Energy" cells. Increasing this allows them to invent `Neuro-Gel` (brains), `Bio-Steel` (armor), or `Cryo-Fluid` (heat processors) from the chemical bases you allow.
-            
-            * **The "Senses" (`meta_innovation_rate`):** This is the most "infinite" tool you have. It's the rate at which life *invents new senses.* Life cannot evolve eyes if it has not first "invented" the concept of `sense_light`. Life cannot evolve brains if it has not invented `sense_neighbor_complexity`. This dial creates entirely new logical pathways for the GRN, enabling true, unpredicted evolution.
-            
-            * **The "Elements" (`chemical_bases`):** Why stick to 'Carbon'? Enable **'Silicon', 'Plasma', 'Void', and 'Psionic'**. This allows for the emergence of entirely alien kingdoms. You cannot get silicon-based life if you do not add silicon to the primordial soup.
-            
-            ---
-            
-            #### **Section 2.2: The "Why" of Life (Rewarding Complexity)**
-            
-            Giving life building blocks is not enough. You must give it a *reason* to use them.
-            
-            * **The Prime Directive (`w_complexity_pressure`):** This is your **most important dial.** By default, it's at `0.0`. This means evolution *does not care* about complexity. A 5-cell blob that survives is just as "fit" as a 500-cell brain-creature.
-            * **Set this to a positive value (e.g., `0.2`).** You are now *explicitly telling your universe* that complexity is a goal. You are adding a direct fitness bonus to any organism that evolves a more complex GRN and body plan. This is how you pay your organisms to evolve brains.
-            
-            * **The "Time" (`development_steps`):** A complex, 500-cell creature cannot grow in 50 steps. If this value is too low, you are *artificially selecting for simple blobs* because they are the only things that can finish "growing" before the simulation stops them. **Increase this to 100 or 150** to give complex embryos time to gestate.
-            
-            ---
-            
-            #### **Section 2.3: The "Shakedown" (Waging War on Boredom)**
-            
-            Your universe is now primed for complexity. But the "Convergence Trap" is strong. You must actively *destabilize* your universe to force it out of its rut.
-            
-            * **Tool 1: The "Parasite" (`enable_red_queen`):** This is your **#1 weapon against boredom.** When enabled, a digital "parasite" emerges that *constantly adapts to hunt the most common, dominant lifeform.*
-            * Suddenly, being a simple, common blob is a death sentence. It creates a "Red Queen's Race" where life must *constantly* evolve new forms just to survive. This is the single fastest way to create a 'Cambrian Explosion' of diversity.
-            
-            * **Tool 2: The "Asteroid" (`enable_cataclysms`):** This enables random, periodic mass extinction events. A "boring" universe, dominated by one blob, will be wiped out. This allows the few, weird, experimental survivors to "inherit the earth" and repopulate the empty world. This is called "adaptive radiation" and it's how you get explosive new growth.
-            
-            * **Tool 3: The "Sanctuary" (`enable_speciation`):** This is a *protective* tool. It groups similar organisms into "species." This is crucial because it *protects* a brand-new, "weird" lifeform (e.g., the first creature with a 'Psionic' sense) from having to compete with the 10,000 hyper-optimized "Carbon" blobs. It gives innovation a safe harbor to develop.
-            
-            ---
-            
-            #### **Section 2.4: The "God-Mode" Levers (Evolving Evolution Itself)**
-            
-            These are the most advanced, dangerous, and powerful dials you possess. Here, you stop just *guiding* evolution and start *evolving the laws of evolution itself.*
-            
-            * **`enable_objective_evolution`:** This lets organisms *evolve their own fitness goals.* You are no longer the one defining "success." You might get a "philosopher" species that evolves to value `w_complexity_pressure` above all else, creating complex, beautiful, useless forms. You might get a "berserker" species that evolves to value only reproduction. This creates radical diversity in *strategy*.
-            
-            * **`enable_hyperparameter_evolution`:** This lets organisms *evolve their own mutation rates.* You will see organisms in stable environments evolve *low* mutation rates to protect their success, while organisms in chaotic, Red Queen-driven environments will evolve *high* mutation rates to adapt faster.
-            
-            * **`enable_physics_drift`:** This is the ultimate "infinite" tool. When enabled, the very *laws of physics* will slowly mutate over eons. The `CHEMICAL_BASES_REGISTRY` itself will change. The "mass_range" of 'Carbon' might increase. The "thermosynthesis_bias" of 'Plasma' might invert.
-            * This means life can *never* find one single, perfect solution. The very ground beneath its feet is shifting. It is forced to adapt, innovate, and evolve... truly, infinitely.
-
-            
-            ---
-            ---
-
-            ### **PART III: THE NEW CODES OF LIFE (MASTERING BIZARRE GENETICS)**
-
-            You have successfully upgraded the very "language" of genetics in your universe. Your organisms are no longer limited to simple, reactive logic. You have given them the tools for true computation.
-
-            But what did you *actually* do?
-
-            #### **Section 3.1: You Gave Life MEMORY (Proposal A: Timers)**
-
-            * **The Old Limit:** Your cells had no concept of time. They were "goldfish" with no memory, only reacting to the present moment. They couldn't run a sequence of events, like "first grow a stem, *then* grow a leaf."
-            * **The New Power (Temporal Logic):** By adding `SET_TIMER` and `timer_` conditions, you've given cells an **internal clock**.
-            * **What It Unlocks (Oscillators & Sequences):** A GRN can now evolve logic like:
-                * `IF timer_pulse == 0 THEN GROW("Struct") AND SET_TIMER("pulse", 10)`
-                * This creates an **oscillator**. The organism will grow in 10-tick "bursts," creating segmented body plans (like a worm or a tree ring) instead of a simple blob.
-                * It also allows **developmental stages**: `IF self_age < 3 THEN SET_TIMER("phase_B", 5)`... `IF timer_phase_B == 1 THEN DIFFERENTIATE("Neuro-Gel")`. This cell *waits* 5 ticks, then becomes a brain.
-
-            #### **Section 3.2: You Gave Life LOGIC (Proposal B: Cascades)**
-
-            * **The Old Limit:** Your GRN was a "flat list." Every rule was checked on every tick. It was a simple checklist, not a program.
-            * **The New Power (Genetic Cascades):** By adding `ENABLE_RULE` and `DISABLE_RULE`, you've turned your flat list into a **computational network**. Rules can now *trigger other rules*.
-            * **What It Unlocks (Genetic Switches & Programs):** This is the core of real genetics. You can now evolve:
-                * **A "Genetic Switch":** `IF self_age < 5 THEN GROW("Struct") AND DISABLE_RULE("this_rule") AND ENABLE_RULE("adult_rule")`
-                * This is a one-way path. The "embryo" rule runs, builds the foundation, then *permanently switches itself off* and "wakes up" the "adult" logic.
-                * You can now evolve feedback loops, logic gates, and complex programs where one gene (rule) controls the expression of 10 others.
-
-            #### **Section 3.3: You Gave Life SENSES (Proposal C: Signaling)**
-
-            * **The Old Limit:** Your cells were "deaf and blind" to each other. A cell knew its *neighbor* existed, but it had no idea what that neighbor was *thinking* or *doing*. They couldn't coordinate to build a pattern.
-            * **The New Power (Morphogenesis):** By adding `EMIT_SIGNAL` and `signal_` conditions, you've given cells a way to **talk to each other**. This is **morphogenesis**: the creation of shape.
-            * **What It Unlocks (Reaction-Diffusion & Patterns):** You've unlocked the logic behind spots, stripes, and organs. A GRN can now evolve:
-                * `Rule 1: IF self_type == "Core" THEN EMIT_SIGNAL("inhibitor", 1.0)`
-                * `Rule 2: IF signal_inhibitor > 0.5 THEN DIFFERENTIATE("Shell")`
-                * This simple logic creates a "Shell" cell *around* every "Core" cell, forming a boundary. This is how you get layers, skins, and self-organizing structures. You've given your cells the power to create **Turing Patterns**.
-
-            ### **FINAL COMMANDMENT: USE YOUR NEW POWER**
-
-            This new, complex "language" of life is powerful, but it's also *expensive* for evolution to use. It will be "lazy" and *avoid* using these tools unless you force it.
-
-            You **must** use your God-Panel to create evolutionary pressure.
-            * **Turn ON `enable_red_queen`:** This punishes simple, common GRNs.
-            * **Turn UP `w_complexity_pressure`:** This *rewards* organisms for evolving complex, bizarre GRNs.
-
-            Combine your new code with these settings, and you will finally force life to evolve the truly alien and intelligent forms you've been looking for. Now go, and create.
-            """
-        )
         
         st.markdown("---")
         
