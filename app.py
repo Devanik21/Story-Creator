@@ -3512,6 +3512,87 @@ def main():
                         ax_tree.set_title("Kingdom Phylogeny")
                         st.pyplot(fig_tree)
                         plt.clf()
+                
+                # --- NEW: Dynastic Histories Section ---
+                st.markdown("---")
+                st.markdown("### 👑 Dynastic Histories")
+                st.markdown("Trace the complete story of the most influential lineages in your universe. Select a dynasty to view its rise, its peak, and its eventual fate.")
+
+                # Identify major lineages (e.g., from apex predators of each epoch)
+                major_lineages = {}
+                if len(sorted_breaks) > 1:
+                    for i in range(len(sorted_breaks) - 1):
+                        start_gen, end_gen = sorted_breaks[i], sorted_breaks[i+1]
+                        epoch_df = history_df[(history_df['generation'] >= start_gen) & (history_df['generation'] <= end_gen)]
+                        if not epoch_df.empty:
+                            apex_organism_idx = epoch_df['fitness'].idxmax()
+                            apex_organism = epoch_df.loc[apex_organism_idx]
+                            lineage_id = apex_organism['lineage_id']
+                            if lineage_id not in major_lineages:
+                                major_lineages[lineage_id] = f"Apex of Epoch {i+1} (Gen {apex_organism['generation']})"
+
+                if not major_lineages:
+                    st.info("No major dynasties have been identified yet. Run a longer simulation to establish dominant lineages.")
+                else:
+                    lineage_options = list(major_lineages.keys())
+                    selected_lineage_id = st.selectbox(
+                        "Select a Dynasty to Investigate",
+                        options=lineage_options,
+                        format_func=lambda x: f"Lineage {x} ({major_lineages[x]})"
+                    )
+
+                    if selected_lineage_id:
+                        lineage_df = history_df[history_df['lineage_id'] == selected_lineage_id].sort_values('generation')
+                        universe_avg_df = history_df.groupby('generation')[['fitness', 'complexity']].mean().reset_index()
+
+                        # --- 1. Summary Stats ---
+                        founder = lineage_df.iloc[0]
+                        peak = lineage_df.loc[lineage_df['fitness'].idxmax()]
+                        survived_gens = lineage_df['generation'].nunique()
+
+                        c1, c2, c3, c4 = st.columns(4)
+                        c1.metric("Founded in Generation", f"{founder['generation']}")
+                        c2.metric("Founder's Kingdom", founder['kingdom_id'])
+                        c3.metric("Peak Fitness", f"{peak['fitness']:.3f}")
+                        c4.metric("Generations Survived", f"{survived_gens}")
+
+                        # --- 2. Performance Chart ---
+                        fig_lineage = go.Figure()
+                        fig_lineage.add_trace(go.Scatter(x=lineage_df['generation'], y=lineage_df['fitness'], mode='lines', name=f'Lineage {selected_lineage_id} Fitness', line=dict(color='cyan', width=3)))
+                        fig_lineage.add_trace(go.Scatter(x=universe_avg_df['generation'], y=universe_avg_df['fitness'], mode='lines', name='Universe Avg. Fitness', line=dict(color='gray', dash='dot')))
+                        fig_lineage.update_layout(title=f"Fitness Trajectory of Dynasty {selected_lineage_id}", height=300, margin=dict(l=0, r=0, t=40, b=0))
+                        st.plotly_chart(fig_lineage, use_container_width=True)
+
+                        # --- 3. Gallery of Ancestors ---
+                        st.markdown("##### Gallery of Ancestors")
+                        ancestor_ids_to_find = {
+                            'Founder': founder['lineage_id'],
+                            'Apex': peak['lineage_id'],
+                            'Descendant': lineage_df.iloc[-1]['lineage_id']
+                        }
+                        
+                        ancestor_specimens = {}
+                        lineage_lookup = {p.lineage_id: p for p in population}
+                        for role, l_id in ancestor_ids_to_find.items():
+                            specimen = lineage_lookup.get(l_id)
+                            if specimen:
+                                ancestor_specimens[role] = specimen
+
+                        if not ancestor_specimens:
+                            st.warning("Could not find living descendants of this dynasty in the final population.")
+                        else:
+                            cols = st.columns(len(ancestor_specimens))
+                            for i, (role, specimen) in enumerate(ancestor_specimens.items()):
+                                with cols[i]:
+                                    st.markdown(f"**The {role}** (Gen {specimen.generation})")
+                                    st.metric("Fitness", f"{specimen.fitness:.4f}")
+                                    with st.spinner(f"Growing {role}..."):
+                                        vis_grid = UniverseGrid(s)
+                                        phenotype = Phenotype(specimen, vis_grid, s)
+                                        fig = visualize_phenotype_2d(phenotype, vis_grid)
+                                        fig.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0))
+                                        st.plotly_chart(fig, use_container_width=True, key=f"dynasty_vis_{selected_lineage_id}_{i}")
+
 
         
         st.markdown("---")
