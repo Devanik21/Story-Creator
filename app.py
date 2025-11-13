@@ -3650,7 +3650,12 @@ def main():
                 "settings": st.session_state.settings,
                 "history": st.session_state.history,
                 "evolutionary_metrics": st.session_state.evolutionary_metrics,
-                "final_population_genotypes": [asdict(g) for g in population] if population else []
+                "genesis_events": st.session_state.get('genesis_events', []),
+                "final_population_genotypes": [asdict(g) for g in population] if population else [],
+                # --- NEW: Adding the complete state of the universe ---
+                "full_gene_archive": [asdict(g) for g in st.session_state.get('gene_archive', [])],
+                "final_physics_constants": CHEMICAL_BASES_REGISTRY,
+                "final_evolved_senses": st.session_state.get('evolvable_condition_sources', [])
             }
             json_string = json.dumps(download_data, indent=4, cls=GenotypeJSONEncoder) # <-- ADD cls=...
             
