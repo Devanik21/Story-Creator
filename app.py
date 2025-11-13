@@ -3016,6 +3016,7 @@ def main():
             progress_container.progress((gen + 1) / s.get('num_generations', 200))
         
         st.session_state.current_population = population
+        st.session_state.universe_grid = universe_grid # Save the final grid state
         status_text.markdown("### ✅ Evolution Complete! Results saved.")
         
         # --- Save results ---
