@@ -3319,7 +3319,7 @@ def main():
                 st.markdown("### 🏆 Gallery of Innovation")
                 st.markdown("A showcase of the most novel organisms that emerged directly after key evolutionary leaps.")
 
-                innovation_events = [e for e in filtered_events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis']]
+                # innovation_events = [e for e in filtered_events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis']]
                 innovation_events = [e for e in filtered_events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis', 'Genesis', 'Complexity Leap']]
                 if not innovation_events:
                     st.info("No innovation events found in the selected range.")
@@ -3342,17 +3342,53 @@ def main():
                     if not gallery_specimens:
                         st.warning("Could not find representative specimens for the selected innovations.")
                     else:
-                        cols = st.columns(min(len(gallery_specimens), 4))
-                        for i, specimen in enumerate(gallery_specimens[:4]):
-                             with cols[i]:
-                                st.markdown(f"**Post-Innovation (Gen {specimen.generation})**")
-                                st.metric("Fitness", f"{specimen.fitness:.4f}")
-                                with st.spinner("Growing..."):
+                        # --- NEW: More detailed gallery layout ---
+                        for i, specimen in enumerate(gallery_specimens[:3]): # Show top 3 for more detail
+                            st.markdown(f"#### 🏅 Post-Innovation Specimen (From Gen {specimen.generation})")
+                            
+                            with st.spinner(f"Growing and analyzing specimen {i+1}..."):
+                                # Grow the phenotype once for all plots
                                     vis_grid = UniverseGrid(s)
                                     phenotype = Phenotype(specimen, vis_grid, s)
-                                    fig = visualize_phenotype_2d(phenotype, vis_grid)
-                                    fig.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0))
-                                    st.plotly_chart(fig, use_container_width=True, key=f"gallery_vis_{i}")
+
+                            col1, col2, col3 = st.columns(3)
+
+                            with col1:
+                                st.markdown("**Phenotype (Body Plan)**")
+                                fig_pheno = visualize_phenotype_2d(phenotype, vis_grid)
+                                fig_pheno.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0))
+                                st.plotly_chart(fig_pheno, use_container_width=True, key=f"gallery_pheno_{i}")
+                                
+                                st.markdown("**Component Composition**")
+                                component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
+                                if component_counts:
+                                    comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
+                                    comp_df = comp_df.rename(columns={'index': 'Component'})
+                                    color_map = {c.name: c.color for c in specimen.component_genes.values()}
+                                    fig_pie = px.pie(comp_df, values='Count', names='Component', color='Component', color_discrete_map=color_map)
+                                    fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
+                                    st.plotly_chart(fig_pie, use_container_width=True, key=f"gallery_pyie_{i}")
+
+                            with col2:
+                                st.markdown("**Internal Energy Distribution**")
+                                energy_data = np.full((vis_grid.width, vis_grid.height), np.nan)
+                                for (x, y), cell in phenotype.cells.items():
+                                    energy_data[x, y] = cell.energy
+                                fig_energy = px.imshow(energy_data, color_continuous_scale='viridis', aspect='equal')
+                                fig_energy.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0), coloraxis_showscale=False)
+                                fig_energy.update_xaxes(showticklabels=False).update_yaxes(showticklabels=False)
+                                st.plotly_chart(fig_energy, use_container_width=True, key=f"gallery_energye_{i}")
+
+                            with col3:
+                                st.markdown("**Cellular Age Map**")
+                                age_data = np.full((vis_grid.width, vis_grid.height), np.nan)
+                                for (x, y), cell in phenotype.cells.items():
+                                    age_data[x, y] = cell.age
+                                fig_age = px.imshow(age_data, color_continuous_scale='plasma', aspect='equal')
+                                fig_age.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0), coloraxis_showscale=False)
+                                fig_age.update_xaxes(showticklabels=False).update_yaxes(showticklabels=False)
+                                st.plotly_chart(fig_age, use_container_width=True, key=f"galleriey_age_{i}")
+                            st.markdown("---")
 
         
         st.markdown("---")
