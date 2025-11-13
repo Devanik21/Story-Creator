@@ -2553,6 +2553,13 @@ def main():
         st.session_state.seen_kingdoms = set()
         st.session_state.crossed_complexity_thresholds = set()
         st.session_state.last_dominant_kingdom = None
+        # --- NEW: Reset flags for new complex findings ---
+        st.session_state.has_logged_colonial_emergence = False
+        st.session_state.has_logged_philosophy_divergence = False
+        st.session_state.has_logged_computation_dawn = False
+        st.session_state.has_logged_first_communication = False
+        st.session_state.has_logged_memory_invention = False
+
 
         st.session_state.gene_archive = []
         
@@ -2601,6 +2608,13 @@ def main():
         if 'seen_kingdoms' not in st.session_state: st.session_state.seen_kingdoms = set()
         if 'crossed_complexity_thresholds' not in st.session_state: st.session_state.crossed_complexity_thresholds = set()
         if 'last_dominant_kingdom' not in st.session_state: st.session_state.last_dominant_kingdom = None
+        # --- NEW: Initialize flags for new complex findings if they don't exist ---
+        if 'has_logged_colonial_emergence' not in st.session_state: st.session_state.has_logged_colonial_emergence = False
+        if 'has_logged_philosophy_divergence' not in st.session_state: st.session_state.has_logged_philosophy_divergence = False
+        if 'has_logged_computation_dawn' not in st.session_state: st.session_state.has_logged_computation_dawn = False
+        if 'has_logged_first_communication' not in st.session_state: st.session_state.has_logged_first_communication = False
+        if 'has_logged_memory_invention' not in st.session_state: st.session_state.has_logged_memory_invention = False
+
         complexity_thresholds_to_log = [10, 25, 50, 100, 200, 500]
 
         for gen in range(s.get('num_generations', 200)):
@@ -2686,6 +2700,20 @@ def main():
                         group_fitness = group_fitness_scores[genotype.colony_id]
                         # Final fitness is a blend of individual success and group success
                         genotype.fitness = (genotype.individual_fitness * (1 - group_weight)) + (group_fitness * group_weight)
+
+                # --- NEW: Log Emergence of Colonial Life ---
+                if not st.session_state.get('has_logged_colonial_emergence', False):
+                    # Check if any colony's fitness is substantially higher than the population average
+                    pop_mean_fitness = np.mean([g.individual_fitness for g in population])
+                    if any(gf > pop_mean_fitness * 1.2 for gf in group_fitness_scores.values()):
+                        event_desc = "For the first time, individual organisms have aggregated into a cooperative colony whose group success surpasses that of average individuals. This marks a major transition towards higher-level superorganisms."
+                        st.session_state.genesis_events.append({
+                            'generation': gen, 'type': 'Major Transition', 'title': 'Emergence of Colonial Life',
+                            'description': event_desc, 'icon': '🤝'
+                        })
+                        st.session_state.has_logged_colonial_emergence = True
+                        st.toast("🤝 Major Transition! Colonial life has emerged!", icon="🎉")
+
 
             # --- 1c. Cataclysmic Events ---
             if hypermutation_duration > 0:
@@ -2782,6 +2810,62 @@ def main():
             # --- Update seen kingdoms for the next generation ---
             st.session_state.seen_kingdoms.update(current_kingdoms)
             # --- END of Genesis Chronicle Logging ---
+            
+            # --- NEW: More Complex Findings Logging ---
+            for org in population:
+                # 4. Philosophical Divergence
+                if s.get('enable_objective_evolution', False) and not st.session_state.get('has_logged_philosophy_divergence', False):
+                    default_weights = np.array([s.get('w_lifespan', 0.4), s.get('w_efficiency', 0.3), s.get('w_reproduction', 0.3)])
+                    org_weights_dict = org.objective_weights
+                    org_weights = np.array([org_weights_dict.get('w_lifespan', 0), org_weights_dict.get('w_efficiency', 0), org_weights_dict.get('w_reproduction', 0)])
+                    distance = np.linalg.norm(default_weights - org_weights)
+                    if distance > 0.5: # Threshold for significant divergence
+                        top_objective = max(org_weights_dict, key=org_weights_dict.get)
+                        event_desc = f"A lineage has evolved its own 'philosophy of life,' radically altering its fitness objectives. Instead of pursuing the universe's default goals, it now prioritizes '{top_objective}', marking the dawn of autotelic (self-directed) evolution."
+                        st.session_state.genesis_events.append({
+                            'generation': gen, 'type': 'Cognitive Leap', 'title': 'Philosophical Divergence',
+                            'description': event_desc, 'icon': '📜'
+                        })
+                        st.session_state.has_logged_philosophy_divergence = True
+                        st.toast("📜 Cognitive Leap! An organism evolved its own goals!", icon="🎉")
+                        break # Log only once per generation
+
+                # 5. Dawn of Computation (Genetic Switches)
+                if not st.session_state.get('has_logged_computation_dawn', False):
+                    if any(rule.action_type in ["ENABLE_RULE", "DISABLE_RULE"] for rule in org.rule_genes):
+                        event_desc = "A genetic regulatory network has evolved a 'genetic switch,' where one rule can enable or disable another. This allows for complex, stateful developmental programs, a primitive form of biological computation."
+                        st.session_state.genesis_events.append({
+                            'generation': gen, 'type': 'Complexity Leap', 'title': 'Dawn of Computation',
+                            'description': event_desc, 'icon': '⚙️'
+                        })
+                        st.session_state.has_logged_computation_dawn = True
+                        st.toast("⚙️ Complexity Leap! Life evolved a genetic switch!", icon="🎉")
+                        break
+
+                # 6. First Communication
+                if not st.session_state.get('has_logged_first_communication', False):
+                    if any(rule.action_type == "EMIT_SIGNAL" for rule in org.rule_genes):
+                        event_desc = "An organism has evolved the ability for its cells to emit chemical signals. This is the first step towards intercellular communication, allowing for coordinated growth and the formation of complex patterns (morphogenesis)."
+                        st.session_state.genesis_events.append({
+                            'generation': gen, 'type': 'Major Transition', 'title': 'First Communication',
+                            'description': event_desc, 'icon': '📡'
+                        })
+                        st.session_state.has_logged_first_communication = True
+                        st.toast("📡 Major Transition! Cells have learned to communicate!", icon="🎉")
+                        break
+
+                # 7. Invention of Memory
+                if not st.session_state.get('has_logged_memory_invention', False):
+                    if any(rule.action_type in ["SET_TIMER", "MODIFY_TIMER"] for rule in org.rule_genes):
+                        event_desc = "For the first time, an organism's genetic code includes instructions for an internal timer. This gives its cells a rudimentary memory and a sense of time, enabling sequential developmental programs and biological rhythms."
+                        st.session_state.genesis_events.append({
+                            'generation': gen, 'type': 'Cognitive Leap', 'title': 'Invention of Memory',
+                            'description': event_desc, 'icon': '⏳'
+                        })
+                        st.session_state.has_logged_memory_invention = True
+                        st.toast("⏳ Cognitive Leap! An organism evolved internal timers!", icon="🎉")
+                        break
+            # --- END of More Complex Findings ---
 
 
             # --- 2. Record History ---
