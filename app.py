@@ -3042,14 +3042,12 @@ def main():
         population = st.session_state.current_population
         
         # --- Create Tabs ---
-        # --- MODIFICATION: Added a 5th tab for custom plots ---
-        tab_dashboard, tab_viewer, tab_elites, tab_genesis, tab_custom_plots = st.tabs([
+        
+        tab_dashboard, tab_viewer, tab_elites, tab_genesis = st.tabs([
             "📈 Universe Dashboard", 
             "🔬 Specimen Viewer", 
             "🧬 Elite Lineage Analysis",
             "🌌 The Genesis Chronicle"
-            "🌌 The Genesis Chronicle",
-            "🎨 Custom Plots" # NEW TAB
         ])
         
         with tab_dashboard:
