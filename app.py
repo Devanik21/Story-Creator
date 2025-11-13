@@ -2892,8 +2892,7 @@ def main():
         tab_dashboard, tab_viewer, tab_elites, tab_genesis = st.tabs([
             "📈 Universe Dashboard", 
             "🔬 Specimen Viewer", 
-            "🧬 Elite Lineage Analysis"
-            
+            "🧬 Elite Lineage Analysis",
             "🌌 The Genesis Chronicle"
         ])
         
