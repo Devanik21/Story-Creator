@@ -3334,6 +3334,19 @@ def main():
                         else:
                             st.info("No cells to analyze.")
 
+                        
+
+                        st.markdown("##### **Evolved Objectives**")
+                        if specimen.objective_weights:
+                            obj_df = pd.DataFrame.from_dict(specimen.objective_weights, orient='index', columns=['Weight']).reset_index()
+                            obj_df = obj_df.rename(columns={'index': 'Objective'})
+                            fig_bar = px.bar(obj_df, x='Objective', y='Weight', color='Objective')
+                            fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
+                            st.plotly_chart(fig_bar, width='stretch', key=f"pheno_bar_{i}")
+                        else:
+                            st.info("Global objectives are in use.")
+
+                        
                         st.markdown("##### **Genetic Regulatory Network (GRN)**")
                         G = nx.DiGraph()
                         for comp_name, comp_gene in specimen.component_genes.items():
@@ -3564,16 +3577,7 @@ def main():
                                 st.warning(f"Could not draw GRN 12: {e}")
                         else:
                             st.info("No GRN to display.")
-
-                        st.markdown("##### **Evolved Objectives**")
-                        if specimen.objective_weights:
-                            obj_df = pd.DataFrame.from_dict(specimen.objective_weights, orient='index', columns=['Weight']).reset_index()
-                            obj_df = obj_df.rename(columns={'index': 'Objective'})
-                            fig_bar = px.bar(obj_df, x='Objective', y='Weight', color='Objective')
-                            fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
-                            st.plotly_chart(fig_bar, width='stretch', key=f"pheno_bar_{i}")
-                        else:
-                            st.info("Global objectives are in use.")
+            
             else:
                 st.warning("No population data available to view specimens. Run an evolution.")
 
