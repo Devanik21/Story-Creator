@@ -1703,164 +1703,6 @@ def visualize_fitness_landscape(history_df: pd.DataFrame):
     )
     st.plotly_chart(fig, width='stretch', key="fitness_landscape_3d_universe")
 
-def plot_specimen_grn(specimen: Genotype, key_prefix: str) -> go.Figure:
-    """Plots the GRN for a specimen."""
-    G = nx.DiGraph()
-    for comp_name, comp_gene in specimen.component_genes.items():
-        G.add_node(comp_name, type='component', color=comp_gene.color, size=20)
-    for rule in specimen.rule_genes:
-        action_node_label = f"{rule.action_type}\n({rule.action_param})"
-        action_node_id = f"action_{rule.id}"
-        G.add_node(action_node_id, type='action', color='#FFB347', size=10, label=action_node_label)
-        
-        source_nodes = set()
-        for cond in rule.conditions:
-            if cond['source'] == 'self_type' and cond['target_value'] in specimen.component_genes:
-                source_nodes.add(cond['target_value'])
-        
-        if not source_nodes:
-            source_nodes.add(list(specimen.component_genes.keys())[0] if specimen.component_genes else "root")
-
-        for source_node in source_nodes:
-            G.add_edge(source_node, action_node_id)
-        
-        if rule.action_param in specimen.component_genes:
-            G.add_edge(action_node_id, rule.action_param)
-
-    if not G.nodes:
-        return go.Figure().update_layout(title="GRN (Empty)", height=300)
-
-    pos = nx.spring_layout(G, k=0.9, seed=42)
-    
-    edge_x, edge_y = [], []
-    for edge in G.edges():
-        x0, y0 = pos[edge[0]]
-        x1, y1 = pos[edge[1]]
-        edge_x.extend([x0, x1, None])
-        edge_y.extend([y0, y1, None])
-
-    node_x, node_y, node_text, node_color, node_size = [], [], [], [], []
-    for node in G.nodes():
-        x, y = pos[node]
-        node_x.append(x)
-        node_y.append(y)
-        node_color.append(G.nodes[node].get('color', '#888888'))
-        node_size.append(G.nodes[node].get('size', 15))
-        node_text.append(G.nodes[node].get('label', node))
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=edge_x, y=edge_y, mode='lines', line=dict(width=0.5, color='#888'), hoverinfo='none'))
-    fig.add_trace(go.Scatter(x=node_x, y=node_y, mode='markers+text', text=node_text, textposition="top center",
-                             marker=dict(showscale=False, color=node_color, size=node_size),
-                             hoverinfo='text'))
-    
-    fig.update_layout(title="Genetic Regulatory Network", showlegend=False, height=300,
-                      xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                      yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                      margin=dict(l=10, r=10, t=40, b=10))
-    return fig
-
-def plot_component_profile(specimen: Genotype, key_prefix: str) -> go.Figure:
-    """Creates a radar chart of average component properties."""
-    if not specimen.component_genes:
-        return go.Figure().update_layout(title="Component Profile (Empty)", height=300)
-    
-    props = ['mass', 'structural', 'energy_storage', 'photosynthesis', 'chemosynthesis', 'thermosynthesis', 'compute', 'motility', 'armor']
-    avg_values = [np.mean([getattr(c, p, 0) for c in specimen.component_genes.values()]) for p in props]
-    
-    fig = go.Figure(data=go.Scatterpolar(
-        r=avg_values,
-        theta=props,
-        fill='toself'
-    ))
-    fig.update_layout(title="Component Chemistry Profile", polar=dict(radialaxis=dict(visible=True, range=[0, max(1, max(avg_values)*1.1)])), showlegend=False, height=300, margin=dict(l=40, r=40, t=40, b=20))
-    return fig
-
-def plot_grn_action_distribution(specimen: Genotype, key_prefix: str) -> go.Figure:
-    """Bar chart of GRN action types."""
-    if not specimen.rule_genes:
-        return go.Figure().update_layout(title="GRN Strategy (Empty)", height=300)
-    
-    action_counts = Counter(r.action_type for r in specimen.rule_genes)
-    df = pd.DataFrame(action_counts.items(), columns=['Action', 'Count'])
-    fig = px.bar(df, x='Action', y='Count', title="GRN Strategy (Action Distribution)")
-    fig.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20))
-    return fig
-
-def plot_lineage_trajectory(specimen: Genotype, history_df: pd.DataFrame, key_prefix: str) -> go.Figure:
-    """Plots the fitness trajectory of a specimen's lineage."""
-    lineage_df = history_df[history_df['lineage_id'] == specimen.lineage_id]
-    if lineage_df.empty:
-        return go.Figure().update_layout(title="Lineage Trajectory (No History)", height=300)
-    
-    universe_avg_df = history_df.groupby('generation')['fitness'].mean().reset_index()
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=lineage_df['generation'], y=lineage_df['fitness'], mode='lines', name='Lineage Fitness', line=dict(color='cyan')))
-    fig.add_trace(go.Scatter(x=universe_avg_df['generation'], y=universe_avg_df['fitness'], mode='lines', name='Universe Avg.', line=dict(color='gray', dash='dot')))
-    fig.update_layout(title="Lineage Fitness Trajectory", height=300, margin=dict(l=20, r=20, t=40, b=20), showlegend=True, legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-    return fig
-
-def plot_development_trajectory(phenotype: Phenotype, key_prefix: str) -> go.Figure:
-    """Plots the cell count and energy during development."""
-    # This is a placeholder as dev history isn't stored. We simulate a plausible curve.
-    if not phenotype.is_alive:
-        return go.Figure().update_layout(title="Development Trajectory (Failed)", height=300)
-    
-    steps = np.arange(phenotype.age + 1)
-    # Sigmoid growth for cell count, logistic for energy
-    max_cells = phenotype.genotype.cell_count
-    cell_count_curve = max_cells / (1 + np.exp(-0.2 * (steps - phenotype.age/2)))
-    energy_curve = phenotype.total_energy * (1 + (10/phenotype.total_energy - 1) * np.exp(-0.1 * steps))
-
-    fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(go.Scatter(x=steps, y=cell_count_curve, name='Cell Count'), secondary_y=False)
-    fig.add_trace(go.Scatter(x=steps, y=energy_curve, name='Total Energy'), secondary_y=True)
-    fig.update_layout(title="Simulated Development Trajectory", height=300, margin=dict(l=20, r=20, t=40, b=20))
-    fig.update_yaxes(title_text="Cell Count", secondary_y=False).update_yaxes(title_text="Energy", secondary_y=True)
-    return fig
-
-def plot_cellular_energy_distribution(phenotype: Phenotype, key_prefix: str) -> go.Figure:
-    """Histogram of energy per cell."""
-    if not phenotype.cells:
-        return go.Figure().update_layout(title="Cellular Energy (Empty)", height=300)
-    energies = [c.energy for c in phenotype.cells.values()]
-    fig = px.histogram(x=energies, title="Cellular Energy Distribution")
-    fig.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20), yaxis_title="Cell Count", xaxis_title="Energy")
-    return fig
-
-def plot_cellular_age_distribution(phenotype: Phenotype, key_prefix: str) -> go.Figure:
-    """Histogram of age per cell."""
-    if not phenotype.cells:
-        return go.Figure().update_layout(title="Cellular Age (Empty)", height=300)
-    ages = [c.age for c in phenotype.cells.values()]
-    fig = px.histogram(x=ages, title="Cellular Age Distribution")
-    fig.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20), yaxis_title="Cell Count", xaxis_title="Age (ticks)")
-    return fig
-
-def plot_evolved_objectives(specimen: Genotype, key_prefix: str) -> go.Figure:
-    """Bar chart of evolved objective weights."""
-    if not specimen.objective_weights:
-        return go.Figure().update_layout(title="Evolved Objectives (Global)", height=300)
-    df = pd.DataFrame(specimen.objective_weights.items(), columns=['Objective', 'Weight'])
-    fig = px.bar(df, x='Objective', y='Weight', title="Evolved Objective Weights")
-    fig.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20))
-    return fig
-
-def plot_complexity_breakdown(specimen: Genotype, key_prefix: str) -> go.Figure:
-    """Pie chart of complexity sources."""
-    num_components = len(specimen.component_genes)
-    num_rules = len(specimen.rule_genes)
-    num_conditions = sum(len(r.conditions) for r in specimen.rule_genes)
-    df = pd.DataFrame([
-        {'Source': 'Components', 'Value': num_components * 0.4},
-        {'Source': 'Rules', 'Value': num_rules * 0.3},
-        {'Source': 'Conditions', 'Value': num_conditions * 0.3}
-    ])
-    fig = px.pie(df, names='Source', values='Value', title="Genomic Complexity Breakdown")
-    fig.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20), showlegend=True)
-    return fig
-
 def create_evolution_dashboard(history_df: pd.DataFrame, evolutionary_metrics_df: pd.DataFrame) -> go.Figure:
     """Comprehensive evolution analytics dashboard."""
     
@@ -3492,38 +3334,82 @@ def main():
                         else:
                             st.info("No cells to analyze.")
 
-                        st.markdown("---")
-                        st.markdown("##### **Deep Genetic & Phenotypic Analysis**")
+                        st.markdown("##### **Genetic Regulatory Network (GRN)**")
+                        G = nx.DiGraph()
+                        for comp_name, comp_gene in specimen.component_genes.items():
+                            G.add_node(comp_name, type='component', color=comp_gene.color)
+                        for rule in specimen.rule_genes:
+                            action_node = f"{rule.action_type}\n({rule.action_param})"
+                            G.add_node(action_node, type='action', color='#FFB347') # Orange for actions
+                            
+                            # Find source
+                            source_node = list(specimen.component_genes.keys())[0] # Simplified
+                            if rule.conditions:
+                                # Try to find a 'self_type' condition
+                                type_cond = next((c for c in rule.conditions if c['source'] == 'self_type'), None)
+                                if type_cond and type_cond['target_value'] in G.nodes():
+                                    source_node = type_cond['target_value']
+                                    
+                            G.add_edge(source_node, action_node, label=f"P={rule.probability:.1f}")
+                            if rule.action_param in G.nodes():
+                                G.add_edge(action_node, rule.action_param)
 
-                        # --- Create 3x3 Grid of Plots ---
-                        plot_functions = [
-                            plot_specimen_grn,
-                            plot_component_profile,
-                            plot_grn_action_distribution,
-                            lambda s, h, k: plot_lineage_trajectory(s, h, k), # Adapt to pass history_df
-                            plot_development_trajectory,
-                            plot_cellular_energy_distribution,
-                            plot_cellular_age_distribution,
-                            plot_evolved_objectives,
-                            plot_complexity_breakdown,
-                        ]
+                        if G.nodes:
+                            try:
+                                fig_grn, ax = plt.subplots(figsize=(4, 3))
+                                pos = nx.spring_layout(G, k=0.9, seed=42)
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos, ax=ax, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()} # Short labels
+                                nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
+                                st.pyplot(fig_grn)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN: {e}")
+                        else:
+                            st.info("No GRN to display.")
 
-                        # Create a 3x3 grid
-                        grid_cols = st.columns(3)
-                        for j, plot_func in enumerate(plot_functions):
-                            with grid_cols[j % 3]:
-                                key = f"specimen_{i}_plot_{j}"
-                                try:
-                                    if "history_df" in plot_func.__code__.co_varnames:
-                                        fig = plot_func(specimen, history_df, key)
-                                    elif "phenotype" in plot_func.__code__.co_varnames:
-                                        fig = plot_func(phenotype, key)
-                                    else:
-                                        fig = plot_func(specimen, key)
-                                    st.plotly_chart(fig, use_container_width=True, key=f"chart_{key}")
-                                except Exception as e:
-                                    st.warning(f"Could not generate plot {j+1}: {e}")
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 2**")
+                        if G.nodes:
+                            try:
+                                fig_grn_2, ax_2 = plt.subplots(figsize=(4, 3))
+                                pos_2 = nx.kamada_kawai_layout(G) # Use a different layout for variety
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_2, ax=ax_2, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_2, labels=labels, font_size=7, ax=ax_2)
+                                st.pyplot(fig_grn_2)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 2: {e}")
+                        else:
+                            st.info("No GRN to display.")
 
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 3**")
+                        if G.nodes:
+                            try:
+                                fig_grn_3, ax_3 = plt.subplots(figsize=(4, 3))
+                                pos_3 = nx.circular_layout(G) # Use another layout
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_3, ax=ax_3, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_3, labels=labels, font_size=7, ax=ax_3)
+                                st.pyplot(fig_grn_3)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 3: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Evolved Objectives**")
+                        if specimen.objective_weights:
+                            obj_df = pd.DataFrame.from_dict(specimen.objective_weights, orient='index', columns=['Weight']).reset_index()
+                            obj_df = obj_df.rename(columns={'index': 'Objective'})
+                            fig_bar = px.bar(obj_df, x='Objective', y='Weight', color='Objective')
+                            fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
+                            st.plotly_chart(fig_bar, width='stretch', key=f"pheno_bar_{i}")
+                        else:
+                            st.info("Global objectives are in use.")
             else:
                 st.warning("No population data available to view specimens. Run an evolution.")
 
