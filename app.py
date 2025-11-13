@@ -2880,7 +2880,7 @@ def main():
                     'energy_production': individual.energy_production,
                     'energy_consumption': individual.energy_consumption,
                     'lineage_id': individual.lineage_id,
-                    'parent_ids': individual.parent_ids,
+                    'parent_ids': getattr(individual, 'parent_ids', []),
                 })
             
             # --- 3. Evolutionary Metrics ---
