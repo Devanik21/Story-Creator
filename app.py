@@ -2736,7 +2736,7 @@ def main():
         )
 
 
-    st.sidebar.markdown("---")
+    
     
     with st.sidebar.expander("🔬 A Researcher's Guide to the GRN Encyclopedia", expanded=False):
         st.markdown(
@@ -2846,6 +2846,8 @@ def main():
                 * **Significance:** This is the **most mathematically profound** layout. It is the absolute best way to identify the *most fundamental, tightly-knit, and separate clusters* of genes. If two nodes are close in this layout, they are *deeply* related on a mathematical level, even if they look far apart in other plots.
             """
         )
+
+    st.sidebar.markdown("---")
 
     # --- END OF ADDED CODE ---
 
