@@ -3016,7 +3016,6 @@ def main():
             progress_container.progress((gen + 1) / s.get('num_generations', 200))
         
         st.session_state.current_population = population
-        st.session_state.universe_grid = universe_grid # Save the final grid state
         status_text.markdown("### ✅ Evolution Complete! Results saved.")
         
         # --- Save results ---
@@ -3639,6 +3638,97 @@ def main():
                                         fig = visualize_phenotype_2d(phenotype, vis_grid)
                                         fig.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0))
                                         st.plotly_chart(fig, use_container_width=True, key=f"dynasty_vis_{selected_lineage_id}_{i}")
+                
+                # --- NEW: Pantheon of Genes Section ---
+                st.markdown("---")
+                st.markdown("### 🏛️ The Pantheon of Genes")
+                st.markdown("A hall of fame for the most impactful genetic 'ideas' of your universe. This analyzes the entire fossil record to identify the components and rule strategies that defined success.")
+
+                gene_archive = st.session_state.get('gene_archive', [])
+                if not gene_archive:
+                    st.info("The gene archive is empty. Run a simulation to populate the fossil record.")
+                else:
+                    pantheon_col1, pantheon_col2 = st.columns(2)
+
+                    with pantheon_col1:
+                        st.markdown("#### The Component Pantheon")
+                        
+                        # --- Analysis ---
+                        all_components = {}
+                        for genotype in gene_archive:
+                            for comp_name, comp_gene in genotype.component_genes.items():
+                                if comp_name not in all_components:
+                                    all_components[comp_name] = {
+                                        'gene': comp_gene,
+                                        'first_gen': genotype.generation,
+                                        'inventor_lineage': genotype.lineage_id,
+                                        'fitness_sum': 0,
+                                        'usage_count': 0,
+                                        'prevalence_history': Counter()
+                                    }
+                                all_components[comp_name]['fitness_sum'] += genotype.fitness
+                                all_components[comp_name]['usage_count'] += 1
+                                all_components[comp_name]['prevalence_history'][genotype.generation] += 1
+
+                        # Calculate scores
+                        scored_components = []
+                        for name, data in all_components.items():
+                            avg_fitness = data['fitness_sum'] / data['usage_count'] if data['usage_count'] > 0 else 0
+                            longevity = history_df['generation'].max() - data['first_gen']
+                            final_prevalence = sum(1 for g in population if name in g.component_genes) if population else 0
+                            
+                            score = (avg_fitness * 100) + (longevity * 0.1) + (final_prevalence * 1)
+                            data['score'] = score
+                            scored_components.append(data)
+
+                        # Display top components
+                        for i, comp_data in enumerate(sorted(scored_components, key=lambda x: x['score'], reverse=True)[:5]):
+                            comp_gene = comp_data['gene']
+                            with st.expander(f"**{i+1}. {comp_gene.name}** (Score: {comp_data['score']:.0f})", expanded=(i<2)):
+                                st.markdown(f"Invented in **Gen {comp_data['first_gen']}** by Dynasty `{comp_data['inventor_lineage']}`")
+                                st.code(f"[{comp_gene.color}] Base: {comp_gene.base_kingdom}, Mass: {comp_gene.mass:.2f}, Struct: {comp_gene.structural:.2f}, E.Store: {comp_gene.energy_storage:.2f}", language="text")
+                                
+                                # Prevalence plot
+                                history = comp_data['prevalence_history']
+                                prevalence_df = pd.DataFrame(list(history.items()), columns=['generation', 'count']).sort_values('generation')
+                                fig_prevalence = px.area(prevalence_df, x='generation', y='count', title="Prevalence Over Time")
+                                fig_prevalence.update_layout(height=200, margin=dict(l=0, r=0, t=30, b=0))
+                                st.plotly_chart(fig_prevalence, use_container_width=True)
+
+                    with pantheon_col2:
+                        st.markdown("#### The Lawgivers: Elite Genetic Strategies")
+                        
+                        # Find elite specimens
+                        elites = []
+                        if population:
+                            sorted_pop = sorted(population, key=lambda x: x.fitness, reverse=True)
+                            seen_kingdoms = set()
+                            for org in sorted_pop:
+                                if org.kingdom_id not in seen_kingdoms:
+                                    elites.append(org)
+                                    seen_kingdoms.add(org.kingdom_id)
+                        
+                        if not elites:
+                            st.info("No elite organisms found to analyze.")
+                        else:
+                            # Analyze rule actions and conditions
+                            elite_actions = Counter()
+                            elite_conditions = Counter()
+                            for elite in elites:
+                                elite_actions.update(r.action_type for r in elite.rule_genes)
+                                for r in elite.rule_genes:
+                                    elite_conditions.update(c['source'] for c in r.conditions)
+
+                            action_df = pd.DataFrame(elite_actions.items(), columns=['Action', 'Count']).sort_values('Count', ascending=False)
+                            cond_df = pd.DataFrame(elite_conditions.items(), columns=['Condition', 'Count']).sort_values('Count', ascending=False)
+
+                            fig_actions = px.bar(action_df, x='Action', y='Count', title="Elite Strategic Blueprint (GRN Actions)")
+                            fig_actions.update_layout(height=250, margin=dict(l=0, r=0, t=30, b=0))
+                            st.plotly_chart(fig_actions, use_container_width=True)
+
+                            fig_conds = px.bar(cond_df, x='Condition', y='Count', title="Elite Sensory Profile (GRN Conditions)")
+                            fig_conds.update_layout(height=250, margin=dict(l=0, r=0, t=30, b=0))
+                            st.plotly_chart(fig_conds, use_container_width=True)
 
 
         
@@ -3647,10 +3737,6 @@ def main():
         # --- Download Button ---
         try:
             # Prepare data for download
-            final_grid_state = {}
-            if 'universe_grid' in st.session_state:
-                final_grid_state = {name: arr.tolist() for name, arr in st.session_state.universe_grid.resource_map.items()}
-
             download_data = {
                 "settings": st.session_state.settings,
                 "history": st.session_state.history,
@@ -3661,7 +3747,7 @@ def main():
                 "full_gene_archive": [asdict(g) for g in st.session_state.get('gene_archive', [])],
                 "final_physics_constants": CHEMICAL_BASES_REGISTRY,
                 "final_evolved_senses": st.session_state.get('evolvable_condition_sources', []),
-                "final_red_queen_state": asdict(st.session_state.get('red_queen', RedQueenParasite()))
+                "final_grid_state": final_grid_state
             }
             json_string = json.dumps(download_data, indent=4, cls=GenotypeJSONEncoder) # <-- ADD cls=...
             
@@ -3670,7 +3756,7 @@ def main():
                 data=json_string,
                 file_name=f"universe_results_{s.get('experiment_name', 'run').replace(' ', '_')}.json",
                 mime="application/json",
-                help="Download the settings, full generational history, metrics, chronicle events, gene archive, and final universe state as a single JSON file."
+                help="Download the settings, full generational history, metrics, and final population genotypes as a single JSON file."
             )
         except Exception as e:
             st.error(f"Could not prepare data for download: {e}")
@@ -3679,13 +3765,6 @@ if __name__ == "__main__":
     import matplotlib
     # Set a non-interactive backend for Streamlit
     matplotlib.use('Agg')
-    # --- NEW: Store the final grid in session state so we can save it ---
-    if 'universe_grid' not in st.session_state:
-        st.session_state.universe_grid = None
-    # --- NEW: Store the Red Queen in session state so we can save it ---
-    if 'red_queen' not in st.session_state:
-        st.session_state.red_queen = RedQueenParasite()
-
     import matplotlib.pyplot as plt
 
     # Override the toast and innovation functions to log events for the chronicle
