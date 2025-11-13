@@ -3737,6 +3737,10 @@ def main():
         # --- Download Button ---
         try:
             # Prepare data for download
+            final_grid_state = {}
+            if 'universe_grid' in st.session_state and st.session_state.universe_grid is not None:
+                final_grid_state = {name: arr.tolist() for name, arr in st.session_state.universe_grid.resource_map.items()}
+
             download_data = {
                 "settings": st.session_state.settings,
                 "history": st.session_state.history,
@@ -3756,7 +3760,7 @@ def main():
                 data=json_string,
                 file_name=f"universe_results_{s.get('experiment_name', 'run').replace(' ', '_')}.json",
                 mime="application/json",
-                help="Download the settings, full generational history, metrics, and final population genotypes as a single JSON file."
+                help="Download the settings, full generational history, metrics, chronicle events, gene archive, and final universe state as a single JSON file."
             )
         except Exception as e:
             st.error(f"Could not prepare data for download: {e}")
