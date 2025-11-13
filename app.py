@@ -3693,7 +3693,7 @@ def main():
                                 prevalence_df = pd.DataFrame(list(history.items()), columns=['generation', 'count']).sort_values('generation')
                                 fig_prevalence = px.area(prevalence_df, x='generation', y='count', title="Prevalence Over Time")
                                 fig_prevalence.update_layout(height=200, margin=dict(l=0, r=0, t=30, b=0))
-                                st.plotly_chart(fig_prevalence, use_container_width=True)
+                                st.plotly_chart(fig_prevalence, key="fitness_landscape_3d_universe_prevalence_history3", use_container_width=True)
 
                     with pantheon_col2:
                         st.markdown("#### The Lawgivers: Elite Genetic Strategies")
