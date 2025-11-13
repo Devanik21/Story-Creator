@@ -3357,11 +3357,24 @@ def main():
                         if G.nodes:
                             try:
                                 fig_grn, ax = plt.subplots(figsize=(4, 3))
+                                fig_grn.patch.set_facecolor('#0E1117') # Dark background for the figure
+                                ax.set_facecolor('#0E1117') # Dark background for the axes
+
                                 pos = nx.spring_layout(G, k=0.9, seed=42)
                                 node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
-                                nx.draw(G, pos, ax=ax, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                
+                                # Draw the network with futuristic colors
+                                nx.draw(G, pos, ax=ax, 
+                                        with_labels=False, 
+                                        node_size=500, 
+                                        node_color=node_colors, 
+                                        width=0.75,          # Slightly thicker edges
+                                        edge_color='#00aaff',  # Cyan edges
+                                        arrowsize=10)
+
                                 labels = {n: n.split('\n')[0] for n in G.nodes()} # Short labels
-                                nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
+                                nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax, font_color='white') # White labels
+                                
                                 st.pyplot(fig_grn)
                                 plt.clf()
                             except Exception as e:
@@ -3373,11 +3386,20 @@ def main():
                         if G.nodes:
                             try:
                                 fig_grn_2, ax_2 = plt.subplots(figsize=(4, 3))
+                                fig_grn_2.patch.set_facecolor('#0E1117')
+                                ax_2.set_facecolor('#0E1117')
+
                                 pos_2 = nx.kamada_kawai_layout(G) # Use a different layout for variety
                                 node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
-                                nx.draw(G, pos_2, ax=ax_2, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                nx.draw(G, pos_2, ax=ax_2, 
+                                        with_labels=False, 
+                                        node_size=500, 
+                                        node_color=node_colors, 
+                                        width=0.75, 
+                                        edge_color='#00aaff', 
+                                        arrowsize=10)
                                 labels = {n: n.split('\n')[0] for n in G.nodes()}
-                                nx.draw_networkx_labels(G, pos_2, labels=labels, font_size=7, ax=ax_2)
+                                nx.draw_networkx_labels(G, pos_2, labels=labels, font_size=7, ax=ax_2, font_color='white')
                                 st.pyplot(fig_grn_2)
                                 plt.clf()
                             except Exception as e:
@@ -3389,11 +3411,20 @@ def main():
                         if G.nodes:
                             try:
                                 fig_grn_3, ax_3 = plt.subplots(figsize=(4, 3))
+                                fig_grn_3.patch.set_facecolor('#0E1117')
+                                ax_3.set_facecolor('#0E1117')
+
                                 pos_3 = nx.circular_layout(G) # Use another layout
                                 node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
-                                nx.draw(G, pos_3, ax=ax_3, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                nx.draw(G, pos_3, ax=ax_3, 
+                                        with_labels=False, 
+                                        node_size=500, 
+                                        node_color=node_colors, 
+                                        width=0.75, 
+                                        edge_color='#00aaff', 
+                                        arrowsize=10)
                                 labels = {n: n.split('\n')[0] for n in G.nodes()}
-                                nx.draw_networkx_labels(G, pos_3, labels=labels, font_size=7, ax=ax_3)
+                                nx.draw_networkx_labels(G, pos_3, labels=labels, font_size=7, ax=ax_3, font_color='white')
                                 st.pyplot(fig_grn_3)
                                 plt.clf()
                             except Exception as e:
