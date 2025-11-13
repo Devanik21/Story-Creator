@@ -3565,21 +3565,32 @@ def main():
 
                         # --- 3. Gallery of Ancestors ---
                         st.markdown("##### Gallery of Ancestors")
-                        ancestor_ids_to_find = {
-                            'Founder': founder['lineage_id'],
-                            'Apex': peak['lineage_id'],
-                            'Descendant': lineage_df.iloc[-1]['lineage_id']
+                        
+                        # --- REVISED LOGIC: Find the actual historical organisms ---
+                        # We need to find the organism from the specific generation in the history.
+                        # The 'id' of a genotype is unique, but lineage_id is not. We need a better key.
+                        # For this fix, we'll find the organism in the gene_archive that matches the generation and lineage.
+                        
+                        last_known_member = lineage_df.iloc[-1]
+                        ancestors_to_find = {
+                            'Founder': (founder['generation'], founder['lineage_id']),
+                            'Apex': (peak['generation'], peak['lineage_id']),
+                            'Last Known': (last_known_member['generation'], last_known_member['lineage_id'])
                         }
                         
                         ancestor_specimens = {}
-                        lineage_lookup = {p.lineage_id: p for p in population}
-                        for role, l_id in ancestor_ids_to_find.items():
-                            specimen = lineage_lookup.get(l_id)
-                            if specimen:
-                                ancestor_specimens[role] = specimen
+                        # Search the entire gene archive for these specific ancestors
+                        gene_archive = st.session_state.get('gene_archive', [])
+                        for role, (gen, l_id) in ancestors_to_find.items():
+                            # Find the best-fitness organism of that lineage from that specific generation in the archive
+                            candidate = max(
+                                (g for g in gene_archive if g.generation == gen and g.lineage_id == l_id),
+                                key=lambda g: g.fitness, default=None)
+                            if candidate:
+                                ancestor_specimens[role] = candidate
 
                         if not ancestor_specimens:
-                            st.warning("Could not find living descendants of this dynasty in the final population.")
+                            st.warning("Could not retrieve ancestor data from the gene archive for this dynasty.")
                         else:
                             cols = st.columns(len(ancestor_specimens))
                             for i, (role, specimen) in enumerate(ancestor_specimens.items()):
