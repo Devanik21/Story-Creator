@@ -1863,6 +1863,10 @@ def main():
             'self_type' # Added for differentiation
         ]
         
+        # NEW: Initialize the event log for the Genesis Chronicle
+        if 'genesis_events' not in st.session_state:
+            st.session_state.genesis_events = []
+            
         st.session_state.state_loaded = True
 
     # --- Robustness checks for all required keys on *every* run ---
@@ -1891,6 +1895,10 @@ def main():
             'neighbor_count_empty', 'neighbor_count_self', 'neighbor_count_other',
             'self_type'
         ]
+        
+    if 'genesis_events' not in st.session_state:
+        st.session_state.genesis_events = []
+
 
     # ===============================================
     # --- THE "GOD-PANEL" SIDEBAR (MASSIVE EXPANSION) ---
@@ -1936,6 +1944,7 @@ def main():
                     # CURRENT slider values.
                     current_settings_snapshot = s 
                     
+                    # --- MODIFICATION: Also save the genesis events ---
                     # --- NEW: Get the current results to save them ---
                     current_history = st.session_state.get('history', [])
                     current_metrics = st.session_state.get('evolutionary_metrics', [])
@@ -1954,6 +1963,7 @@ def main():
                         'settings': current_settings_snapshot,
                         'history': current_history,
                         'evolutionary_metrics': current_metrics,
+                        'genesis_events': st.session_state.get('genesis_events', []),
                         'final_population_genotypes': current_pop_data
                     }
                     
@@ -1987,6 +1997,7 @@ def main():
                 # 3. Extract results and load them into session_state
                 st.session_state.history = preset_to_load.get('history', [])
                 st.session_state.evolutionary_metrics = preset_to_load.get('evolutionary_metrics', [])
+                st.session_state.genesis_events = preset_to_load.get('genesis_events', [])
                 
                 # 4. De-serialize the population (rebuild the Genotype objects)
                 pop_data = preset_to_load.get('final_population_genotypes', [])
@@ -2017,6 +2028,7 @@ def main():
                 results_to_save = {
                     'history': st.session_state.history,
                     'evolutionary_metrics': st.session_state.evolutionary_metrics,
+                    # Note: genesis_events are not saved in the main results table, only presets
                 }
                 if results_table.get(doc_id=1):
                     results_table.update(results_to_save, doc_ids=[1])
@@ -2525,6 +2537,7 @@ def main():
     if col1.button("🚀 IGNITE BIG BANG", type="primary", width='stretch', key="initiate_evolution_button"):
         st.session_state.history = []
         st.session_state.evolutionary_metrics = [] # type: ignore
+        st.session_state.genesis_events = []
         st.session_state.gene_archive = []
         
         # --- Seeding ---
@@ -2594,6 +2607,14 @@ def main():
                     if random.random() < s.get('red_queen_adaptation_speed', 0.2):
                         red_queen.target_kingdom_id = most_common_kingdom
                         st.toast(f"👑 Red Queen Adapts! Parasite now targets **{most_common_kingdom}**.", icon="🦠")
+                        event_desc = f"A co-evolving parasite has adapted, now specifically targeting the dominant **{most_common_kingdom}** kingdom. This forces an evolutionary arms race."
+                        st.session_state.genesis_events.append({
+                            'generation': gen,
+                            'type': 'Red Queen',
+                            'title': f"Parasite Adapts to {most_common_kingdom}",
+                            'description': event_desc,
+                            'icon': '👑'
+                        })
 
                 # Apply fitness penalty to organisms targeted by the parasite
                 for genotype in population:
@@ -2655,6 +2676,14 @@ def main():
 
             if s.get('enable_cataclysms', True) and random.random() < s.get('cataclysm_probability', 0.01):
                 st.warning(f"🌋 **CATACLYSM!** A universe-shaking event has occurred in Generation {gen+1}!", icon="💥")
+                event_desc = f"A random cosmological event has caused a mass extinction, wiping out **{s.get('cataclysm_extinction_severity', 0.9)*100:.0f}%** of all life and radically altering the environmental resource maps."
+                st.session_state.genesis_events.append({
+                    'generation': gen,
+                    'type': 'Cataclysm',
+                    'title': 'Mass Extinction Event',
+                    'description': event_desc,
+                    'icon': '🌋'
+                })
                 
                 # --- Mass Extinction ---
                 extinction_severity = s.get('cataclysm_extinction_severity', 0.9)
@@ -2781,6 +2810,15 @@ def main():
                     child = mutate(host, s)
                     offspring.append(child)
                     st.toast(f"💥 ENDOSYMBIOSIS! Organisms merged into a new lifeform!", icon="🧬")
+                    
+                    event_desc = f"Two distinct organisms from lineages `{parent1.lineage_id}` and `{parent2.lineage_id}` have merged into a single, more complex entity, combining their genetic material."
+                    st.session_state.genesis_events.append({
+                        'generation': gen,
+                        'type': 'Endosymbiosis',
+                        'title': 'Genomes Merged',
+                        'description': event_desc,
+                        'icon': '🧬'
+                    })
 
                 else:
                     # --- Standard Reproduction ---
@@ -2850,10 +2888,13 @@ def main():
         population = st.session_state.current_population
         
         # --- Create Tabs ---
-        tab_dashboard, tab_viewer, tab_elites = st.tabs([
+        
+        tab_dashboard, tab_viewer, tab_elites, tab_genesis = st.tabs([
             "📈 Universe Dashboard", 
             "🔬 Specimen Viewer", 
             "🧬 Elite Lineage Analysis"
+            "🧬 Elite Lineage Analysis",
+            "🌌 The Genesis Chronicle"
         ])
         
         with tab_dashboard:
@@ -3076,6 +3117,91 @@ def main():
                             
             else:
                 st.warning("No population data available to analyze.")
+
+        with tab_genesis:
+            st.header("🌌 The Genesis Chronicle")
+            st.markdown("This is the historical record of your universe, chronicling the pivotal moments of creation, innovation, and cosmic change. These events are the sparks that drive 'truly infinite' evolution.")
+
+            events = st.session_state.get('genesis_events', [])
+            if not events:
+                st.info("No significant evolutionary events have been recorded yet. Run a simulation with innovation and cataclysms enabled.")
+            else:
+                # --- Event Filters ---
+                st.markdown("---")
+                event_types = sorted(list(set(e['type'] for e in events)))
+                
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.markdown("#### Filter Events")
+                    gen_range = st.slider(
+                        "Filter by Generation",
+                        min_value=0,
+                        max_value=history_df['generation'].max(),
+                        value=(0, history_df['generation'].max())
+                    )
+                    selected_types = st.multiselect(
+                        "Filter by Event Type",
+                        options=event_types,
+                        default=event_types
+                    )
+
+                # --- Filtered Event Log ---
+                filtered_events = [
+                    e for e in events 
+                    if gen_range[0] <= e['generation'] <= gen_range[1] and e['type'] in selected_types
+                ]
+
+                with col2:
+                    st.markdown(f"#### Recorded History ({len(filtered_events)} events)")
+                    log_container = st.container(height=400)
+                    for event in sorted(filtered_events, key=lambda x: x['generation']):
+                        log_container.markdown(f"""
+                        <div style="border-left: 3px solid #00aaff; padding-left: 10px; margin-bottom: 15px;">
+                            <small>Generation {event['generation']}</small><br>
+                            <strong>{event['icon']} {event['title']}</strong>
+                            <p style="font-size: 0.9em; color: #ccc;">{event['description']}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                # --- Gallery of Innovation ---
+                st.markdown("---")
+                st.markdown("### 🏆 Gallery of Innovation")
+                st.markdown("A showcase of the most novel organisms that emerged directly after key evolutionary leaps.")
+
+                innovation_events = [e for e in filtered_events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis']]
+                if not innovation_events:
+                    st.info("No innovation events found in the selected range.")
+                else:
+                    # Find the best organism in the generation immediately following an innovation
+                    gallery_specimens = []
+                    generations_to_check = sorted(list(set(e['generation'] + 1 for e in innovation_events)))
+                    
+                    for gen in generations_to_check:
+                        next_gen_df = history_df[history_df['generation'] == gen]
+                        if not next_gen_df.empty:
+                            best_in_gen_idx = next_gen_df['fitness'].idxmax()
+                            best_lineage_id = next_gen_df.loc[best_in_gen_idx, 'lineage_id']
+                            
+                            # Find this organism in the final population (simplification)
+                            specimen = next((p for p in population if p.lineage_id == best_lineage_id), None)
+                            if specimen and not any(s.id == specimen.id for s in gallery_specimens):
+                                gallery_specimens.append(specimen)
+                    
+                    if not gallery_specimens:
+                        st.warning("Could not find representative specimens for the selected innovations.")
+                    else:
+                        cols = st.columns(min(len(gallery_specimens), 4))
+                        for i, specimen in enumerate(gallery_specimens[:4]):
+                             with cols[i]:
+                                st.markdown(f"**Post-Innovation (Gen {specimen.generation})**")
+                                st.metric("Fitness", f"{specimen.fitness:.4f}")
+                                with st.spinner("Growing..."):
+                                    vis_grid = UniverseGrid(s)
+                                    phenotype = Phenotype(specimen, vis_grid, s)
+                                    fig = visualize_phenotype_2d(phenotype, vis_grid)
+                                    fig.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0))
+                                    st.plotly_chart(fig, use_container_width=True, key=f"gallery_vis_{i}")
+
         
         st.markdown("---")
         
@@ -3105,4 +3231,22 @@ if __name__ == "__main__":
     # Set a non-interactive backend for Streamlit
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
+
+    # Override the toast and innovation functions to log events for the chronicle
+    original_toast = st.toast
+    def chronicle_toast(body, icon=None):
+        if "New component" in body:
+            st.session_state.genesis_events.append({
+                'generation': st.session_state.history[-1]['generation'] if st.session_state.history else 0,
+                'type': 'Component Innovation', 'title': f"New Component: {body.split('**')[1]}",
+                'description': f"A new cellular component, '{body.split('**')[1]}', was invented, expanding the chemical and functional possibilities for life.", 'icon': '💡'
+            })
+        if "new sense" in body:
+            st.session_state.genesis_events.append({
+                'generation': st.session_state.history[-1]['generation'] if st.session_state.history else 0,
+                'type': 'Sense Innovation', 'title': f"New Sense: {body.split('**')[1]}",
+                'description': f"Life has evolved a new way to perceive its environment: '{body.split('**')[1]}'. This opens up entirely new evolutionary pathways.", 'icon': '🧠'
+            })
+        original_toast(body, icon=icon)
+    st.toast = chronicle_toast
     main()
