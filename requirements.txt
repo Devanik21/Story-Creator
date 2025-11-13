@@ -11,3 +11,4 @@ tinydb
 matplotlib
 scikit-learn
 seaborn
+pydot
