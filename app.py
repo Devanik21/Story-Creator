@@ -3562,7 +3562,7 @@ def main():
                         fig_lineage.add_trace(go.Scatter(x=lineage_df['generation'], y=lineage_df['fitness'], mode='lines', name=f'Lineage {selected_lineage_id} Fitness', line=dict(color='cyan', width=3)))
                         fig_lineage.add_trace(go.Scatter(x=universe_avg_df['generation'], y=universe_avg_df['fitness'], mode='lines', name='Universe Avg. Fitness', line=dict(color='gray', dash='dot')))
                         fig_lineage.update_layout(title=f"Fitness Trajectory of Dynasty {selected_lineage_id}", height=300, margin=dict(l=0, r=0, t=40, b=0))
-                        st.plotly_chart(fig_lineage, use_container_width=True)
+                        st.plotly_chart(fig_lineage, use_container_width=True, key=f"dynasty_perf_{selected_lineage_id}")
 
                         # --- NEW: More Complex Details ---
                         sub_col1, sub_col2 = st.columns(2)
@@ -3596,7 +3596,7 @@ def main():
                                 action_df = pd.DataFrame.from_dict(rule_actions, orient='index', columns=['Count']).reset_index()
                                 fig_strategy = px.bar(action_df, x='index', y='Count', title="GRN Action Type Frequency", labels={'index': 'Action Type'})
                                 fig_strategy.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
-                                st.plotly_chart(fig_strategy, use_container_width=True)
+                                st.plotly_chart(fig_strategy, use_container_width=True, key=f"dynasty_strat_{selected_lineage_id}")
 
                         # --- 3. Gallery of Ancestors ---
                         st.markdown("##### Gallery of Ancestors")
@@ -3693,7 +3693,7 @@ def main():
                                 prevalence_df = pd.DataFrame(list(history.items()), columns=['generation', 'count']).sort_values('generation')
                                 fig_prevalence = px.area(prevalence_df, x='generation', y='count', title="Prevalence Over Time")
                                 fig_prevalence.update_layout(height=200, margin=dict(l=0, r=0, t=30, b=0))
-                                st.plotly_chart(fig_prevalence, key="fitness_landscape_3d_universe_prevalence_history3", use_container_width=True)
+                                st.plotly_chart(fig_prevalence, use_container_width=True, key=f"pantheon_prevalence_{comp_gene.id}")
 
                     with pantheon_col2:
                         st.markdown("#### The Lawgivers: Elite Genetic Strategies")
@@ -3723,12 +3723,12 @@ def main():
                             cond_df = pd.DataFrame(elite_conditions.items(), columns=['Condition', 'Count']).sort_values('Count', ascending=False)
 
                             fig_actions = px.bar(action_df, x='Action', y='Count', title="Elite Strategic Blueprint (GRN Actions)")
-                            fig_actions.update_layout(height=250, margin=dict(l=0, r=0, t=30, b=0))
-                            st.plotly_chart(fig_actions, use_container_width=True)
+                            fig_actions.update_layout(height=250, margin=dict(l=0, r=0, t=40, b=0))
+                            st.plotly_chart(fig_actions, use_container_width=True, key="pantheon_elite_actions")
 
                             fig_conds = px.bar(cond_df, x='Condition', y='Count', title="Elite Sensory Profile (GRN Conditions)")
-                            fig_conds.update_layout(height=250, margin=dict(l=0, r=0, t=30, b=0))
-                            st.plotly_chart(fig_conds, use_container_width=True)
+                            fig_conds.update_layout(height=250, margin=dict(l=0, r=0, t=40, b=0))
+                            st.plotly_chart(fig_conds, use_container_width=True, key="pantheon_elite_conditions")
 
 
         
