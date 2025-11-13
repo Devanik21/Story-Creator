@@ -3646,6 +3646,10 @@ def main():
         # --- Download Button ---
         try:
             # Prepare data for download
+            final_grid_state = {}
+            if 'universe_grid' in st.session_state:
+                final_grid_state = {name: arr.tolist() for name, arr in st.session_state.universe_grid.resource_map.items()}
+
             download_data = {
                 "settings": st.session_state.settings,
                 "history": st.session_state.history,
@@ -3655,7 +3659,8 @@ def main():
                 # --- NEW: Adding the complete state of the universe ---
                 "full_gene_archive": [asdict(g) for g in st.session_state.get('gene_archive', [])],
                 "final_physics_constants": CHEMICAL_BASES_REGISTRY,
-                "final_evolved_senses": st.session_state.get('evolvable_condition_sources', [])
+                "final_evolved_senses": st.session_state.get('evolvable_condition_sources', []),
+                "final_red_queen_state": asdict(st.session_state.get('red_queen', RedQueenParasite()))
             }
             json_string = json.dumps(download_data, indent=4, cls=GenotypeJSONEncoder) # <-- ADD cls=...
             
@@ -3664,7 +3669,7 @@ def main():
                 data=json_string,
                 file_name=f"universe_results_{s.get('experiment_name', 'run').replace(' ', '_')}.json",
                 mime="application/json",
-                help="Download the settings, full generational history, metrics, and final population genotypes as a single JSON file."
+                help="Download the settings, full generational history, metrics, chronicle events, gene archive, and final universe state as a single JSON file."
             )
         except Exception as e:
             st.error(f"Could not prepare data for download: {e}")
@@ -3673,6 +3678,13 @@ if __name__ == "__main__":
     import matplotlib
     # Set a non-interactive backend for Streamlit
     matplotlib.use('Agg')
+    # --- NEW: Store the final grid in session state so we can save it ---
+    if 'universe_grid' not in st.session_state:
+        st.session_state.universe_grid = None
+    # --- NEW: Store the Red Queen in session state so we can save it ---
+    if 'red_queen' not in st.session_state:
+        st.session_state.red_queen = RedQueenParasite()
+
     import matplotlib.pyplot as plt
 
     # Override the toast and innovation functions to log events for the chronicle
