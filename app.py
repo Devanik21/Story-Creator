@@ -2893,7 +2893,7 @@ def main():
             "📈 Universe Dashboard", 
             "🔬 Specimen Viewer", 
             "🧬 Elite Lineage Analysis"
-            "🧬 Elite Lineage Analysis",
+            
             "🌌 The Genesis Chronicle"
         ])
         
