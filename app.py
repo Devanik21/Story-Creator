@@ -2736,7 +2736,116 @@ def main():
         )
 
 
-    st.sidebar.markdown("---") # Add another separator before the main buttons
+    st.sidebar.markdown("---")
+    
+    with st.sidebar.expander("🔬 A Researcher's Guide to the GRN Encyclopedia", expanded=False):
+        st.markdown(
+            """
+            This guide explains the meaning and scientific significance of each of the 16 unique
+            GRN plots. Each plot is a different mathematical 'lens' to view the same 
+            genetic network, and each lens reveals different, hidden truths about the 
+            organism's underlying logic.
+            
+            ---
+            
+            ### Part I: The Force-Directed (Physics) Layouts 🕸️
+            
+            **Overall Significance:** These plots reveal the 'natural' clusters and communities
+            within the network. They treat nodes like magnets repelling each other and
+            edges like springs pulling them together. They are the best views for
+            answering: **"Which genes and rules naturally work together?"**
+            
+            * **GRN 1: Default Spring (`nx.spring_layout`)**
+                * **What it is:** The standard physics simulation. It's a "baseline" view of the graph's natural clustering.
+                * **Significance:** This is your first look. It quickly shows you the main, obvious clusters of genes and rules. If the graph looks like a "hairball," it means the network is very dense.
+            
+            * **GRN 2: Kamada-Kawai (`nx.kamada_kawai_layout`)**
+                * **What it is:** A different physics model that tries to make the visual distance between nodes proportional to their "path distance" (how many steps it takes to get from one to the other).
+                * **Significance:** This layout is often much cleaner and more symmetrical than the default. It is *excellent* for revealing the core **backbone and symmetry** of a network.
+            
+            * **GRN 9: Tight Spring (`k=0.1`)**
+                * **What it is:** A `spring_layout` where the "repulsion" force is very high (low `k`).
+                * **Significance:** This layout smashes clusters tightly together. It's the perfect tool for seeing **how dense** a cluster is and identifying its "core" nodes, which will be packed into the very center.
+            
+            * **GRN 10: Loose Spring (`k=2.0`)**
+                * **What it is:** A `spring_layout` where "repulsion" is very low (high `k`).
+                * **Significance:** This layout spreads the entire graph out. It's fantastic for untangling complex "hairballs" and clearly seeing **long-range connections** between distant clusters that would otherwise overlap.
+            
+            * **GRN 12: Settled Spring (`iterations=200`)**
+                * **What it is:** A `spring_layout` that runs the physics simulation for 200 iterations instead of the default 50.
+                * **Significance:** This shows a more "final" and stable version of GRN 1. It's less random and often produces a more reliable structure, as the nodes have had more time to "settle" into their optimal positions.
+            
+            * **GRN 15: Graphviz NEATO (`prog='neato'`)**
+                * **What it is:** This uses the powerful, external Graphviz engine to run a "spring" physics model.
+                * **Significance:** This is a "second opinion" from a different physics engine. `neato` is often superior to the `networkx` layouts for large, messy, "real-world" graphs, producing a very clean and readable result.
+            
+            * **GRN 16: Alternate Seed (`seed=99`)**
+                * **What it is:** The same as GRN 1, but with a different random starting position.
+                * **Significance:** This is a crucial **sanity check**. If this plot looks *completely different* from GRN 1, it tells you the network is complex and has many different "stable" layouts. If it looks similar, it means the structure is very strong and robust.
+
+            ---
+
+            ### Part II: The Structural (Geometric) Layouts 🏗️
+            
+            **Overall Significance:** These plots *ignore* natural physics and instead
+            force the nodes into specific, pre-defined shapes. This is a powerful
+            technique for revealing patterns that physics-based layouts hide. They answer:
+            **"Are there non-obvious patterns or long-range connections?"**
+            
+            * **GRN 3: Circular Layout (`nx.circular_layout`)**
+                * **What it is:** Arranges all nodes in a perfect circle.
+                * **Significance:** This is the *ultimate* plot for seeing **"cross-cutting" connections**. A gene (edge) that cuts directly across the center of the circle is a very important, non-obvious link connecting two parts of the network that *seem* unrelated.
+            
+            * **GRN 4: Random Layout (`nx.random_layout`)**
+                * **What it is:** Pure chaos. It places all nodes in a random scatter-plot.
+                * **Significance:** This seems useless, but it's a vital scientific control! This is your "null hypothesis"—it shows what the network looks like with *zero* intelligent organization. It makes the beautiful structures in the other 15 plots even more meaningful.
+            
+            * **GRN 6: Shell Layout (`nx.shell_layout`)**
+                * **What it is:** Arranges nodes in concentric circles (shells).
+                * **Significance:** This can be used to visualize "ranks" or "classes" of genes, though GRN 11 does this more intelligently.
+            
+            * **GRN 7: Spiral Layout (`nx.spiral_layout`)**
+                * **What it is:** Arranges all nodes in a single, continuous spiral.
+                * **Significance:** This is a unique layout that can be surprisingly good at showing a single, long **"chain of command"** or a developmental sequence, which might naturally follow the path of the spiral.
+            
+            * **GRN 8: Planar Layout (`nx.planar_layout`)**
+                * **What it is:** A fascinating layout that *tries* to draw the graph with **zero edges crossing**.
+                * **Significance:** This is a deep analytical test. If this layout *succeeds*, it proves your GRN is "simple" (mathematically planar). If it *fails* (and falls back to a random layout), it proves your GRN is "complex" (non-planar).
+            
+            * **GRN 11: Dual-Shell (Custom Logic)**
+                * **What it is:** This is your *custom* layout. It programmatically puts all **Components (genes)** in the outer shell and all **Actions (rules)** in the inner shell.
+                * **Significance:** This is one of the most useful plots for understanding the *logic* of the GRN. It clearly separates the "what" (the available body parts) from the "how" (the rules that assemble them), letting you see which genes are targets for many rules.
+
+            ---
+            
+            ### Part III: The Hierarchical (Graphviz) Layouts ιε
+            
+            **Overall Significance:** These are the most powerful plots for
+            understanding a *regulatory* network. They are designed to show
+            **hierarchy, control, and the flow of information**. They answer:
+            **"What gene controls what?"**
+            
+            * **GRN 13: Hierarchical (Top-Down) (`prog='dot'`)**
+                * **What it is:** The "classic" flowchart layout. It uses a powerful algorithm to figure out the "flow" of the graph and arranges it from top to bottom.
+                * **Significance:** This is the **most important plot for understanding control**. The nodes at the very *top* of the chart are the **"master regulators"**—the genes and rules that control everything else. The nodes at the bottom are the final "worker" genes.
+            
+            * **GRN 14: Hierarchical (Radial) (`prog='twopi'`)**
+                * **What it is:** It picks a "root" node (often the graph's center) and draws all other nodes in concentric circles around it, based on their distance from the root.
+                * **Significance:** This shows the "blast wave" of gene influence. It's perfect for seeing how "far" a gene's control signal can spread through the network. A gene in the center with 5 rings around it is a very powerful regulator.
+
+            ---
+            
+            ### Part IV: The Mathematical (Spectral) Layout 📈
+            
+            **Overall Significance:** This plot is a true "X-Ray" of your network's
+            deepest structure, based on advanced linear algebra. It's often
+            hard to interpret but mathematically the "most true" view.
+            
+            * **GRN 5: Spectral Layout (`nx.spectral_layout`)**
+                * **What it is:** It uses the *eigenvectors* of the graph's matrix (the "Laplacian") to position the nodes.
+                * **Significance:** This is the **most mathematically profound** layout. It is the absolute best way to identify the *most fundamental, tightly-knit, and separate clusters* of genes. If two nodes are close in this layout, they are *deeply* related on a mathematical level, even if they look far apart in other plots.
+            """
+        )
 
     # --- END OF ADDED CODE ---
 
