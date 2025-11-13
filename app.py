@@ -4199,7 +4199,7 @@ def main():
                     if i < len(plot_funcs_and_args):
                         plot_func = plot_funcs_and_args[i]
                         # Pass population to functions that need it
-                        if "population" in plot_func.__code__.co_varnames:
+                        if "population" in plot_func.__code__.co_varnames or "pop" in plot_func.__code__.co_varnames:
                              fig = plot_func(history_df, population, key=f"custom_plot_{i}")
                         else:
                              fig = plot_func(history_df, key=f"custom_plot_{i}")
