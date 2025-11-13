@@ -53,6 +53,7 @@ import uuid
 import hashlib
 import colorsys
 import copy # Added for deep copying presets
+import seaborn as sns
 
 # =G=E=N=E=V=O= =2=.=0= =N=E=W= =F=E=A=T=U=R=E=S=T=A=R=T=S= =H=E=R=E=
 #
@@ -3356,10 +3357,12 @@ def main():
 
                         if G.nodes:
                             try:
+                                sns.set_style("darkgrid", {"axes.facecolor": "#0E1117", "figure.facecolor": "#0E1117",
+                                                           "grid.color": "#222b38", "axes.labelcolor": "white",
+                                                           "xtick.color": "white", "ytick.color": "white"})
                                 fig_grn, ax = plt.subplots(figsize=(4, 3))
-                                fig_grn.patch.set_facecolor('#0E1117') # Dark background for the figure
-                                ax.set_facecolor('#0E1117') # Dark background for the axes
-
+                                ax.set_facecolor('#0E1117')
+                                
                                 pos = nx.spring_layout(G, k=0.9, seed=42)
                                 node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
                                 
@@ -3385,10 +3388,11 @@ def main():
                         st.markdown("##### **Genetic Regulatory Network (GRN) 2**")
                         if G.nodes:
                             try:
+                                sns.set_style("darkgrid", {"axes.facecolor": "#0E1117", "figure.facecolor": "#0E1117",
+                                                           "grid.color": "#222b38", "axes.labelcolor": "white",
+                                                           "xtick.color": "white", "ytick.color": "white"})
                                 fig_grn_2, ax_2 = plt.subplots(figsize=(4, 3))
-                                fig_grn_2.patch.set_facecolor('#0E1117')
                                 ax_2.set_facecolor('#0E1117')
-
                                 pos_2 = nx.kamada_kawai_layout(G) # Use a different layout for variety
                                 node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
                                 nx.draw(G, pos_2, ax=ax_2, 
@@ -3410,10 +3414,11 @@ def main():
                         st.markdown("##### **Genetic Regulatory Network (GRN) 3**")
                         if G.nodes:
                             try:
+                                sns.set_style("darkgrid", {"axes.facecolor": "#0E1117", "figure.facecolor": "#0E1117",
+                                                           "grid.color": "#222b38", "axes.labelcolor": "white",
+                                                           "xtick.color": "white", "ytick.color": "white"})
                                 fig_grn_3, ax_3 = plt.subplots(figsize=(4, 3))
-                                fig_grn_3.patch.set_facecolor('#0E1117')
                                 ax_3.set_facecolor('#0E1117')
-
                                 pos_3 = nx.circular_layout(G) # Use another layout
                                 node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
                                 nx.draw(G, pos_3, ax=ax_3, 
