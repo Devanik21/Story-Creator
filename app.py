@@ -1953,6 +1953,54 @@ def plot_elite_parallel_coords(df: pd.DataFrame, key: str) -> go.Figure:
     fig.update_layout(height=400)
     return fig
 
+def plot_grn_with_layout(df: pd.DataFrame, population: List[Genotype], key: str, layout: str, title: str) -> go.Figure:
+    """Generic function to plot a GRN with a specified networkx layout."""
+    specimen = get_elite_specimen(df, population)
+    if not specimen or not specimen.component_genes:
+        return go.Figure().update_layout(title=title, height=400)
+
+    G = nx.DiGraph()
+    for comp_name, comp_gene in specimen.component_genes.items():
+        G.add_node(comp_name, type='component', color=comp_gene.color)
+    for i, rule in enumerate(specimen.rule_genes):
+        rule_id = f"Rule {i}"
+        action_node = f"{rule.action_type}\n({rule.action_param})"
+        G.add_node(action_node, type='action', color='#FFB347')
+        
+        source_node = list(specimen.component_genes.keys())[0]
+        type_cond = next((c for c in rule.conditions if c['source'] == 'self_type'), None)
+        if type_cond and type_cond['target_value'] in G.nodes():
+            source_node = type_cond['target_value']
+            
+        G.add_edge(source_node, action_node, label=f"P={rule.probability:.1f}")
+        if rule.action_param in G.nodes():
+            G.add_edge(action_node, rule.action_param)
+
+    if not G.nodes:
+        return go.Figure().update_layout(title=title, height=400)
+
+    layout_funcs = {
+        'spectral': nx.spectral_layout,
+        'shell': nx.shell_layout,
+        'random': nx.random_layout,
+    }
+    pos = layout_funcs.get(layout, nx.spring_layout)(G)
+
+    edge_x, edge_y = [], []
+    for edge in G.edges():
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        edge_x.extend([x0, x1, None])
+        edge_y.extend([y0, y1, None])
+
+    edge_trace = go.Scatter(x=edge_x, y=edge_y, line=dict(width=0.5, color='#888'), hoverinfo='none', mode='lines')
+    node_x = [pos[node][0] for node in G.nodes()]
+    node_y = [pos[node][1] for node in G.nodes()]
+    node_trace = go.Scatter(x=node_x, y=node_y, mode='markers', hoverinfo='text', text=list(G.nodes()), marker=dict(showscale=False, size=10, color=[d.get('color', '#888') for _, d in G.nodes(data=True)]))
+
+    fig = go.Figure(data=[edge_trace, node_trace], layout=go.Layout(title=title, showlegend=False, height=400, xaxis=dict(showgrid=False, zeroline=False, showticklabels=False), yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
+    return fig
+
 # ========================================================
 #
 # PART 7.5: CUSTOM ANALYTICS PLOTS (NEW)
@@ -2020,6 +2068,161 @@ def plot_fitness_violin_by_kingdom(df: pd.DataFrame, key: str) -> go.Figure:
     fig = px.violin(final_gen_df, x='kingdom_id', y='fitness', color='kingdom_id', box=True, points="all", title="Final Generation Fitness Distribution by Kingdom")
     fig.update_layout(height=400)
     return fig
+
+# ========================================================
+#
+# PART 7.6: NEW GRN ANALYTICS PLOTS
+#
+# ========================================================
+
+def get_elite_specimen(df: pd.DataFrame, population: List[Genotype]) -> Optional[Genotype]:
+    """Helper to get the top elite specimen from the final generation."""
+    if not population:
+        return None
+    final_gen_df = df[df['generation'] == df['generation'].max()]
+    if final_gen_df.empty:
+        return sorted(population, key=lambda x: x.fitness, reverse=True)[0]
+    
+    top_lineage = final_gen_df.sort_values('fitness', ascending=False).iloc[0]['lineage_id']
+    
+    # Find the best specimen from that lineage in the final population
+    top_specimens_in_lineage = [p for p in population if p.lineage_id == top_lineage]
+    if not top_specimens_in_lineage:
+        return sorted(population, key=lambda x: x.fitness, reverse=True)[0]
+        
+    return max(top_specimens_in_lineage, key=lambda p: p.fitness)
+
+def plot_grn_adjacency_matrix(df: pd.DataFrame, population: List[Genotype], key: str) -> go.Figure:
+    """Plots the GRN as an adjacency matrix heatmap."""
+    specimen = get_elite_specimen(df, population)
+    title = "GRN Adjacency Matrix (Top Organism)"
+    if not specimen or not specimen.component_genes:
+        return go.Figure().update_layout(title=title, height=400)
+
+    nodes = list(specimen.component_genes.keys()) + [f"R{i}" for i in range(len(specimen.rule_genes))]
+    node_map = {name: i for i, name in enumerate(nodes)}
+    matrix = np.zeros((len(nodes), len(nodes)))
+
+    for i, rule in enumerate(specimen.rule_genes):
+        rule_node_idx = node_map[f"R{i}"]
+        # Edge from condition source to rule
+        for cond in rule.conditions:
+            # Simplified: assume condition is on a component type
+            if cond['source'] == 'self_type' and cond['target_value'] in node_map:
+                comp_node_idx = node_map[cond['target_value']]
+                matrix[comp_node_idx, rule_node_idx] = 1 # Connection
+        # Edge from rule to action target
+        if rule.action_param in node_map:
+            target_node_idx = node_map[rule.action_param]
+            matrix[rule_node_idx, target_node_idx] = 1
+
+    fig = px.imshow(matrix, x=nodes, y=nodes, color_continuous_scale='Blues', aspect="auto")
+    fig.update_layout(title=title, height=400)
+    return fig
+
+def plot_grn_action_distribution(df: pd.DataFrame, population: List[Genotype], key: str) -> go.Figure:
+    """Plots a pie chart of GRN action types for the top organism."""
+    specimen = get_elite_specimen(df, population)
+    title = "GRN Action Type Distribution (Top Organism)"
+    if not specimen or not specimen.rule_genes:
+        return go.Figure().update_layout(title=title, height=400)
+    
+    action_counts = Counter(rule.action_type for rule in specimen.rule_genes)
+    action_df = pd.DataFrame.from_dict(action_counts, orient='index', columns=['Count']).reset_index()
+    fig = px.pie(action_df, names='index', values='Count', title=title)
+    fig.update_layout(height=400)
+    return fig
+
+def plot_grn_condition_distribution(df: pd.DataFrame, population: List[Genotype], key: str) -> go.Figure:
+    """Plots a bar chart of GRN condition sources for the top organism."""
+    specimen = get_elite_specimen(df, population)
+    title = "GRN Condition Source Frequency (Top Organism)"
+    if not specimen or not specimen.rule_genes:
+        return go.Figure().update_layout(title=title, height=400)
+        
+    cond_sources = []
+    for rule in specimen.rule_genes:
+        cond_sources.extend([cond['source'] for cond in rule.conditions])
+    
+    cond_counts = Counter(cond_sources)
+    cond_df = pd.DataFrame.from_dict(cond_counts, orient='index', columns=['Count']).reset_index().sort_values('Count', ascending=False)
+    fig = px.bar(cond_df, x='index', y='Count', title=title)
+    fig.update_layout(height=400, xaxis_title="Condition Source")
+    return fig
+
+def plot_grn_rule_priority_histogram(df: pd
+.DataFrame, population: List[Genotype], key: str) -> go.Figure:
+    """Plots a histogram of rule priorities for the top organism."""
+    specimen = get_elite_specimen(df, population)
+    title = "GRN Rule Priority Distribution (Top Organism)"
+    if not specimen or not specimen.rule_genes:
+        return go.Figure().update_layout(title=title, height=400)
+        
+    priorities = [rule.priority for rule in specimen.rule_genes]
+    fig = px.histogram(x=priorities, title=title)
+    fig.update_layout(height=400, xaxis_title="Rule Priority", yaxis_title="Count")
+    return fig
+
+def plot_grn_rule_complexity_vs_priority(df: pd.DataFrame, population: List[Genotype], key: str) -> go.Figure:
+    """Scatter plot of rule complexity (num conditions) vs. priority."""
+    specimen = get_elite_specimen(df, population)
+    title = "GRN Rule Complexity vs. Priority (Top Organism)"
+    if not specimen or not specimen.rule_genes:
+        return goʻ.Figure().update_layout(title=title, height=400)
+
+    data = {
+        'complexity': [len(rule.conditions) for rule in specimen.rule_genes],
+        'priority': [rule.priority for rule in specimen.rule_genes],
+        'action': [rule.action_type for rule in specimen.rule_genes]
+    }
+    scatter_df = pd.DataFrame(data)
+    fig = px.scatter(scatter_df, x='complexity', y='priority', color='action', title=title)
+    fig.update_layout(height=400, xaxis_title="Rule Complexity (# Conditions)")
+    return fig
+
+def plot_grn_sankey(df: pd.DataFrame, population: List[Genotype], key: str) -> go.Figure:
+    """Sankey diagram showing the flow from components to actions."""
+    specimen = get_elite_specimen(df, population)
+    title = "GRN Logic Flow (Top Organism)"
+    if not specimen or not specimen.rule_genes:
+        return go.Figure().update_layout(title=title, height=400)
+
+    nodes = list(specimen.component_genes.keys()) + list(set(r.action_type for r in specimen.rule_genes))
+    node_map = {name: i for i, name in enumerate(nodes)}
+    
+    sources, targets, values = [], [], []
+    for rule in specimen.rule_genes:
+        action_idx = node_map.get(rule.action_type)
+        if action_idx is None: continue
+        
+        # Simplified: assume 'self_type' is the main driver
+        type_cond = next((c for c in rule.conditions if c['source'] == 'self_type'), None)
+        if type_cond and type_cond['target_value'] in node_map:
+            source_idx = node_map[type_cond['target_value']]
+            sources.append(source_idx)
+            targets.append(action_idx)
+            values.append(1) # Each rule is one link
+
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(pad=15, thickness=20, line=dict(color="black", width=0.5), label=nodes),
+        link=dict(source=sources, target=targets, value=values)
+    )])
+    fig.update_layout(title_text=title, height=400)
+    return fig
+
+def plot_grn_spectral_layout(df: pd.DataFrame, population: List[Genotype], key: str) -> go.Figure:
+    """GRN graph using a spectral layout."""
+    return plot_grn_with_layout(df, population, key, 'spectral', "GRN Spectral Layout (Top Organism)")
+
+def plot_grn_shell_layout(df: pd
+.DataFrame, population: List[Genotype], key: str) -> go.Figure:
+    """GRN graph using a shell layout."""
+    return plot_grn_with_layout(df, population, key, 'shell', "GRN Shell Layout (Top Organism)")
+
+def plot_grn_random_layout(df: pd.DataFrame, population: List[Genotype], key: str) -> go.Figure:
+    """GRN graph using a random layout."""
+    return plot_grn_with_layout(df, population, key, 'random', "GRN Random Layout (Top Organism)")
+
 
 # ========================================================
 #
@@ -3962,29 +4165,44 @@ def main():
             num_plots = s.get('num_custom_plots', 4)
             
             # A list of available plotting functions
-            plot_functions = [
+            plot_funcs_and_args = [
                 plot_fitness_vs_complexity,
                 plot_lifespan_vs_cell_count,
                 plot_energy_dynamics,
                 plot_complexity_density,
                 plot_fitness_violin_by_kingdom,
                 plot_complexity_vs_lifespan,
+                # --- NEW GRN PLOTS ---
+                lambda df, pop, key: plot_grn_action_distribution(df, pop, key),
+                lambda df, pop, key: plot_grn_condition_distribution(df, pop, key),
+                lambda df, pop, key: plot_grn_rule_priority_histogram(df, pop, key),
+                lambda df, pop, key: plot_grn_adjacency_matrix(df, pop, key),
+                lambda df, pop, key: plot_grn_rule_complexity_vs_priority(df, pop, key),
+                lambda df, pop, key: plot_grn_sankey(df, pop, key),
+                lambda df, pop, key: plot_grn_spectral_layout(df, pop, key),
+                lambda df, pop, key: plot_grn_shell_layout(df, pop, key),
+                lambda df, pop, key: plot_grn_random_layout(df, pop, key),
+                # --- End of New Plots ---
                 plot_energy_efficiency_over_time,
                 plot_cell_count_dist_by_kingdom,
                 plot_lifespan_dist_by_kingdom,
                 plot_complexity_vs_energy_prod,
                 plot_fitness_scatter_over_time,
-                plot_elite_parallel_coords
+                plot_elite_parallel_coords,
             ]
-
+            
             # Create a two-column layout
             cols = st.columns(2)
             for i in range(num_plots):
                 with cols[i % 2]:
                     # Display a unique plot for each index
-                    if i < len(plot_functions):
-                        plot_func = plot_functions[i]
-                        fig = plot_func(history_df, key=f"custom_plot_{i}")
+                    if i < len(plot_funcs_and_args):
+                        plot_func = plot_funcs_and_args[i]
+                        # Pass population to functions that need it
+                        if "population" in plot_func.__code__.co_varnames:
+                             fig = plot_func(history_df, population, key=f"custom_plot_{i}")
+                        else:
+                             fig = plot_func(history_df, key=f"custom_plot_{i}")
                         st.plotly_chart(fig, use_container_width=True, key=f"custom_plotly_chart_{i}")
         
         st.markdown("---")
