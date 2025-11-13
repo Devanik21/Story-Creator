@@ -3582,6 +3582,7 @@ def main():
                         if G.nodes:
                             try:
                                 # This is the most important one! It tries to create a top-down flowchart.
+                                fig_grn_13, ax_13 = plt.subplots(figsize=(4, 3))
                                 # Requires 'pygraphviz' or 'pydot' to be installed.
                                 pos_13 = nx.nx_pydot.graphviz_layout(G, prog='dot') 
                                 node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
