@@ -3577,6 +3577,93 @@ def main():
                                 st.warning(f"Could not draw GRN 12: {e}")
                         else:
                             st.info("No GRN to display.")
+                            
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 13: Hierarchical (Top-Down)**")
+                        if G.nodes:
+                            try:
+                                # This is the most important one! It tries to create a top-down flowchart.
+                                # Requires 'pygraphviz' or 'pydot' to be installed.
+                                pos_13 = nx.nx_pydot.graphviz_layout(G, prog='dot') 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_13, ax=ax_13, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_13, labels=labels, font_size=7, ax=ax_13)
+                                st.pyplot(fig_grn_13)
+                                plt.clf()
+                            except ImportError:
+                                st.warning("GRN 13 Error: This layout requires 'pydot' (and Graphviz) to be installed. Falling back to 'spring'.")
+                                try:
+                                    fig_grn_13, ax_13 = plt.subplots(figsize=(4, 3))
+                                    pos_13_fallback = nx.spring_layout(G, seed=13)
+                                    node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                    nx.draw(G, pos_13_fallback, ax=ax_13, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                    labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                    nx.draw_networkx_labels(G, pos_13_fallback, labels=labels, font_size=7, ax=ax_13)
+                                    st.pyplot(fig_grn_13)
+                                    plt.clf()
+                                except Exception as e:
+                                    st.warning(f"Could not draw GRN 13 fallback: {e}")
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 13: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 14: Hierarchical (Radial)**")
+                        if G.nodes:
+                            try:
+                                # This layout places nodes in a radial, tree-like structure from a root.
+                                fig_grn_14, ax_14 = plt.subplots(figsize=(4, 3))
+                                pos_14 = nx.nx_pydot.graphviz_layout(G, prog='twopi') 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_14, ax=ax_14, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_14, labels=labels, font_size=7, ax=ax_14)
+                                st.pyplot(fig_grn_14)
+                                plt.clf()
+                            except ImportError:
+                                st.warning("GRN 14 Error: This layout requires 'pydot' (and Graphviz) to be installed. Skipping.")
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 14: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 15: Force-Directed (NEATO)**")
+                        if G.nodes:
+                            try:
+                                # This is another type of spring-based layout, like 'kamada_kawai'.
+                                fig_grn_15, ax_15 = plt.subplots(figsize=(4, 3))
+                                pos_15 = nx.nx_pydot.graphviz_layout(G, prog='neato') 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_15, ax=ax_15, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_15, labels=labels, font_size=7, ax=ax_15)
+                                st.pyplot(fig_grn_15)
+                                plt.clf()
+                            except ImportError:
+                                st.warning("GRN 15 Error: This layout requires 'pydot' (and Graphviz) to be installed. Skipping.")
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 15: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 16: Spring Layout (Alternate Seed)**")
+                        if G.nodes:
+                            try:
+                                # This shows how a different starting "seed" can completely change the spring layout.
+                                fig_grn_16, ax_16 = plt.subplots(figsize=(4, 3))
+                                pos_16 = nx.spring_layout(G, seed=99) 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_16, ax=ax_16, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_16, labels=labels, font_size=7, ax=ax_16)
+                                st.pyplot(fig_grn_16)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 16: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        
             
             else:
                 st.warning("No population data available to view specimens. Run an evolution.")
