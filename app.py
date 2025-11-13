@@ -1803,6 +1803,156 @@ def create_evolution_dashboard(history_df: pd.DataFrame, evolutionary_metrics_df
     
     return fig
 
+def plot_fitness_vs_complexity(df: pd.DataFrame, key: str) -> go.Figure:
+    """Scatter plot of fitness vs. complexity, colored by kingdom."""
+    fig = px.scatter(
+        df.sample(min(len(df), 5000)), 
+        x='complexity', 
+        y='fitness', 
+        color='kingdom_id',
+        title='Fitness vs. Complexity',
+        hover_data=['generation', 'cell_count']
+    )
+    fig.update_layout(height=400)
+    return fig
+
+def plot_lifespan_vs_cell_count(df: pd.DataFrame, key: str) -> go.Figure:
+    """Scatter plot of lifespan vs. cell count, colored by fitness."""
+    fig = px.scatter(
+        df.sample(min(len(df), 5000)),
+        x='cell_count',
+        y='lifespan',
+        color='fitness',
+        color_continuous_scale='Viridis',
+        title='Lifespan vs. Cell Count',
+        hover_data=['generation', 'complexity']
+    )
+    fig.update_layout(height=400)
+    return fig
+
+def plot_energy_dynamics(df: pd.DataFrame, key: str) -> go.Figure:
+    """Scatter plot of energy production vs. consumption."""
+    fig = px.scatter(
+        df.sample(min(len(df), 5000)),
+        x='energy_consumption',
+        y='energy_production',
+        color='fitness',
+        color_continuous_scale='Plasma',
+        title='Energy Production vs. Consumption',
+        hover_data=['generation', 'lifespan']
+    )
+    fig.update_layout(height=400)
+    return fig
+
+def plot_complexity_density(df: pd.DataFrame, key: str) -> go.Figure:
+    """2D histogram showing the density of organisms in the complexity/cell_count space."""
+    fig = px.density_heatmap(
+        df,
+        x='complexity',
+        y='cell_count',
+        nbinsx=50, nbinsy=50,
+        title='Density of Morphological Space'
+    )
+    fig.update_layout(height=400)
+    return fig
+
+def plot_fitness_violin_by_kingdom(df: pd.DataFrame, key: str) -> go.Figure:
+    """Violin plot showing fitness distribution for each kingdom."""
+    final_gen_df = df[df['generation'] == df['generation'].max()]
+    if final_gen_df.empty:
+        final_gen_df = df
+    fig = px.violin(final_gen_df, x='kingdom_id', y='fitness', color='kingdom_id', box=True, points="all", title="Final Generation Fitness Distribution by Kingdom")
+    fig.update_layout(height=400)
+    return fig
+
+def plot_complexity_vs_lifespan(df: pd.DataFrame, key: str) -> go.Figure:
+    """Scatter plot of complexity vs. lifespan, colored by fitness."""
+    fig = px.scatter(
+        df.sample(min(len(df), 5000)),
+        x='complexity',
+        y='lifespan',
+        color='fitness',
+        color_continuous_scale='Inferno',
+        title='Complexity vs. Lifespan',
+        hover_data=['generation', 'cell_count']
+    )
+    fig.update_layout(height=400)
+    return fig
+
+def plot_energy_efficiency_over_time(df: pd.DataFrame, key: str) -> go.Figure:
+    """Line plot of energy efficiency over generations."""
+    df_copy = df.copy()
+    df_copy['efficiency'] = df_copy['energy_production'] / (df_copy['energy_consumption'] + 1e-6)
+    efficiency_by_gen = df_copy.groupby('generation')['efficiency'].mean().reset_index()
+    fig = px.line(efficiency_by_gen, x='generation', y='efficiency', title='Mean Energy Efficiency Over Time')
+    fig.update_layout(height=400)
+    return fig
+
+def plot_cell_count_dist_by_kingdom(df: pd.DataFrame, key: str) -> go.Figure:
+    """Box plot of cell count distribution for each kingdom in the final generation."""
+    final_gen_df = df[df['generation'] == df['generation'].max()]
+    if final_gen_df.empty:
+        final_gen_df = df
+    fig = px.box(final_gen_df, x='kingdom_id', y='cell_count', color='kingdom_id', title="Final Generation Cell Count Distribution")
+    fig.update_layout(height=400)
+    return fig
+
+def plot_lifespan_dist_by_kingdom(df: pd.DataFrame, key: str) -> go.Figure:
+    """Violin plot of lifespan distribution for each kingdom in the final generation."""
+    final_gen_df = df[df['generation'] == df['generation'].max()]
+    if final_gen_df.empty:
+        final_gen_df = df
+    fig = px.violin(final_gen_df, x='kingdom_id', y='lifespan', color='kingdom_id', box=True, title="Final Generation Lifespan Distribution")
+    fig.update_layout(height=400)
+    return fig
+
+def plot_complexity_vs_energy_prod(df: pd.DataFrame, key: str) -> go.Figure:
+    """Scatter plot of complexity vs. energy production."""
+    fig = px.scatter(
+        df.sample(min(len(df), 5000)),
+        x='complexity',
+        y='energy_production',
+        color='fitness',
+        color_continuous_scale='Cividis',
+        title='Complexity vs. Energy Production',
+        hover_data=['generation', 'lifespan']
+    )
+    fig.update_layout(height=400)
+    return fig
+
+def plot_fitness_scatter_over_time(df: pd.DataFrame, key: str) -> go.Figure:
+    """Scatter plot showing all organisms' fitness over generations."""
+    fig = px.scatter(
+        df.sample(min(len(df), 10000)),
+        x='generation',
+        y='fitness',
+        color='kingdom_id',
+        title='Population Fitness Landscape Over Time',
+        hover_data=['cell_count', 'complexity']
+    )
+    fig.update_layout(height=400)
+    return fig
+
+def plot_elite_parallel_coords(df: pd.DataFrame, key: str) -> go.Figure:
+    """Parallel coordinates plot for the top elite organisms of the final generation."""
+    final_gen_df = df[df['generation'] == df['generation'].max()]
+    if final_gen_df.empty:
+        final_gen_df = df
+    
+    elites = final_gen_df.nlargest(min(len(final_gen_df), 100), 'fitness')
+    if elites.empty:
+        return go.Figure().update_layout(title="Not enough data for Parallel Coordinates Plot", height=400)
+
+    fig = px.parallel_coordinates(
+        elites,
+        color="fitness",
+        dimensions=['fitness', 'complexity', 'cell_count', 'lifespan', 'energy_production', 'energy_consumption'],
+        color_continuous_scale=px.colors.sequential.Inferno,
+        title="Trait Relationships of Elite Organisms"
+    )
+    fig.update_layout(height=400)
+    return fig
+
 # ========================================================
 #
 # PART 7.5: CUSTOM ANALYTICS PLOTS (NEW)
@@ -2420,7 +2570,7 @@ def main():
 
     with st.sidebar.expander("📊 Custom Analytics Lab", expanded=False):
         st.markdown("Configure the custom analytics tab.")
-        s['num_custom_plots'] = st.slider("Number of Custom Plots", 1, 8, s.get('num_custom_plots', 4), 1)
+        s['num_custom_plots'] = st.slider("Number of Custom Plots", 1, 12, s.get('num_custom_plots', 4), 1)
         
     st.sidebar.markdown("---") # --- This is the separator you wanted ---
 
@@ -3817,17 +3967,25 @@ def main():
                 plot_lifespan_vs_cell_count,
                 plot_energy_dynamics,
                 plot_complexity_density,
-                plot_fitness_violin_by_kingdom
+                plot_fitness_violin_by_kingdom,
+                plot_complexity_vs_lifespan,
+                plot_energy_efficiency_over_time,
+                plot_cell_count_dist_by_kingdom,
+                plot_lifespan_dist_by_kingdom,
+                plot_complexity_vs_energy_prod,
+                plot_fitness_scatter_over_time,
+                plot_elite_parallel_coords
             ]
 
             # Create a two-column layout
             cols = st.columns(2)
             for i in range(num_plots):
                 with cols[i % 2]:
-                    # Cycle through the plot functions
-                    plot_func = plot_functions[i % len(plot_functions)]
-                    fig = plot_func(history_df, key=f"custom_plot_{i}")
-                    st.plotly_chart(fig, use_container_width=True, key=f"custom_plotly_chart_{i}")
+                    # Display a unique plot for each index
+                    if i < len(plot_functions):
+                        plot_func = plot_functions[i]
+                        fig = plot_func(history_df, key=f"custom_plot_{i}")
+                        st.plotly_chart(fig, use_container_width=True, key=f"custom_plotly_chart_{i}")
         
         st.markdown("---")
         
