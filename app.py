@@ -3401,6 +3401,170 @@ def main():
                         else:
                             st.info("No GRN to display.")
 
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 4**")
+                        if G.nodes:
+                            try:
+                                fig_grn_4, ax_4 = plt.subplots(figsize=(4, 3))
+                                # This layout places nodes randomly. It's chaotic but good for seeing density.
+                                pos_4 = nx.random_layout(G, seed=42) 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_4, ax=ax_4, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_4, labels=labels, font_size=7, ax=ax_4)
+                                st.pyplot(fig_grn_4)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 4: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 5**")
+                        if G.nodes:
+                            try:
+                                fig_grn_5, ax_5 = plt.subplots(figsize=(4, 3))
+                                # This layout uses the eigenvectors of the graph Laplacian. It's excellent for finding clusters.
+                                pos_5 = nx.spectral_layout(G) 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_5, ax=ax_5, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_5, labels=labels, font_size=7, ax=ax_5)
+                                st.pyplot(fig_grn_5)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 5: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 6**")
+                        if G.nodes:
+                            try:
+                                fig_grn_6, ax_6 = plt.subplots(figsize=(4, 3))
+                                # This layout places nodes in concentric shells.
+                                pos_6 = nx.shell_layout(G) 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_6, ax=ax_6, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_6, labels=labels, font_size=7, ax=ax_6)
+                                st.pyplot(fig_grn_6)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 6: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 7**")
+                        if G.nodes:
+                            try:
+                                fig_grn_7, ax_7 = plt.subplots(figsize=(4, 3))
+                                # This layout arranges nodes in a spiral.
+                                pos_7 = nx.spiral_layout(G) 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_7, ax=ax_7, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_7, labels=labels, font_size=7, ax=ax_7)
+                                st.pyplot(fig_grn_7)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 7: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 8**")
+                        if G.nodes:
+                            try:
+                                fig_grn_8, ax_8 = plt.subplots(figsize=(4, 3))
+                                # This attempts to draw the graph with no edges crossing (a "planar" layout).
+                                # It will fail if the graph isn't planar, so we catch the error and fall back.
+                                try:
+                                    pos_8 = nx.planar_layout(G)
+                                except nx.NetworkXException:
+                                    st.caption("GRN 8: Not planar, falling back to random.")
+                                    pos_8 = nx.random_layout(G, seed=43) # Different seed
+                                
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_8, ax=ax_8, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_8, labels=labels, font_size=7, ax=ax_8)
+                                st.pyplot(fig_grn_8)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 8: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 9**")
+                        if G.nodes:
+                            try:
+                                fig_grn_9, ax_9 = plt.subplots(figsize=(4, 3))
+                                # A "tighter" spring layout by decreasing the optimal distance 'k'.
+                                pos_9 = nx.spring_layout(G, k=0.1, seed=42) 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_9, ax=ax_9, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_9, labels=labels, font_size=7, ax=ax_9)
+                                st.pyplot(fig_grn_9)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 9: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 10**")
+                        if G.nodes:
+                            try:
+                                fig_grn_10, ax_10 = plt.subplots(figsize=(4, 3))
+                                # A "looser" spring layout by increasing the optimal distance 'k'.
+                                pos_10 = nx.spring_layout(G, k=2.0, seed=42) 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_10, ax=ax_10, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_10, labels=labels, font_size=7, ax=ax_10)
+                                st.pyplot(fig_grn_10)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 10: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 11**")
+                        if G.nodes:
+                            try:
+                                fig_grn_11, ax_11 = plt.subplots(figsize=(4, 3))
+                                # A structured shell layout: components in the outer shell, actions in the inner shell.
+                                # This is a truly unique "perspective" on the GRN's logic.
+                                component_nodes = [n for n, data in G.nodes(data=True) if data.get('type') == 'component']
+                                action_nodes = [n for n, data in G.nodes(data=True) if data.get('type') == 'action']
+                                shell_list = [component_nodes, action_nodes]
+                                
+                                pos_11 = nx.shell_layout(G, nlist=shell_list) 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_11, ax=ax_11, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_11, labels=labels, font_size=7, ax=ax_11)
+                                st.pyplot(fig_grn_11)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 11: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
+                        st.markdown("##### **Genetic Regulatory Network (GRN) 12**")
+                        if G.nodes:
+                            try:
+                                fig_grn_12, ax_12 = plt.subplots(figsize=(4, 3))
+                                # A spring layout with many more iterations, for a more "settled" final state.
+                                pos_12 = nx.spring_layout(G, iterations=200, seed=42) 
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos_12, ax=ax_12, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()}
+                                nx.draw_networkx_labels(G, pos_12, labels=labels, font_size=7, ax=ax_12)
+                                st.pyplot(fig_grn_12)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN 12: {e}")
+                        else:
+                            st.info("No GRN to display.")
+
                         st.markdown("##### **Evolved Objectives**")
                         if specimen.objective_weights:
                             obj_df = pd.DataFrame.from_dict(specimen.objective_weights, orient='index', columns=['Weight']).reset_index()
