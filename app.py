@@ -1299,7 +1299,8 @@ def mutate(genotype: Genotype, settings: Dict) -> Genotype:
         new_component = innovate_component(mutated, settings)
         if new_component.name not in mutated.component_genes:
             mutated.component_genes[new_component.name] = new_component
-            st.toast(f"🔬 {new_component.base_kingdom} Innovation! New component: **{new_component.name}**", icon="💡")
+            # Pass lineage_id to the toast for chronicle logging
+            st.toast(f"🔬 {new_component.base_kingdom} Innovation! New component: **{new_component.name}** lineage:{mutated.lineage_id}", icon="💡")
 
     # --- 4. Hyperparameter Mutation (Evolving Evolution Itself) ---
     if settings.get('enable_hyperparameter_evolution', False):
@@ -3563,6 +3564,40 @@ def main():
                         fig_lineage.update_layout(title=f"Fitness Trajectory of Dynasty {selected_lineage_id}", height=300, margin=dict(l=0, r=0, t=40, b=0))
                         st.plotly_chart(fig_lineage, use_container_width=True)
 
+                        # --- NEW: More Complex Details ---
+                        sub_col1, sub_col2 = st.columns(2)
+
+                        with sub_col1:
+                            # --- Dynastic Event Log ---
+                            st.markdown("##### Dynastic Event Log")
+                            dynasty_events = [e for e in events if founder['generation'] <= e['generation'] <= lineage_df.iloc[-1]['generation']]
+                            if not dynasty_events:
+                                st.info("This dynasty's lifespan was uneventful.")
+                            else:
+                                event_log_container = st.container(height=200)
+                                for event in sorted(dynasty_events, key=lambda x: x['generation']):
+                                    event_log_container.markdown(f"**Gen {event['generation']}:** {event['icon']} {event['title']}")
+
+                            # --- Legacy of Innovation ---
+                            st.markdown("##### Legacy of Innovation")
+                            innovations = [e for e in dynasty_events if 'Innovation' in e['type'] and e.get('lineage_id') == selected_lineage_id]
+                            if not innovations:
+                                st.info("This dynasty was a follower, not an innovator.")
+                            else:
+                                for innov in innovations:
+                                    st.markdown(f"💡 Invented **{innov['title'].split(': ')[1]}** in Gen {innov['generation']}.")
+
+                        with sub_col2:
+                            # --- Evolved Strategy Profile ---
+                            st.markdown("##### Apex Strategy Profile (GRN Analysis)")
+                            apex_specimen = max((g for g in st.session_state.get('gene_archive', []) if g.lineage_id == peak['lineage_id']), key=lambda g: g.fitness, default=None)
+                            if apex_specimen:
+                                rule_actions = Counter(r.action_type for r in apex_specimen.rule_genes)
+                                action_df = pd.DataFrame.from_dict(rule_actions, orient='index', columns=['Count']).reset_index()
+                                fig_strategy = px.bar(action_df, x='index', y='Count', title="GRN Action Type Frequency", labels={'index': 'Action Type'})
+                                fig_strategy.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
+                                st.plotly_chart(fig_strategy, use_container_width=True)
+
                         # --- 3. Gallery of Ancestors ---
                         st.markdown("##### Gallery of Ancestors")
                         
@@ -3639,10 +3674,16 @@ if __name__ == "__main__":
     original_toast = st.toast
     def chronicle_toast(body, icon=None):
         if "New component" in body:
+            lineage_id = None
+            if "lineage:" in body:
+                parts = body.split(" lineage:")
+                body = parts[0]
+                lineage_id = parts[1]
             st.session_state.genesis_events.append({
                 'generation': st.session_state.history[-1]['generation'] if st.session_state.history else 0,
                 'type': 'Component Innovation', 'title': f"New Component: {body.split('**')[1]}",
-                'description': f"A new cellular component, '{body.split('**')[1]}', was invented, expanding the chemical and functional possibilities for life.", 'icon': '💡'
+                'description': f"A new cellular component, '{body.split('**')[1]}', was invented, expanding the chemical and functional possibilities for life.", 'icon': '💡',
+                'lineage_id': lineage_id
             })
         if "new sense" in body:
             st.session_state.genesis_events.append({ # type: ignore
