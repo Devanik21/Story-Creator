@@ -3515,6 +3515,10 @@ def main():
                                 key = f"specimen_{i}_plot_{j}"
                                 try:
                                     if "history_df" in plot_func.__code__.co_varnames:
+                                    # Corrected logic to handle the lambda function for plot_lineage_trajectory
+                                    # The lambda's arguments are 's', 'h', 'k', so we check for 'h' which corresponds to history_df.
+                                    # A more robust check is for the function name itself within the lambda.
+                                    if "plot_lineage_trajectory" in plot_func.__code__.co_name:
                                         fig = plot_func(specimen, history_df, key)
                                     elif "phenotype" in plot_func.__code__.co_varnames:
                                         fig = plot_func(phenotype, key)
