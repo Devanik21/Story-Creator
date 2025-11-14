@@ -2073,6 +2073,14 @@ def main():
         page_icon="🌌",
         initial_sidebar_state="expanded"
     )
+    # --- ADD THIS BLOCK ---
+    # Initialize state for lazy-loading tabs
+    if 'show_specimen_viewer' not in st.session_state:
+        st.session_state.show_specimen_viewer = False
+    if 'show_elite_analysis' not in st.session_state:
+        st.session_state.show_elite_analysis = False
+    if 'show_genesis_chronicle' not in st.session_state:
+        st.session_state.show_genesis_chronicle = False
     
     # --- Password Protection (Reused from GENEVO) ---
     def check_password():
@@ -4440,83 +4448,101 @@ def main():
         with tab_elites:
             st.header("🧬 Elite Lineage Analysis")
             st.markdown("A deep dive into the 'DNA' of the most successful organisms. Each rank displays the best organism from a unique Kingdom, showcasing the diversity of life that has evolved.")
-            if population:
-                # --- Corrected Unique Ranks Logic ---
-                # 1. Sort the population by fitness to ensure we process the best organisms first.
-                population.sort(key=lambda x: x.fitness, reverse=True)
-                num_ranks_to_display = s.get('num_ranks_to_display', 3)
+            st.markdown("---") # Added a separator
 
-                # 2. Select the single best representative from each unique kingdom.
-                elite_specimens = []
-                seen_kingdoms = set()
-                for individual in population:
-                    if individual.kingdom_id not in seen_kingdoms:
-                        elite_specimens.append(individual)
-                        seen_kingdoms.add(individual.kingdom_id)
+            # --- NEW LAZY-LOADING LOGIC ---
+            if st.session_state.show_elite_analysis:
+                
+                # --- This is your code, correctly indented ---
+                if population:
+                    # --- Corrected Unique Ranks Logic ---
+                    # 1. Sort the population by fitness to ensure we process the best organisms first.
+                    population.sort(key=lambda x: x.fitness, reverse=True)
+                    num_ranks_to_display = s.get('num_ranks_to_display', 3)
 
-                # 3. Display the unique elites, up to the desired number of ranks.
-                for i, individual in enumerate(elite_specimens[:num_ranks_to_display]):
-                    with st.expander(f"**Rank {i+1}:** Kingdom `{individual.kingdom_id}` | Fitness: `{individual.fitness:.4f}`", expanded=(i==0)):
-                        
-                        # --- Grow phenotype once for all visualizations ---
-                        with st.spinner(f"Growing Rank {i+1}..."):
-                            vis_grid = UniverseGrid(s)
-                            phenotype = Phenotype(individual, vis_grid, s)
+                    # 2. Select the single best representative from each unique kingdom.
+                    elite_specimens = []
+                    seen_kingdoms = set()
+                    for individual in population:
+                        if individual.kingdom_id not in seen_kingdoms:
+                            elite_specimens.append(individual)
+                            seen_kingdoms.add(individual.kingdom_id)
 
-                        # --- Main Info Row ---
-                        col1, col2 = st.columns([1, 1])
-                        with col1:
-                            st.markdown("##### **Core Metrics**")
-                            st.metric("Cell Count", f"{individual.cell_count}")
-                            st.metric("Complexity", f"{individual.compute_complexity():.2f}")
-                            st.metric("Lifespan", f"{individual.lifespan} ticks")
-                            st.metric("Energy Prod.", f"{individual.energy_production:.3f}")
-                            st.metric("Energy Cons.", f"{individual.energy_consumption:.3f}")
-                        
-                        with col2:
-                            st.markdown("##### **Phenotype (Body Plan)**")
-                            fig = visualize_phenotype_2d(phenotype, vis_grid)
-                            st.plotly_chart(fig, width='stretch', key=f"elite_pheno_vis_{i}")
-
-                        st.markdown("---")
-                        
-                        # --- Detailed Analysis Row ---
-                        col3, col4 = st.columns(2)
-
-                        with col3:
-                            st.markdown("##### **Component Composition**")
-                            component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
-                            if component_counts:
-                                comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
-                                comp_df = comp_df.rename(columns={'index': 'Component'})
-                                color_map = {c.name: c.color for c in individual.component_genes.values()}
-                                fig_pie = px.pie(comp_df, values='Count', names='Component', 
-                                                 color='Component', color_discrete_map=color_map, title="Cell Type Distribution")
-                                fig_pie.update_layout(showlegend=True, margin=dict(l=0, r=0, t=30, b=0), height=300)
-                                st.plotly_chart(fig_pie, width='stretch', key=f"elite_pie_{i}")
-                            else:
-                                st.info("No cells to analyze.")
-                                
-                            st.markdown("##### **Component Genes (The 'Alphabet')**")
-                            for comp_name, comp_gene in individual.component_genes.items():
-                                st.code(f"[{comp_gene.color}] {comp_name} (Mass: {comp_gene.mass:.2f}, Struct: {comp_gene.structural:.2f})", language="text")
-
-                        with col4:
-                            st.markdown("##### **Genetic Regulatory Network (GRN Rules)**")
-                            if individual.rule_genes:
-                                for rule in individual.rule_genes:
-                                    cond_parts = []
-                                    for c in rule.conditions:
-                                        target_val = c['target_value']
-                                        val_str = f"{target_val:.1f}" if isinstance(target_val, (int, float)) else f"'{target_val}'"
-                                        cond_parts.append(f"{c['source']} {c['operator']} {val_str}")
-                                    cond_str = " AND ".join(cond_parts) if cond_parts else "ALWAYS"
-                                    st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql')
-                            else:
-                                st.info("No GRN rules.")
+                    # 3. Display the unique elites, up to the desired number of ranks.
+                    for i, individual in enumerate(elite_specimens[:num_ranks_to_display]):
+                        with st.expander(f"**Rank {i+1}:** Kingdom `{individual.kingdom_id}` | Fitness: `{individual.fitness:.4f}`", expanded=(i==0)):
                             
+                            # --- Grow phenotype once for all visualizations ---
+                            with st.spinner(f"Growing Rank {i+1}..."):
+                                vis_grid = UniverseGrid(s)
+                                phenotype = Phenotype(individual, vis_grid, s)
+
+                            # --- Main Info Row ---
+                            col1, col2 = st.columns([1, 1])
+                            with col1:
+                                st.markdown("##### **Core Metrics**")
+                                st.metric("Cell Count", f"{individual.cell_count}")
+                                st.metric("Complexity", f"{individual.compute_complexity():.2f}")
+                                st.metric("Lifespan", f"{individual.lifespan} ticks")
+                                st.metric("Energy Prod.", f"{individual.energy_production:.3f}")
+                                st.metric("Energy Cons.", f"{individual.energy_consumption:.3f}")
+                            
+                            with col2:
+                                st.markdown("##### **Phenotype (Body Plan)**")
+                                fig = visualize_phenotype_2d(phenotype, vis_grid)
+                                st.plotly_chart(fig, width='stretch', key=f"elite_pheno_vis_{i}")
+
+                            st.markdown("---")
+                            
+                            # --- Detailed Analysis Row ---
+                            col3, col4 = st.columns(2)
+
+                            with col3:
+                                st.markdown("##### **Component Composition**")
+                                component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
+                                if component_counts:
+                                    comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
+                                    comp_df = comp_df.rename(columns={'index': 'Component'})
+                                    color_map = {c.name: c.color for c in individual.component_genes.values()}
+                                    fig_pie = px.pie(comp_df, values='Count', names='Component', 
+                                                     color='Component', color_discrete_map=color_map, title="Cell Type Distribution")
+                                    fig_pie.update_layout(showlegend=True, margin=dict(l=0, r=0, t=30, b=0), height=300)
+                                    st.plotly_chart(fig_pie, width='stretch', key=f"elite_pie_{i}")
+                                else:
+                                    st.info("No cells to analyze.")
+                                    
+                                st.markdown("##### **Component Genes (The 'Alphabet')**")
+                                for comp_name, comp_gene in individual.component_genes.items():
+                                    st.code(f"[{comp_gene.color}] {comp_name} (Mass: {comp_gene.mass:.2f}, Struct: {comp_gene.structural:.2f})", language="text")
+
+                            with col4:
+                                st.markdown("##### **Genetic Regulatory Network (GRN Rules)**")
+                                if individual.rule_genes:
+                                    for rule in individual.rule_genes:
+                                        cond_parts = []
+                                        for c in rule.conditions:
+                                            target_val = c['target_value']
+                                            val_str = f"{target_val:.1f}" if isinstance(target_val, (int, float)) else f"'{target_val}'"
+                                            cond_parts.append(f"{c['source']} {c['operator']} {val_str}")
+                                        cond_str = " AND ".join(cond_parts) if cond_parts else "ALWAYS"
+                                        st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql')
+                                else:
+                                    st.info("No GRN rules.")
+                else:
+                    st.warning("No population data available to analyze.")
+                
+                # --- 1. ADD THIS HIDE BUTTON (INSIDE the 'if') ---
+                st.markdown("---")
+                if st.button("Clear & Hide Elite Analysis", key="hide_elite"):
+                    st.session_state.show_elite_analysis = False
+                    st.rerun()
+
+            # --- 2. ADD THIS 'ELSE' BLOCK (for the render button) ---
             else:
-                st.warning("No population data available to analyze.")
+                st.info("This tab renders detailed organism data. It is paused to save memory.")
+                if st.button("🧬 Render Elite Analysis", key="show_elite"):
+                    st.session_state.show_elite_analysis = True
+                    st.rerun()
 
         with tab_genesis:
             st.header("🌌 The Genesis Chronicle")
@@ -4621,7 +4647,7 @@ def main():
                                 st.markdown("**Phenotype (Body Plan)**")
                                 fig_pheno = visualize_phenotype_2d(phenotype, vis_grid)
                                 fig_pheno.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0))
-                                st.plotly_chart(fig_pheno, use_container_width=True, key=f"gallery_pheno_{i}")
+                                st.plotly_chart(fig_pheno, width='stretch', key=f"gallery_pheno_{i}")
                                 
                                 st.markdown("**Component Composition**")
                                 component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
@@ -4631,7 +4657,7 @@ def main():
                                     color_map = {c.name: c.color for c in specimen.component_genes.values()}
                                     fig_pie = px.pie(comp_df, values='Count', names='Component', color='Component', color_discrete_map=color_map)
                                     fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
-                                    st.plotly_chart(fig_pie, use_container_width=True, key=f"gallery_pyie_{i}")
+                                    st.plotly_chart(fig_pie, width='stretch', key=f"gallery_pyie_{i}")
                             with col2:
                                 st.markdown("**Internal Energy Distribution**")
                                 energy_data = np.full((vis_grid.width, vis_grid.height), np.nan)
@@ -4640,7 +4666,7 @@ def main():
                                 fig_energy = px.imshow(energy_data, color_continuous_scale='viridis', aspect='equal')
                                 fig_energy.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0), coloraxis_showscale=False)
                                 fig_energy.update_xaxes(showticklabels=False).update_yaxes(showticklabels=False)
-                                st.plotly_chart(fig_energy, use_container_width=True, key=f"gallery_energye_{i}")
+                                st.plotly_chart(fig_energy, width='stretch', key=f"gallery_energye_{i}")
 
                             with col3:
                                 st.markdown("**Cellular Age Map**")
@@ -4650,7 +4676,7 @@ def main():
                                 fig_age = px.imshow(age_data, color_continuous_scale='plasma', aspect='equal')
                                 fig_age.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0), coloraxis_showscale=False)
                                 fig_age.update_xaxes(showticklabels=False).update_yaxes(showticklabels=False)
-                                st.plotly_chart(fig_age, use_container_width=True, key=f"galleriey_age_{i}")
+                                st.plotly_chart(fig_age, width='stretch', key=f"galleriey_age_{i}")
                             st.markdown("---")
                 
                 # --- NEW: Epochs & Phylogeny Section ---
@@ -4815,7 +4841,7 @@ def main():
                         fig_lineage.add_trace(go.Scatter(x=lineage_df['generation'], y=lineage_df['fitness'], mode='lines', name=f'Lineage {selected_lineage_id} Fitness', line=dict(color='cyan', width=3)))
                         fig_lineage.add_trace(go.Scatter(x=universe_avg_df['generation'], y=universe_avg_df['fitness'], mode='lines', name='Universe Avg. Fitness', line=dict(color='gray', dash='dot')))
                         fig_lineage.update_layout(title=f"Fitness Trajectory of Dynasty {selected_lineage_id}", height=300, margin=dict(l=0, r=0, t=40, b=0))
-                        st.plotly_chart(fig_lineage, use_container_width=True, key=f"dynasty_perf_{selected_lineage_id}")
+                        st.plotly_chart(fig_lineage, width='stretch', key=f"dynasty_perf_{selected_lineage_id}")
 
                         # --- NEW: More Complex Details ---
                         sub_col1, sub_col2 = st.columns(2)
@@ -4849,7 +4875,7 @@ def main():
                                 action_df = pd.DataFrame.from_dict(rule_actions, orient='index', columns=['Count']).reset_index()
                                 fig_strategy = px.bar(action_df, x='index', y='Count', title="GRN Action Type Frequency", labels={'index': 'Action Type'})
                                 fig_strategy.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
-                                st.plotly_chart(fig_strategy, use_container_width=True, key=f"dynasty_strat_{selected_lineage_id}")
+                                st.plotly_chart(fig_strategy, width='stretch', key=f"dynasty_strat_{selected_lineage_id}")
 
                         # --- 3. Gallery of Ancestors ---
                         st.markdown("##### Gallery of Ancestors")
@@ -4890,7 +4916,7 @@ def main():
                                         phenotype = Phenotype(specimen, vis_grid, s)
                                         fig = visualize_phenotype_2d(phenotype, vis_grid)
                                         fig.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0))
-                                        st.plotly_chart(fig, use_container_width=True, key=f"dynasty_vis_{selected_lineage_id}_{i}")
+                                        st.plotly_chart(fig, width='stretch', key=f"dynasty_vis_{selected_lineage_id}_{i}")
                 
                 # --- NEW: Pantheon of Genes Section ---
                 st.markdown("---")
@@ -4946,7 +4972,7 @@ def main():
                                 prevalence_df = pd.DataFrame(list(history.items()), columns=['generation', 'count']).sort_values('generation')
                                 fig_prevalence = px.area(prevalence_df, x='generation', y='count', title="Prevalence Over Time")
                                 fig_prevalence.update_layout(height=200, margin=dict(l=0, r=0, t=30, b=0))
-                                st.plotly_chart(fig_prevalence, use_container_width=True, key=f"pantheon_prevalence_{comp_gene.id}")
+                                st.plotly_chart(fig_prevalence, width='stretch', key=f"pantheon_prevalence_{comp_gene.id}")
 
                     with pantheon_col2:
                         st.markdown("#### The Lawgivers: Elite Genetic Strategies")
@@ -4977,11 +5003,11 @@ def main():
 
                             fig_actions = px.bar(action_df, x='Action', y='Count', title="Elite Strategic Blueprint (GRN Actions)")
                             fig_actions.update_layout(height=250, margin=dict(l=0, r=0, t=40, b=0))
-                            st.plotly_chart(fig_actions, use_container_width=True, key="pantheon_elite_actions")
+                            st.plotly_chart(fig_actions, width='stretch', key="pantheon_elite_actions")
 
                             fig_conds = px.bar(cond_df, x='Condition', y='Count', title="Elite Sensory Profile (GRN Conditions)")
                             fig_conds.update_layout(height=250, margin=dict(l=0, r=0, t=40, b=0))
-                            st.plotly_chart(fig_conds, use_container_width=True, key="pantheon_elite_conditions")
+                            st.plotly_chart(fig_conds, width='stretch', key="pantheon_elite_conditions")
 
 
         with tab_analytics_lab:
@@ -5015,7 +5041,7 @@ def main():
                     if i < len(plot_functions):
                         plot_func = plot_functions[i]
                         fig = plot_func(history_df, key=f"custom_plot_{i}")
-                        st.plotly_chart(fig, use_container_width=True, key=f"custom_plotly_chart_{i}")
+                        st.plotly_chart(fig, width='stretch', key=f"custom_plotly_chart_{i}")
         
         st.markdown("---")
         
