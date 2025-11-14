@@ -2729,7 +2729,7 @@ def main():
 
     with st.sidebar.expander("📊 Custom Analytics Lab", expanded=False):
         st.markdown("Configure the custom analytics tab.")
-        s['num_custom_plots'] = st.slider("Number of Custom Plots", 1, 12, s.get('num_custom_plots', 4), 1)
+        s['num_custom_plots'] = st.slider("Number of Custom Plots", 0, 12, s.get('num_custom_plots', 4), 1)
         
     st.sidebar.markdown("---") # --- This is the separator you wanted ---
 
