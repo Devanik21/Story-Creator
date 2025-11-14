@@ -2519,7 +2519,7 @@ def main():
                 min_value=10,
                 max_value=50000, # Increased max
                 step=10,
-                key="generation_simulator_sync_keys", # <-- RENAMED
+                key="generation_simulator_sync_key", # <-- RENAMED
             )
             
         # Read the synced value back into your settings
