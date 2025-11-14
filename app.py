@@ -2183,8 +2183,6 @@ def main():
     s = copy.deepcopy(st.session_state.settings) # Use a mutable dict `s`
     # This line syncs the widget's state with your loaded settings
     # This line syncs the widget's state with your loaded settings
-    st.session_state.generation_simulator_sync_key = s.get('num_generations', 200)
-
     # --- Reset Button ---
     if st.sidebar.button("Reset Universe to Defaults", width='stretch', key="reset_defaults_button"):
         st.session_state.settings.clear() # Clear the dict
@@ -2513,17 +2511,17 @@ def main():
     
     st.sidebar.markdown("### ⚙️ Evolutionary Mechanics & Genetics")
     with st.sidebar.expander("Core Genetic Operators", expanded=True):
-        
         st.number_input(
                 "Generations to Simulate",
                 min_value=10,
-                max_value=50000, # Increased max
+                max_value=50000,
                 step=10,
-                key="generation_simulator_sync_key", # <-- RENAMED
+                value=s.get('num_generations', 200), # <-- Set value from loaded settings
+                key="generation_simulator_sync_key", # <-- Corrected key
             )
             
         # Read the synced value back into your settings
-        s['num_generations'] = st.session_state.generation_simulator_sync_key # <-- RENAMED
+        s['num_generations'] = st.session_state.generation_simulator_sync_key
         # Read the synced value back into your settings
         s['selection_pressure'] = st.slider("Selection Pressure", 0.1, 0.9, s.get('selection_pressure', 0.4), 0.05)
         s['mutation_rate'] = st.slider("Base Mutation Rate (μ)", 0.01, 0.9, s.get('mutation_rate', 0.2), 0.01)
