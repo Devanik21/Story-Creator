@@ -2513,7 +2513,8 @@ def main():
     
     st.sidebar.markdown("### ⚙️ Evolutionary Mechanics & Genetics")
     with st.sidebar.expander("Core Genetic Operators", expanded=True):
-            st.number_input(
+        
+        st.number_input(
                 "Value",
                 min_value=10,
                 max_value=50000, # Increased max
@@ -2521,7 +2522,7 @@ def main():
                 key="generation_simulator_sync_keys", # <-- RENAMED
                 label_visibility="collapsed"
             )
-        
+            
         # Read the synced value back into your settings
         s['num_generations'] = st.session_state.generation_simulator_sync_key # <-- RENAMED
         # Read the synced value back into your settings
