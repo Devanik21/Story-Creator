@@ -2081,8 +2081,8 @@ def main():
         st.session_state.show_elite_analysis = False
     if 'show_genesis_chronicle' not in st.session_state:
         st.session_state.show_genesis_chronicle = False
-    if 'show_dashboard' not in st.session_state:   # <-- ADD THIS LINE
-        st.session_state.show_dashboard = False
+    if 'dashboard_visible' not in st.session_state:   # <-- RENAMED this line
+        st.session_state.dashboard_visible = False
     
     # --- Password Protection (Reused from GENEVO) ---
     def check_password():
@@ -4042,7 +4042,7 @@ def main():
         
         with tab_dashboard:
             # --- NEW LAZY-LOADING LOGIC ---
-            if st.session_state.show_dashboard:
+            if st.session_state.dashboard_visible:  # <-- Use the new variable
                 st.header("Evolutionary Trajectory Dashboard")
                 st.plotly_chart(
                     create_evolution_dashboard(history_df, metrics_df),
@@ -4051,17 +4051,17 @@ def main():
                 )
                 visualize_fitness_landscape(history_df)
 
-                # --- ADD THIS HIDE BUTTON ---
+                # --- HIDE BUTTON ---
                 st.markdown("---")
-                if st.button("Clear & Hide Dashboard", key="hide_dashboard"):
-                    st.session_state.show_dashboard = False
+                if st.button("Clear & Hide Dashboard", key="hide_dashboard_button"): # <-- Unique key
+                    st.session_state.dashboard_visible = False # <-- Set the state
                     st.rerun()
             
-            # --- ADD THIS 'ELSE' BLOCK ---
+            # --- RENDER BUTTON ---
             else:
                 st.info("This tab renders the main dashboard with large plots. It is paused to save memory.")
-                if st.button("📈 Render Universe Dashboard", key="show_dashboard"):
-                    st.session_state.show_dashboard = True
+                if st.button("📈 Render Universe Dashboard", key="render_dashboard_button"): # <-- Unique key
+                    st.session_state.dashboard_visible = True # <-- Set the state
                     st.rerun()
 
         with tab_viewer:
