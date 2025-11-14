@@ -2526,7 +2526,6 @@ def main():
         # Read the synced value back into your settings
         s['num_generations'] = st.session_state.generation_simulator_sync_key # <-- RENAMED
         # Read the synced value back into your settings
-        s['num_generations'] = st.session_state.ui_num_generations
         s['selection_pressure'] = st.slider("Selection Pressure", 0.1, 0.9, s.get('selection_pressure', 0.4), 0.05)
         s['mutation_rate'] = st.slider("Base Mutation Rate (μ)", 0.01, 0.9, s.get('mutation_rate', 0.2), 0.01)
         s['crossover_rate'] = st.slider("Crossover Rate", 0.0, 1.0, s.get('crossover_rate', 0.7), 0.05)
