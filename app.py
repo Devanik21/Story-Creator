@@ -2073,6 +2073,11 @@ def main():
         page_icon="🌌",
         initial_sidebar_state="expanded"
     )
+
+    if 'password_attempts' not in st.session_state:
+        st.session_state.password_attempts = 0
+    if 'password_correct' not in st.session_state:
+        st.session_state.password_correct = False
     # --- ADD THIS BLOCK ---
     # Initialize state for lazy-loading tabs
     if 'show_specimen_viewer' not in st.session_state:
@@ -2087,23 +2092,56 @@ def main():
         st.session_state.analytics_lab_visible = False
     
     # --- Password Protection (Reused from GENEVO) ---
-    def check_password():
-        if "password_correct" not in st.session_state:
-            st.text_input("Password", type="password", on_change=lambda: setattr(st.session_state, "password_correct", st.session_state.password == st.secrets.get("password", "1234")), key="password")
-            return False
-        if not st.session_state.password_correct:
-            st.text_input("Password", type="password", on_change=lambda: setattr(st.session_state, "password_correct", st.session_state.password == st.secrets.get("password", "1234")), key="password")
-            st.error("Password incorrect")
-            return False
-        return True
+    # --- Password Protection (Using Streamlit Secrets) ---
+    # --- Password Protection (Using Streamlit Secrets + 3-Attempt Lock) ---
+    def check_password_on_change():
+        # This function runs *after* the user submits a password
+        try:
+            correct_pass = st.secrets["passwords"]["app_password"]
+        except (KeyError, AttributeError):
+            st.error("FATAL ERROR: No password found in Streamlit Secrets.")
+            st.info("Please ensure you have a .streamlit/secrets.toml file with:\n\n[passwords]\napp_password = 'your_password'")
+            st.session_state.password_correct = False
+            return
 
-    # Use a simple password if secrets aren't set
-    if "secrets" not in st.secrets:
-        st.secrets = {"password": "1234"}
+        if st.session_state.password_input_key == correct_pass:
+            # --- Password is CORRECT ---
+            st.session_state.password_correct = True
+            st.session_state.password_attempts = 0
+        else:
+            # --- Password is INCORRECT ---
+            st.session_state.password_correct = False
+            # Only increment if a password was actually entered (not on first load)
+            if st.session_state.password_input_key: 
+                st.session_state.password_attempts += 1
+    
+    # --- Main App Password Logic (runs on every page load) ---
+    
+    # 1. Check if app should be locked
+    if st.session_state.password_attempts >= 3:
+        st.error("Maximum login attempts exceeded. The application is locked.")
+        st.stop() # This permanently locks the app for this session
         
-    if not check_password():
-        st.info("Enter password to access the Universe Sandbox. (Hint: try '1234')")
-        st.stop()
+    # 2. Check if user is already authenticated
+    if not st.session_state.password_correct:
+        # 3. If not locked and not authenticated, show login form
+        st.text_input(
+            "Password", 
+            type="password", 
+            on_change=check_password_on_change, # Calls the function above
+            key="password_input_key"
+        )
+        
+        # 4. Show "Password incorrect" (no attempt count)
+        # This shows *after* the first failed attempt, but *before* the 3-attempt lock.
+        if st.session_state.password_attempts > 0:
+            st.error("Password incorrect") # No warnings, as requested
+
+        st.info("Enter password to access the Universe Sandbox.")
+        st.stop() # Stop the rest of the app from loading
+
+    # --- If we get here, it means st.session_state.password_correct is True ---
+    # The rest of your app code (sidebar, etc.) will now run normally.
         
     # --- Database Setup (Reused from GENEVO) ---
     # --- MODIFICATION FOR STREAMLIT PERSISTENCE ---
