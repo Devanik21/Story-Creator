@@ -53,6 +53,8 @@ import uuid
 import hashlib
 import colorsys
 import copy # Added for deep copying presets
+import zipfile  # <-- ADD THIS
+import io       # <-- ADD THIS
 
 # =G=E=N=E=V=O= =2=.=0= =N=E=W= =F=E=A=T=U=R=E=S=T=A=R=T=S= =H=E=R=E=
 #
@@ -2311,91 +2313,124 @@ def main():
         st.sidebar.markdown("#### 💾 Load Universe from Checkpoint")
         uploaded_file = st.sidebar.file_uploader(
             "Upload your 'universe_results.json' file", 
-            type="json", 
+            type=["json", "zip"],
             key="checkpoint_uploader"
         )
         
         if st.sidebar.button("LOAD FROM UPLOADED FILE", width='stretch', key="load_checkpoint_button"):
             if uploaded_file is not None:
                 try:
-                    data = json.loads(uploaded_file.getvalue())
-                    st.toast("Checkpoint found... Loading state...", icon="⏳")
+                    data = None
                     
-                    # 1. Load Settings
-                    loaded_settings = data.get('settings', {})
-                    st.session_state.settings = loaded_settings
-                    if settings_table.get(doc_id=1):
-                        settings_table.update(loaded_settings, doc_ids=[1])
-                    else:
-                        settings_table.insert(loaded_settings)
-                    
-                    # 2. Load History & Metrics
-                    st.session_state.history = data.get('history', [])
-                    st.session_state.evolutionary_metrics = data.get('evolutionary_metrics', [])
-                    
-                    # 3. Load Chronicle
-                    st.session_state.genesis_events = data.get('genesis_events', [])
-                    
-                    # 4. Load Populations (using the new helpers)
-                    st.session_state.current_population = deserialize_population(data.get('final_population_genotypes', []))
-                    st.session_state.gene_archive = deserialize_population(data.get('full_gene_archive', []))
-                    
-                    # 5. Load Evolved Physics & Senses
-                    if 'final_physics_constants' in data:
-                        # Safely update the global registry
-                        CHEMICAL_BASES_REGISTRY.clear()
-                        CHEMICAL_BASES_REGISTRY.update(data['final_physics_constants'])
-                    
-                    if 'final_evolved_senses' in data:
-                        st.session_state.evolvable_condition_sources = data['final_evolved_senses']
-
-                    # 6. Re-derive Chronicle state trackers from loaded data
-                    st.session_state.seen_kingdoms = set(h['kingdom_id'] for h in st.session_state.history)
-                    st.session_state.crossed_complexity_thresholds = set(
-                        int(t) for e in st.session_state.genesis_events 
-                        if e['type'] == 'Complexity Leap' 
-                        for t in [10, 25, 50, 100, 200, 500] 
-                        if str(t) in e['title']
-                    )
-                    st.session_state.last_dominant_kingdom = st.session_state.history[-1]['kingdom_id'] if st.session_state.history else None
-                    st.session_state.has_logged_colonial_emergence = any(e['type'] == 'Major Transition' and 'Colonial Life' in e['title'] for e in st.session_state.genesis_events)
-                    st.session_state.has_logged_philosophy_divergence = any(e['type'] == 'Cognitive Leap' and 'Philosophical Divergence' in e['title'] for e in st.session_state.genesis_events)
-                    st.session_state.has_logged_computation_dawn = any(e['type'] == 'Complexity Leap' and 'Computation' in e['title'] for e in st.session_state.genesis_events)
-                    st.session_state.has_logged_first_communication = any(e['type'] == 'Major Transition' and 'Communication' in e['title'] for e in st.session_state.genesis_events)
-                    st.session_state.has_logged_memory_invention = any(e['type'] == 'Cognitive Leap' and 'Memory' in e['title'] for e in st.session_state.genesis_events)
-
-                    # 7. Save loaded results to the active DB (mirroring preset logic)
-                    results_to_save = {
-                        'history': st.session_state.history,
-                        'evolutionary_metrics': st.session_state.evolutionary_metrics,
-                    }
-                    if results_table.get(doc_id=1):
-                        results_table.update(results_to_save, doc_ids=[1])
-                    else:
-                        results_table.insert(results_to_save)
-
-                    st.toast("✅ Checkpoint Loaded! You can now 'Continue Evolution'.", icon="✨")
-                    
-                    # --- NEW: Add helpful info boxes about the loaded state ---
-                    last_gen = 0
-                    if st.session_state.history:
-                        last_gen = st.session_state.history[-1]['generation']
-                    
-                    st.sidebar.success(f"**Checkpoint Loaded Successfully!**")
-                    st.sidebar.info(
-                        f"""
-                        - **Last Generation:** {last_gen}
-                        - **Final Population:** {len(st.session_state.current_population)} organisms
-                        - **Fossil Record:** {len(st.session_state.gene_archive)} genotypes
-                        - **Evolved Senses:** {len(st.session_state.evolvable_condition_sources)}
+                    # --- NEW: Check if file is a ZIP ---
+                    if uploaded_file.name.endswith('.zip'):
+                        st.toast("Unzipping checkpoint... Please wait.", icon="📦")
+                        # Use io.BytesIO to read the uploaded file in memory
+                        mem_zip = io.BytesIO(uploaded_file.getvalue())
                         
-                        You are ready to click **'🧬 Continue Evolution'** to proceed from Gen {last_gen + 1}.
-                        """
-                    )
+                        # Open the zip file from memory
+                        with zipfile.ZipFile(mem_zip, 'r') as zf:
+                            # Find the first .json file inside the zip
+                            json_filename = None
+                            for f in zf.namelist():
+                                if f.endswith('.json') and not f.startswith('__MACOSX'):
+                                    json_filename = f
+                                    break
+                            
+                            if json_filename:
+                                st.toast(f"Found '{json_filename}' inside zip.", icon="📄")
+                                # Open and load the json file
+                                with zf.open(json_filename) as f:
+                                    data = json.load(f) # Use json.load() for file object
+                            else:
+                                st.error("No .json file found inside the .zip archive.")
                     
-                    st.rerun()
+                    # --- Fallback for old .json files ---
+                    elif uploaded_file.name.endswith('.json'):
+                        st.toast("Loading .json file...", icon="📄")
+                        data = json.loads(uploaded_file.getvalue()) # Use json.loads() for bytes
                     
+                    # --- If data was successfully loaded (from either zip or json) ---
+                    if data is not None:
+                        st.toast("Checkpoint found... Loading state...", icon="⏳")
+                        
+                        # 1. Load Settings
+                        loaded_settings = data.get('settings', {})
+                        st.session_state.settings = loaded_settings
+                        if settings_table.get(doc_id=1):
+                            settings_table.update(loaded_settings, doc_ids=[1])
+                        else:
+                            settings_table.insert(loaded_settings)
+                        
+                        # 2. Load History & Metrics
+                        st.session_state.history = data.get('history', [])
+                        st.session_state.evolutionary_metrics = data.get('evolutionary_metrics', [])
+                        
+                        # 3. Load Chronicle
+                        st.session_state.genesis_events = data.get('genesis_events', [])
+                        
+                        # 4. Load Populations (using the new helpers)
+                        st.session_state.current_population = deserialize_population(data.get('final_population_genotypes', []))
+                        st.session_state.gene_archive = deserialize_population(data.get('full_gene_archive', []))
+                        
+                        # 5. Load Evolved Physics & Senses
+                        if 'final_physics_constants' in data:
+                            # Safely update the global registry
+                            CHEMICAL_BASES_REGISTRY.clear()
+                            CHEMICAL_BASES_REGISTRY.update(data['final_physics_constants'])
+                        
+                        if 'final_evolved_senses' in data:
+                            st.session_state.evolvable_condition_sources = data['final_evolved_senses']
+
+                        # 6. Re-derive Chronicle state trackers from loaded data
+                        st.session_state.seen_kingdoms = set(h['kingdom_id'] for h in st.session_state.history)
+                        st.session_state.crossed_complexity_thresholds = set(
+                            int(t) for e in st.session_state.genesis_events 
+                            if e['type'] == 'Complexity Leap' 
+                            for t in [10, 25, 50, 100, 200, 500] 
+                            if str(t) in e['title']
+                        )
+                        st.session_state.last_dominant_kingdom = st.session_state.history[-1]['kingdom_id'] if st.session_state.history else None
+                        st.session_state.has_logged_colonial_emergence = any(e['type'] == 'Major Transition' and 'Colonial Life' in e['title'] for e in st.session_state.genesis_events)
+                        st.session_state.has_logged_philosophy_divergence = any(e['type'] == 'Cognitive Leap' and 'Philosophical Divergence' in e['title'] for e in st.session_state.genesis_events)
+                        st.session_state.has_logged_computation_dawn = any(e['type'] == 'Complexity Leap' and 'Computation' in e['title'] for e in st.session_state.genesis_events)
+                        st.session_state.has_logged_first_communication = any(e['type'] == 'Major Transition' and 'Communication' in e['title'] for e in st.session_state.genesis_events)
+                        st.session_state.has_logged_memory_invention = any(e['type'] == 'Cognitive Leap' and 'Memory' in e['title'] for e in st.session_state.genesis_events)
+
+                        # 7. Save loaded results to the active DB (mirroring preset logic)
+                        results_to_save = {
+                            'history': st.session_state.history,
+                            'evolutionary_metrics': st.session_state.evolutionary_metrics,
+                        }
+                        if results_table.get(doc_id=1):
+                            results_table.update(results_to_save, doc_ids=[1])
+                        else:
+                            results_table.insert(results_to_save)
+                        
+                        st.toast("✅ Checkpoint Loaded! You can now 'Continue Evolution'.", icon="🎉")
+                        
+                        # --- Your new helpful info boxes ---
+                        last_gen = 0
+                        if st.session_state.history:
+                            last_gen = st.session_state.history[-1]['generation']
+                        
+                        st.sidebar.success(f"**Checkpoint Loaded Successfully!**")
+                        st.sidebar.info(
+                            f"""
+                            - **Last Generation:** {last_gen}
+                            - **Final Population:** {len(st.session_state.current_population)} organisms
+                            - **Fossil Record:** {len(st.session_state.gene_archive)} genotypes
+                            - **Evolved Senses:** {len(st.session_state.evolvable_condition_sources)}
+                            
+                            You are ready to click **'🧬 Continue Evolution'** to proceed from Gen {last_gen + 1}.
+                            """
+                        )
+                        
+                        st.rerun()
                     
+                    elif data is None and not uploaded_file.name.endswith('.zip'):
+                        st.error("File is not a .zip or .json file.")
+                        
                 except Exception as e:
                     st.error(f"Failed to load checkpoint: {e}")
             else:
