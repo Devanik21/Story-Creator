@@ -2307,7 +2307,7 @@ def main():
                 st.toast(f"Deleted universe '{selected_preset}'.", icon="🗑️")
                 st.rerun()
                     
-    st.sidebar.markdown("---")
+        st.sidebar.markdown("---")
         st.sidebar.markdown("#### 💾 Load Universe from Checkpoint")
         uploaded_file = st.sidebar.file_uploader(
             "Upload your 'universe_results.json' file", 
