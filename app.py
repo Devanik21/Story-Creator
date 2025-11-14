@@ -2979,7 +2979,13 @@ def main():
     # ===============================================
     # --- MAIN APP LOGIC ---
     # ===============================================
-    
+    # --- NEW: Persistent info box about current state ---
+    if st.session_state.history:
+        last_gen = st.session_state.history[-1]['generation']
+        st.sidebar.info(f"**Status:** Loaded checkpoint at **Gen {last_gen}**. Ready to continue.", icon="ℹ️")
+    else:
+        st.sidebar.info("**Status:** Ready for a new Big Bang.", icon="ℹ️")
+
     # --- Main Control Buttons ---
     col1, col2 = st.sidebar.columns(2)
     
