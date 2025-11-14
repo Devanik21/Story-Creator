@@ -2083,6 +2083,8 @@ def main():
         st.session_state.show_genesis_chronicle = False
     if 'dashboard_visible' not in st.session_state:   # <-- RENAMED this line
         st.session_state.dashboard_visible = False
+    if 'analytics_lab_visible' not in st.session_state: # <-- ADD THIS LINE
+        st.session_state.analytics_lab_visible = False
     
     # --- Password Protection (Reused from GENEVO) ---
     def check_password():
@@ -5017,37 +5019,52 @@ def main():
 
 
         with tab_analytics_lab:
-            st.header("📊 Custom Analytics Lab")
-            st.markdown("A flexible laboratory for generating custom 2D plots to explore the relationships within your universe's evolutionary history. Configure the number of plots in the sidebar.")
-            st.markdown("---")
+            # --- NEW LAZY-LOADING LOGIC ---
+            if st.session_state.analytics_lab_visible:
+                st.header("📊 Custom Analytics Lab")
+                st.markdown("A flexible laboratory for generating custom 2D plots to explore the relationships within your universe's evolutionary history. Configure the number of plots in the sidebar.")
+                st.markdown("---")
 
-            num_plots = s.get('num_custom_plots', 4)
-            
-            # A list of available plotting functions
-            plot_functions = [
-                plot_fitness_vs_complexity,
-                plot_lifespan_vs_cell_count,
-                plot_energy_dynamics,
-                plot_complexity_density,
-                plot_fitness_violin_by_kingdom,
-                plot_complexity_vs_lifespan,
-                plot_energy_efficiency_over_time,
-                plot_cell_count_dist_by_kingdom,
-                plot_lifespan_dist_by_kingdom,
-                plot_complexity_vs_energy_prod,
-                plot_fitness_scatter_over_time,
-                plot_elite_parallel_coords
-            ]
+                num_plots = s.get('num_custom_plots', 4)
+                
+                # A list of available plotting functions
+                plot_functions = [
+                    plot_fitness_vs_complexity,
+                    plot_lifespan_vs_cell_count,
+                    plot_energy_dynamics,
+                    plot_complexity_density,
+                    plot_fitness_violin_by_kingdom,
+                    plot_complexity_vs_lifespan,
+                    plot_energy_efficiency_over_time,
+                    plot_cell_count_dist_by_kingdom,
+                    plot_lifespan_dist_by_kingdom,
+                    plot_complexity_vs_energy_prod,
+                    plot_fitness_scatter_over_time,
+                    plot_elite_parallel_coords
+                ]
 
-            # Create a two-column layout
-            cols = st.columns(2)
-            for i in range(num_plots):
-                with cols[i % 2]:
-                    # Display a unique plot for each index
-                    if i < len(plot_functions):
-                        plot_func = plot_functions[i]
-                        fig = plot_func(history_df, key=f"custom_plot_{i}")
-                        st.plotly_chart(fig, width='stretch', key=f"custom_plotly_chart_{i}")
+                # Create a two-column layout
+                cols = st.columns(2)
+                for i in range(num_plots):
+                    with cols[i % 2]:
+                        # Display a unique plot for each index
+                        if i < len(plot_functions):
+                            plot_func = plot_functions[i]
+                            fig = plot_func(history_df, key=f"custom_plot_{i}")
+                            st.plotly_chart(fig, width='stretch', key=f"custom_plotly_chart_{i}")
+                
+                # --- HIDE BUTTON ---
+                st.markdown("---")
+                if st.button("Clear & Hide Analytics Lab", key="hide_analytics_lab_button"):
+                    st.session_state.analytics_lab_visible = False
+                    st.rerun()
+
+            # --- RENDER BUTTON ---
+            else:
+                st.info("This tab renders custom plots. It is paused to save memory.")
+                if st.button("📊 Render Custom Analytics Lab", key="render_analytics_lab_button"):
+                    st.session_state.analytics_lab_visible = True
+                    st.rerun()
         
         st.markdown("---")
         
