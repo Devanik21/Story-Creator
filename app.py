@@ -2374,8 +2374,27 @@ def main():
                     else:
                         results_table.insert(results_to_save)
 
-                    st.toast("✅ Checkpoint Loaded! You can now 'Continue Evolution'.", icon="🎉")
+                    st.toast("✅ Checkpoint Loaded! You can now 'Continue Evolution'.", icon="✨")
+                    
+                    # --- NEW: Add helpful info boxes about the loaded state ---
+                    last_gen = 0
+                    if st.session_state.history:
+                        last_gen = st.session_state.history[-1]['generation']
+                    
+                    st.sidebar.success(f"**Checkpoint Loaded Successfully!**")
+                    st.sidebar.info(
+                        f"""
+                        - **Last Generation:** {last_gen}
+                        - **Final Population:** {len(st.session_state.current_population)} organisms
+                        - **Fossil Record:** {len(st.session_state.gene_archive)} genotypes
+                        - **Evolved Senses:** {len(st.session_state.evolvable_condition_sources)}
+                        
+                        You are ready to click **'🧬 Continue Evolution'** to proceed from Gen {last_gen + 1}.
+                        """
+                    )
+                    
                     st.rerun()
+                    
                     
                 except Exception as e:
                     st.error(f"Failed to load checkpoint: {e}")
@@ -4665,9 +4684,15 @@ def main():
                         phylogeny_graph.add_node(kingdom, label=f"{kingdom}\n(Gen {gen})")
 
                         # Find parent lineage
-                        parent_lineage_id = history_df.loc[history_df['lineage_id'] == row['lineage_id'], 'parent_ids'].iloc[0]
-                        if parent_lineage_id:
-                            parent_df = history_df[history_df['lineage_id'] == parent_lineage_id[0]]
+                        parent_ids_list = history_df.loc[history_df['lineage_id'] == row['lineage_id'], 'parent_ids'].iloc[0]
+                        
+                        # --- FIX: Check if parent_ids_list is a valid, non-empty list ---
+                        # It might be NaN (a float) if pandas auto-converted empty lists.
+                        if isinstance(parent_ids_list, list) and len(parent_ids_list) > 0:
+                            # It's a valid list, take the first parent
+                            first_parent_id = parent_ids_list[0]
+                            parent_df = history_df[history_df['lineage_id'] == first_parent_id]
+                            
                             if not parent_df.empty:
                                 parent_kingdom = parent_df.iloc[0]['kingdom_id']
                                 if parent_kingdom != kingdom and parent_kingdom in phylogeny_graph.nodes():
