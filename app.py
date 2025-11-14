@@ -2021,6 +2021,38 @@ def plot_fitness_violin_by_kingdom(df: pd.DataFrame, key: str) -> go.Figure:
     fig.update_layout(height=400)
     return fig
 
+
+
+def deserialize_genotype(geno_dict: Dict) -> Genotype:
+    """Helper function to reconstruct a Genotype object from a dictionary."""
+    try:
+        # Reconstruct ComponentGene dict
+        comp_genes_dict = geno_dict.get('component_genes', {})
+        re_comp_genes = {}
+        for comp_id, comp_dict in comp_genes_dict.items():
+            # Use comp_id as the key, not comp_dict['name']
+            re_comp_genes[comp_id] = ComponentGene(**comp_dict)
+        geno_dict['component_genes'] = re_comp_genes
+        
+        # Reconstruct RuleGene list
+        rule_genes_list = geno_dict.get('rule_genes', [])
+        re_rule_genes = [RuleGene(**rule_dict) for rule_dict in rule_genes_list]
+        geno_dict['rule_genes'] = re_rule_genes
+        
+        # Create the main Genotype object
+        return Genotype(**geno_dict)
+    except Exception as e:
+        st.error(f"Error deserializing genotype: {e} | Data: {geno_dict.get('id', 'N/A')}")
+        # Return a "dead" genotype
+        return Genotype(id=geno_dict.get('id', 'error_id'), fitness=-1)
+
+def deserialize_population(pop_data_list: List[Dict]) -> List[Genotype]:
+    """Deserializes an entire population list from a JSON-friendly format."""
+    reconstructed_pop = []
+    for geno_dict in pop_data_list:
+        reconstructed_pop.append(deserialize_genotype(geno_dict))
+    return [g for g in reconstructed_pop if g.fitness != -1] # Filter out any broken ones
+
 # ========================================================
 #
 # PART 7: THE STREAMLIT APP (THE "GOD-PANEL")
@@ -2276,6 +2308,79 @@ def main():
                 st.rerun()
                     
     st.sidebar.markdown("---")
+        st.sidebar.markdown("#### 💾 Load Universe from Checkpoint")
+        uploaded_file = st.sidebar.file_uploader(
+            "Upload your 'universe_results.json' file", 
+            type="json", 
+            key="checkpoint_uploader"
+        )
+        
+        if st.sidebar.button("LOAD FROM UPLOADED FILE", width='stretch', key="load_checkpoint_button"):
+            if uploaded_file is not None:
+                try:
+                    data = json.loads(uploaded_file.getvalue())
+                    st.toast("Checkpoint found... Loading state...", icon="⏳")
+                    
+                    # 1. Load Settings
+                    loaded_settings = data.get('settings', {})
+                    st.session_state.settings = loaded_settings
+                    if settings_table.get(doc_id=1):
+                        settings_table.update(loaded_settings, doc_ids=[1])
+                    else:
+                        settings_table.insert(loaded_settings)
+                    
+                    # 2. Load History & Metrics
+                    st.session_state.history = data.get('history', [])
+                    st.session_state.evolutionary_metrics = data.get('evolutionary_metrics', [])
+                    
+                    # 3. Load Chronicle
+                    st.session_state.genesis_events = data.get('genesis_events', [])
+                    
+                    # 4. Load Populations (using the new helpers)
+                    st.session_state.current_population = deserialize_population(data.get('final_population_genotypes', []))
+                    st.session_state.gene_archive = deserialize_population(data.get('full_gene_archive', []))
+                    
+                    # 5. Load Evolved Physics & Senses
+                    if 'final_physics_constants' in data:
+                        # Safely update the global registry
+                        CHEMICAL_BASES_REGISTRY.clear()
+                        CHEMICAL_BASES_REGISTRY.update(data['final_physics_constants'])
+                    
+                    if 'final_evolved_senses' in data:
+                        st.session_state.evolvable_condition_sources = data['final_evolved_senses']
+
+                    # 6. Re-derive Chronicle state trackers from loaded data
+                    st.session_state.seen_kingdoms = set(h['kingdom_id'] for h in st.session_state.history)
+                    st.session_state.crossed_complexity_thresholds = set(
+                        int(t) for e in st.session_state.genesis_events 
+                        if e['type'] == 'Complexity Leap' 
+                        for t in [10, 25, 50, 100, 200, 500] 
+                        if str(t) in e['title']
+                    )
+                    st.session_state.last_dominant_kingdom = st.session_state.history[-1]['kingdom_id'] if st.session_state.history else None
+                    st.session_state.has_logged_colonial_emergence = any(e['type'] == 'Major Transition' and 'Colonial Life' in e['title'] for e in st.session_state.genesis_events)
+                    st.session_state.has_logged_philosophy_divergence = any(e['type'] == 'Cognitive Leap' and 'Philosophical Divergence' in e['title'] for e in st.session_state.genesis_events)
+                    st.session_state.has_logged_computation_dawn = any(e['type'] == 'Complexity Leap' and 'Computation' in e['title'] for e in st.session_state.genesis_events)
+                    st.session_state.has_logged_first_communication = any(e['type'] == 'Major Transition' and 'Communication' in e['title'] for e in st.session_state.genesis_events)
+                    st.session_state.has_logged_memory_invention = any(e['type'] == 'Cognitive Leap' and 'Memory' in e['title'] for e in st.session_state.genesis_events)
+
+                    # 7. Save loaded results to the active DB (mirroring preset logic)
+                    results_to_save = {
+                        'history': st.session_state.history,
+                        'evolutionary_metrics': st.session_state.evolutionary_metrics,
+                    }
+                    if results_table.get(doc_id=1):
+                        results_table.update(results_to_save, doc_ids=[1])
+                    else:
+                        results_table.insert(results_to_save)
+
+                    st.toast("✅ Checkpoint Loaded! You can now 'Continue Evolution'.", icon="🎉")
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Failed to load checkpoint: {e}")
+            else:
+                st.warning("Please upload a file first.")
         
     st.sidebar.markdown("### 🌍 Universe Physics & Environment")
     with st.sidebar.expander("Fundamental Physical Constants", expanded=False):
@@ -3353,6 +3458,475 @@ def main():
         
         # --- Save results ---
         # (Full serialization is complex, saving history is the key part)
+        results_to_save = {
+            'history': st.session_state.history,
+            'evolutionary_metrics': st.session_state.evolutionary_metrics,
+        }
+        if results_table.get(doc_id=1):
+            results_table.update(results_to_save, doc_ids=[1])
+        else:
+            results_table.insert(results_to_save)
+
+# ===============================================
+    # --- NEW "CONTINUE EVOLUTION" LOGIC ---
+    # ===============================================
+    if col2.button("🧬 CONTINUE EVOLUTION", width='stretch', key="continue_evolution_button"):
+        if not st.session_state.current_population:
+            st.error("Cannot continue: No population found. Load a checkpoint or 'Ignite' a new universe first.")
+            st.stop()
+        
+        # --- 1. Get State ---
+        population = st.session_state.current_population
+        s = st.session_state.settings # Get current settings
+        
+        start_gen = 0
+        if st.session_state.history:
+            # Start from the *next* generation
+            start_gen = st.session_state.history[-1]['generation'] + 1
+        
+        num_generations_to_run = s.get('num_generations', 200)
+        end_gen = start_gen + num_generations_to_run
+
+        st.toast(f"Continuing simulation from Gen {start_gen} to {end_gen}...")
+
+        # --- 2. Seeding (Same as 'IGNITE') ---
+        if s.get('random_seed', 42) != -1:
+            random.seed(s.get('random_seed', 42))
+            np.random.seed(s.get('random_seed', 42))
+            st.toast(f"Using fixed random seed: {s.get('random_seed', 42)}", icon="🎲")
+            
+        # --- 3. Initialize Universe Grid (Same as 'IGNITE') ---
+        universe_grid = UniverseGrid(s)
+        
+        # --- 4. Evolution Loop (Copied from 'IGNITE', skipping init) ---
+        progress_container = st.empty()
+        metrics_container = st.empty()
+        status_text = st.empty()
+        
+        # --- Re-init stagnation counters from loaded state ---
+        last_best_fitness = -1
+        if st.session_state.evolutionary_metrics:
+            last_best_fitness = st.session_state.evolutionary_metrics[-1]['best_fitness']
+        early_stop_counter = 0 # Reset this counter for the new run
+        current_mutation_rate = s.get('mutation_rate', 0.2)
+        hypermutation_duration = 0 # Reset this
+
+        # --- Re-init Red Queen from history ---
+        red_queen = RedQueenParasite()
+        if s.get('enable_red_queen', True) and st.session_state.history:
+            # Find the dominant kingdom from the *very last* generation
+            last_gen_df = pd.DataFrame(st.session_state.history)
+            last_gen_df = last_gen_df[last_gen_df['generation'] == last_gen_df['generation'].max()]
+            if not last_gen_df.empty:
+                kingdom_counts = Counter(last_gen_df['kingdom_id'])
+                if kingdom_counts:
+                    red_queen.target_kingdom_id = kingdom_counts.most_common(1)[0][0]
+
+        # --- Chronicle state trackers are already loaded by the file loader, so they are ready ---
+        
+        for gen in range(start_gen, end_gen):
+            status_text.markdown(f"### 🌌 Generation {gen + 1}/{end_gen}")
+            
+            # --- 1. Evaluate Fitness ---
+            fitness_scores = []
+            for genotype in population:
+                # Re-initialize grid for each organism to have a "fresh" start
+                # (In a true ecosystem sim, they'd compete on the *same* grid)
+                organism_grid = UniverseGrid(s) 
+                individual_fitness = evaluate_fitness(genotype, organism_grid, s)
+                genotype.individual_fitness = individual_fitness # Store pre-adjustment fitness
+                genotype.fitness = individual_fitness # Start with individual fitness
+                genotype.generation = gen
+                genotype.age += 1
+            
+            # --- 1a. Apply Red Queen Co-evolution Pressure ---
+            if s.get('enable_red_queen', True):
+                # Find the most common kingdom in the current population
+                if population:
+                    kingdom_counts = Counter(g.kingdom_id for g in population)
+                    most_common_kingdom, _ = kingdom_counts.most_common(1)[0]
+                    
+                    # Parasite adapts to the most common kingdom
+                    if random.random() < s.get('red_queen_adaptation_speed', 0.2):
+                        red_queen.target_kingdom_id = most_common_kingdom
+                        st.toast(f"👑 Red Queen Adapts! Parasite now targets **{most_common_kingdom}**.", icon="🦠")
+                        event_desc = f"A co-evolving parasite has adapted, now specifically targeting the dominant **{most_common_kingdom}** kingdom. This forces an evolutionary arms race."
+                        st.session_state.genesis_events.append({
+                            'generation': gen,
+                            'type': 'Red Queen',
+                            'title': f"Parasite Adapts to {most_common_kingdom}",
+                            'description': event_desc,
+                            'icon': '👑'
+                        })
+
+                # Apply fitness penalty to organisms targeted by the parasite
+                for genotype in population:
+                    if genotype.kingdom_id == red_queen.target_kingdom_id:
+                        penalty = genotype.fitness * s.get('red_queen_virulence', 0.15)
+                        genotype.fitness = max(1e-6, genotype.fitness - penalty)
+
+            # --- 1b. Multi-Level Selection (MLS) ---
+            if s.get('enable_multi_level_selection', False):
+                # --- Form Colonies ---
+                colonies: Dict[str, List[Genotype]] = {}
+                # Simple grouping by lineage for this example. A more complex model could use spatial proximity or behavior.
+                sorted_pop = sorted(population, key=lambda g: g.lineage_id)
+                colony_size = s.get('colony_size', 10)
+                num_colonies = (len(sorted_pop) + colony_size - 1) // colony_size
+
+                for i in range(num_colonies):
+                    colony_id = f"col_{gen}_{i}"
+                    colony_members = sorted_pop[i*colony_size:(i+1)*colony_size]
+                    colonies[colony_id] = []
+                    for member in colony_members:
+                        member.colony_id = colony_id
+                        colonies[colony_id].append(member)
+
+                # --- Evaluate Group Fitness ---
+                group_fitness_scores: Dict[str, float] = {}
+                for colony_id, members in colonies.items():
+                    if not members: continue
+                    
+                    # Group fitness could be based on many things. Here, we'll use the mean individual fitness.
+                    # A more complex model could reward diversity, total energy, etc.
+                    mean_individual_fitness = np.mean([m.individual_fitness for m in members])
+                    
+                    # Bonus for specialization (diversity of components within the colony)
+                    all_components = set()
+                    for member in members:
+                        all_components.update(member.component_genes.keys())
+                    specialization_bonus = len(all_components) * s.get('caste_specialization_bonus', 0.1)
+
+                    group_fitness = mean_individual_fitness + specialization_bonus
+                    group_fitness_scores[colony_id] = group_fitness
+
+                # --- Adjust Individual Fitness based on Group Success (Price Equation simplified) ---
+                group_weight = s.get('group_fitness_weight', 0.3)
+                for genotype in population:
+                    if genotype.colony_id in group_fitness_scores:
+                        group_fitness = group_fitness_scores[genotype.colony_id]
+                        # Final fitness is a blend of individual success and group success
+                        genotype.fitness = (genotype.individual_fitness * (1 - group_weight)) + (group_fitness * group_weight)
+
+                # --- NEW: Log Emergence of Colonial Life ---
+                if not st.session_state.get('has_logged_colonial_emergence', False):
+                    # Check if any colony's fitness is substantially higher than the population average
+                    pop_mean_fitness = np.mean([g.individual_fitness for g in population])
+                    if any(gf > pop_mean_fitness * 1.2 for gf in group_fitness_scores.values()):
+                        event_desc = "For the first time, individual organisms have aggregated into a cooperative colony whose group success surpasses that of average individuals. This marks a major transition towards higher-level superorganisms."
+                        st.session_state.genesis_events.append({
+                            'generation': gen, 'type': 'Major Transition', 'title': 'Emergence of Colonial Life',
+                            'description': event_desc, 'icon': '🤝'
+                        })
+                        st.session_state.has_logged_colonial_emergence = True
+                        st.toast("🤝 Major Transition! Colonial life has emerged!", icon="🎉")
+
+
+            # --- 1c. Cataclysmic Events ---
+            if hypermutation_duration > 0:
+                current_mutation_rate = s.get('mutation_rate', 0.2) * s.get('post_cataclysm_hypermutation_multiplier', 2.0)
+                hypermutation_duration -= 1
+                if hypermutation_duration == 0:
+                    st.toast("Hypermutation period has ended. Mutation rates returning to normal.", icon="📉")
+            else:
+                current_mutation_rate = s.get('mutation_rate', 0.2)
+
+            if s.get('enable_cataclysms', True) and random.random() < s.get('cataclysm_probability', 0.01):
+                st.warning(f"🌋 **CATACLYSM!** A universe-shaking event has occurred in Generation {gen+1}!", icon="💥")
+                event_desc = f"A random cosmological event has caused a mass extinction, wiping out **{s.get('cataclysm_extinction_severity', 0.9)*100:.0f}%** of all life and radically altering the environmental resource maps."
+                st.session_state.genesis_events.append({
+                    'generation': gen,
+                    'type': 'Cataclysm',
+                    'title': 'Mass Extinction Event',
+                    'description': event_desc,
+                    'icon': '🌋'
+                })
+                
+                # --- Mass Extinction ---
+                extinction_severity = s.get('cataclysm_extinction_severity', 0.9)
+                survivors_after_cataclysm = int(len(population) * (1.0 - extinction_severity))
+                population.sort(key=lambda x: x.fitness, reverse=True) # The fittest have a better chance
+                population = population[:survivors_after_cataclysm]
+                st.toast(f"Mass extinction! {extinction_severity*100:.0f}% of life has been wiped out.", icon="💀")
+
+                # --- Landscape Shift ---
+                # This invalidates old fitness scores by changing the environment.
+                # We can simulate this by re-initializing the main grid object.
+                universe_grid = UniverseGrid(s)
+                st.toast("The environment has been radically altered! Resource maps have shifted.", icon="🌍")
+
+                # --- Trigger Hypermutation Period ---
+                hypermutation_duration = s.get('post_cataclysm_hypermutation_duration', 10)
+                st.toast(f"Adaptive radiation begins! Hypermutation enabled for {hypermutation_duration} generations.", icon="📈")
+
+                # Re-fill population to initial size with mutated survivors
+                while len(population) < s.get('initial_population', 50) and population:
+                    parent = random.choice(population)
+                    child = mutate(parent, s)
+                    population.append(child)
+
+            fitness_scores = [g.fitness for g in population]
+            
+            if not fitness_scores:
+                st.error("EXTINCTION EVENT. All life has perished.")
+                break # End simulation
+                
+            fitness_array = np.array(fitness_scores)
+            
+            # --- NEW: Genesis Chronicle Complex Event Logging ---
+            current_kingdoms = set(g.kingdom_id for g in population)
+            
+            # 1. First Emergence of a Kingdom
+            newly_emerged_kingdoms = current_kingdoms - st.session_state.seen_kingdoms
+            for kingdom in newly_emerged_kingdoms:
+                if kingdom != "Unknown" and kingdom != "Unclassified":
+                    event_desc = f"For the first time in this universe's history, life based on the **{kingdom}** chemical archetype has emerged from the primordial soup, opening a new evolutionary frontier."
+                    st.session_state.genesis_events.append({
+                        'generation': gen, 'type': 'Genesis', 'title': f"Genesis of {kingdom} Life",
+                        'description': event_desc, 'icon': '✨'
+                    })
+                    st.session_state.seen_kingdoms.add(kingdom)
+
+            # 2. Major Kingdom Shift
+            kingdom_counts = Counter(g.kingdom_id for g in population)
+            if kingdom_counts:
+                current_dominant_kingdom, _ = kingdom_counts.most_common(1)[0]
+                if st.session_state.last_dominant_kingdom and current_dominant_kingdom != st.session_state.last_dominant_kingdom:
+                    event_desc = f"A major ecological shift has occurred. Life based on **{current_dominant_kingdom}** has overthrown the previous era's dominant **{st.session_state.last_dominant_kingdom}**-based lifeforms."
+                    st.session_state.genesis_events.append({
+                        'generation': gen, 'type': 'Succession', 'title': f"The {current_dominant_kingdom} Era Begins",
+                        'description': event_desc, 'icon': '👑'
+                    })
+                st.session_state.last_dominant_kingdom = current_dominant_kingdom
+
+            # 3. Complexity Thresholds Crossed
+            max_complexity_in_gen = 0
+            if population:
+                max_complexity_in_gen = max(p.compute_complexity() for p in population)
+            
+            complexity_thresholds_to_log = [10, 25, 50, 100, 200, 500] # Defined in 'IGNITE' block
+            for threshold in complexity_thresholds_to_log:
+                if max_complexity_in_gen >= threshold and threshold not in st.session_state.crossed_complexity_thresholds:
+                    fittest_organism = max(population, key=lambda p: p.fitness)
+                    event_desc = f"A new era of biological organization has been reached. An organism from the **{fittest_organism.kingdom_id}** kingdom has achieved a genomic complexity of over **{threshold}**, enabling far more sophisticated body plans and behaviors."
+                    st.session_state.genesis_events.append({
+                        'generation': gen, 'type': 'Complexity Leap', 'title': f"Complexity Barrier Broken ({threshold})",
+                        'description': event_desc, 'icon': '🧠'
+                    })
+                    st.session_state.crossed_complexity_thresholds.add(threshold)
+
+            # --- Update seen kingdoms for the next generation ---
+            st.session_state.seen_kingdoms.update(current_kingdoms)
+            # --- END of Genesis Chronicle Logging ---
+            
+            # --- NEW: More Complex Findings Logging ---
+            for org in population:
+                # 4. Philosophical Divergence
+                if s.get('enable_objective_evolution', False) and not st.session_state.get('has_logged_philosophy_divergence', False):
+                    default_weights = np.array([s.get('w_lifespan', 0.4), s.get('w_efficiency', 0.3), s.get('w_reproduction', 0.3)])
+                    org_weights_dict = org.objective_weights
+                    org_weights = np.array([org_weights_dict.get('w_lifespan', 0), org_weights_dict.get('w_efficiency', 0), org_weights_dict.get('w_reproduction', 0)])
+                    distance = np.linalg.norm(default_weights - org_weights)
+                    if distance > 0.5: # Threshold for significant divergence
+                        top_objective = max(org_weights_dict, key=org_weights_dict.get)
+                        event_desc = f"A lineage has evolved its own 'philosophy of life,' radically altering its fitness objectives. Instead of pursuing the universe's default goals, it now prioritizes '{top_objective}', marking the dawn of autotelic (self-directed) evolution."
+                        st.session_state.genesis_events.append({
+                            'generation': gen, 'type': 'Cognitive Leap', 'title': 'Philosophical Divergence',
+                            'description': event_desc, 'icon': '📜'
+                        })
+                        st.session_state.has_logged_philosophy_divergence = True
+                        st.toast("📜 Cognitive Leap! An organism evolved its own goals!", icon="🎉")
+                        break # Log only once per generation
+
+                # 5. Dawn of Computation (Genetic Switches)
+                if not st.session_state.get('has_logged_computation_dawn', False):
+                    if any(rule.action_type in ["ENABLE_RULE", "DISABLE_RULE"] for rule in org.rule_genes):
+                        event_desc = "A genetic regulatory network has evolved a 'genetic switch,' where one rule can enable or disable another. This allows for complex, stateful developmental programs, a primitive form of biological computation."
+                        st.session_state.genesis_events.append({
+                            'generation': gen, 'type': 'Complexity Leap', 'title': 'Dawn of Computation',
+                            'description': event_desc, 'icon': '⚙️'
+                        })
+                        st.session_state.has_logged_computation_dawn = True
+                        st.toast("⚙️ Complexity Leap! Life evolved a genetic switch!", icon="🎉")
+                        break
+
+                # 6. First Communication
+                if not st.session_state.get('has_logged_first_communication', False):
+                    if any(rule.action_type == "EMIT_SIGNAL" for rule in org.rule_genes):
+                        event_desc = "An organism has evolved the ability for its cells to emit chemical signals. This is the first step towards intercellular communication, allowing for coordinated growth and the formation of complex patterns (morphogenesis)."
+                        st.session_state.genesis_events.append({
+                            'generation': gen, 'type': 'Major Transition', 'title': 'First Communication',
+                            'description': event_desc, 'icon': '📡'
+                        })
+                        st.session_state.has_logged_first_communication = True
+                        st.toast("📡 Major Transition! Cells have learned to communicate!", icon="🎉")
+                        break
+
+                # 7. Invention of Memory
+                if not st.session_state.get('has_logged_memory_invention', False):
+                    if any(rule.action_type in ["SET_TIMER", "MODIFY_TIMER"] for rule in org.rule_genes):
+                        event_desc = "For the first time, an organism's genetic code includes instructions for an internal timer. This gives its cells a rudimentary memory and a sense of time, enabling sequential developmental programs and biological rhythms."
+                        st.session_state.genesis_events.append({
+                            'generation': gen, 'type': 'Cognitive Leap', 'title': 'Invention of Memory',
+                            'description': event_desc, 'icon': '⏳'
+                        })
+                        st.session_state.has_logged_memory_invention = True
+                        st.toast("⏳ Cognitive Leap! An organism evolved internal timers!", icon="🎉")
+                        break
+            # --- END of More Complex Findings ---
+
+
+            # --- 2. Record History ---
+            for individual in population:
+                st.session_state.history.append({
+                    'generation': gen,
+                    'kingdom_id': individual.kingdom_id,
+                    'fitness': individual.fitness,
+                    'cell_count': individual.cell_count,
+                    'complexity': individual.compute_complexity(),
+                    'lifespan': individual.lifespan,
+                    'energy_production': individual.energy_production,
+                    'energy_consumption': individual.energy_consumption,
+                    'lineage_id': individual.lineage_id,
+                    'parent_ids': getattr(individual, 'parent_ids', []),
+                })
+            
+            # --- 3. Evolutionary Metrics ---
+            diversity = entropy(np.histogram(fitness_array, bins=10)[0])
+            selection_differential = 0.0 # Simplified for this demo
+            
+            st.session_state.evolutionary_metrics.append({
+                'generation': gen,
+                'diversity': diversity,
+                'best_fitness': fitness_array.max(),
+                'mean_fitness': fitness_array.mean(),
+                'selection_differential': selection_differential,
+                'mutation_rate': current_mutation_rate, # Now dynamic
+            })
+            
+            # --- 4. Display Metrics ---
+            with metrics_container.container():
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("Best Fitness", f"{fitness_array.max():.4f}")
+                c2.metric("Mean Fitness", f"{fitness_array.mean():.4f}")
+                c3.metric("Diversity (H)", f"{diversity:.3f}")
+                c4.metric("Mutation Rate (μ)", f"{current_mutation_rate:.3f}")
+
+            # --- 5. Selection ---
+            population.sort(key=lambda x: x.fitness, reverse=True)
+            
+            # In MLS, selection can happen at the group level too.
+            if s.get('enable_multi_level_selection', False) and 'colonies' in locals():
+                # Tournament selection between colonies
+                num_surviving_colonies = max(1, int(len(colonies) * (1 - s.get('selection_pressure', 0.4))))
+                sorted_colonies = sorted(colonies.items(), key=lambda item: group_fitness_scores.get(item[0], 0), reverse=True)
+                
+                survivors = []
+                for colony_id, members in sorted_colonies[:num_surviving_colonies]:
+                    survivors.extend(members)
+                
+                if not survivors: # Failsafe if all colonies die
+                    num_survivors = max(2, int(len(population) * (1 - s.get('selection_pressure', 0.4))))
+                    survivors = population[:num_survivors]
+            else:
+                # Standard individual selection
+                num_survivors = max(2, int(len(population) * (1 - s.get('selection_pressure', 0.4))))
+                survivors = population[:num_survivors]
+            
+            # --- 6. Reproduction ---
+            offspring = []
+            pop_size = s.get('initial_population', 50) # Target size
+            
+            if not survivors:
+                st.error("EXTINCTION EVENT. No survivors to reproduce.")
+                break
+                
+            while len(survivors) + len(offspring) < pop_size:
+                parent1 = random.choice(survivors) # Could be weighted by fitness
+                parent2 = random.choice(survivors)
+
+                # --- Endosymbiosis Event ---
+                if s.get('enable_endosymbiosis', True) and random.random() < s.get('endosymbiosis_rate', 0.005):
+                    host = parent1.copy()
+                    symbiote = parent2.copy()
+
+                    # Merge Genomes: Combine components and rules
+                    # This is a powerful way to jump across the fitness landscape
+                    for comp_name, comp_gene in symbiote.component_genes.items():
+                        if comp_name not in host.component_genes:
+                            host.component_genes[comp_name] = comp_gene
+                    
+                    # Add a fraction of the symbiote's rules
+                    num_rules_to_take = int(len(symbiote.rule_genes) * random.uniform(0.2, 0.5))
+                    if symbiote.rule_genes:
+                        rules_to_take = random.sample(symbiote.rule_genes, num_rules_to_take)
+                        host.rule_genes.extend(rules_to_take)
+
+                    # Update metadata
+                    host.parent_ids.extend(symbiote.parent_ids)
+                    host.update_kingdom()
+                    host.generation = gen + 1
+                    
+                    # Mutate the new chimeric organism
+                    child = mutate(host, s)
+                    offspring.append(child)
+                    st.toast(f"💥 ENDOSYMBIOSIS! Organisms merged into a new lifeform!", icon="🧬")
+                    
+                    event_desc = f"Two distinct organisms from lineages `{parent1.lineage_id}` and `{parent2.lineage_id}` have merged into a single, more complex entity, combining their genetic material."
+                    st.session_state.genesis_events.append({
+                        'generation': gen,
+                        'type': 'Endosymbiosis',
+                        'title': 'Genomes Merged',
+                        'description': event_desc,
+                        'icon': '🧬'
+                    })
+
+                else:
+                    # --- Standard Reproduction ---
+                    # (Crossover is complex, we'll use mutation-only for this demo)
+                    child = parent1.copy()
+                    
+                    # Mutate
+                    child = mutate(child, s)
+                    
+                    child.generation = gen + 1
+                    offspring.append(child)
+            
+            population = survivors + offspring
+            st.session_state.gene_archive.extend([c.copy() for c in offspring]) # Add to archive
+
+            # --- 7. NEW 2.0: Meta-Innovation ---
+            meta_innovate_condition_source(s)
+
+            # "Truly Infinite" Physics Drift
+            if s.get('enable_physics_drift', False):
+                apply_physics_drift(s)
+            # --- END OF ADDITION ---
+                
+            # --- 8. Archive Pruning ---
+            max_archive = s.get('max_archive_size', 10000)
+            if len(st.session_state.gene_archive) > max_archive:
+                st.session_state.gene_archive = random.sample(st.session_state.gene_archive, max_archive)
+                
+            # --- 9. Early Stopping ---
+            current_best = fitness_array.max()
+            if current_best > last_best_fitness:
+                last_best_fitness = current_best
+                early_stop_counter = 0
+            else:
+                early_stop_counter += 1
+                
+            if s.get('enable_early_stopping', True) and early_stop_counter > s.get('early_stopping_patience', 25):
+                st.success(f"**EARLY STOPPING:** Evolution converged after {gen + 1} generations.")
+                break
+            
+            # --- MODIFIED PROGRESS BAR ---
+            progress_container.progress((gen - start_gen + 1) / num_generations_to_run)
+        
+        st.session_state.current_population = population
+        status_text.markdown("### ✅ Evolution Complete! Results saved.")
+        
+        # --- Save results ---
         results_to_save = {
             'history': st.session_state.history,
             'evolutionary_metrics': st.session_state.evolutionary_metrics,
