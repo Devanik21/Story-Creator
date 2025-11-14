@@ -2173,6 +2173,8 @@ def main():
     st.sidebar.markdown("---")
     
     s = copy.deepcopy(st.session_state.settings) # Use a mutable dict `s`
+    # This line syncs the widget's state with your loaded settings
+    st.session_state.ui_num_generations = s.get('num_generations', 100)
 
     # --- Reset Button ---
     if st.sidebar.button("Reset Universe to Defaults", width='stretch', key="reset_defaults_button"):
@@ -2502,7 +2504,26 @@ def main():
     
     st.sidebar.markdown("### ⚙️ Evolutionary Mechanics & Genetics")
     with st.sidebar.expander("Core Genetic Operators", expanded=True):
-        s['num_generations'] = st.slider("Generations to Simulate", 10, 5000, s.get('num_generations', 200), 10)
+        c1, c2 = st.columns([3, 1])
+        with c1:
+            st.slider(
+                "Generations to Simulate", 
+                min_value=10, 
+                max_value=50000, # Increased max for your research
+                step=10,
+                key="ui_num_generations" # This key syncs both widgets
+            )
+        with c2:
+            st.number_input(
+                "Value",
+                min_value=10,
+                max_value=50000, # Increased max
+                step=10,
+                key="ui_num_generations", # This key syncs both widgets
+                label_visibility="collapsed"
+            )
+        # Read the synced value back into your settings
+        s['num_generations'] = st.session_state.ui_num_generations
         s['selection_pressure'] = st.slider("Selection Pressure", 0.1, 0.9, s.get('selection_pressure', 0.4), 0.05)
         s['mutation_rate'] = st.slider("Base Mutation Rate (μ)", 0.01, 0.9, s.get('mutation_rate', 0.2), 0.01)
         s['crossover_rate'] = st.slider("Crossover Rate", 0.0, 1.0, s.get('crossover_rate', 0.7), 0.05)
@@ -2729,7 +2750,7 @@ def main():
 
     with st.sidebar.expander("📊 Custom Analytics Lab", expanded=False):
         st.markdown("Configure the custom analytics tab.")
-        s['num_custom_plots'] = st.slider("Number of Custom Plots", 0, 12, s.get('num_custom_plots', 4), 1)
+        s['num_custom_plots'] = st.slider("Number of Custom Plots", 0, 12, s.get('num_custom_plots', 0), 1)
         
     st.sidebar.markdown("---") # --- This is the separator you wanted ---
 
