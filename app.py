@@ -2174,7 +2174,8 @@ def main():
     
     s = copy.deepcopy(st.session_state.settings) # Use a mutable dict `s`
     # This line syncs the widget's state with your loaded settings
-    st.session_state.ui_num_generations = s.get('num_generations', 100)
+    # This line syncs the widget's state with your loaded settings
+    st.session_state.generation_simulator_sync_key = s.get('num_generations', 200)
 
     # --- Reset Button ---
     if st.sidebar.button("Reset Universe to Defaults", width='stretch', key="reset_defaults_button"):
@@ -2511,7 +2512,7 @@ def main():
                 min_value=10, 
                 max_value=50000, # Increased max for your research
                 step=10,
-                key="ui_num_generations" # This key syncs both widgets
+                key="generation_simulator_sync_key" # <-- RENAMED
             )
         with c2:
             st.number_input(
@@ -2519,9 +2520,11 @@ def main():
                 min_value=10,
                 max_value=50000, # Increased max
                 step=10,
-                key="ui_num_generations", # This key syncs both widgets
+                key="generation_simulator_sync_keys", # <-- RENAMED
                 label_visibility="collapsed"
             )
+        # Read the synced value back into your settings
+        s['num_generations'] = st.session_state.generation_simulator_sync_key # <-- RENAMED
         # Read the synced value back into your settings
         s['num_generations'] = st.session_state.ui_num_generations
         s['selection_pressure'] = st.slider("Selection Pressure", 0.1, 0.9, s.get('selection_pressure', 0.4), 0.05)
