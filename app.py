@@ -5066,6 +5066,8 @@ def main():
                     st.session_state.analytics_lab_visible = True
                     st.rerun()
         
+        
+        
         st.markdown("---")
         
         # --- Download Button ---
@@ -5087,17 +5089,37 @@ def main():
                 "final_evolved_senses": st.session_state.get('evolvable_condition_sources', []),
                 "final_grid_state": final_grid_state
             }
-            json_string = json.dumps(download_data, indent=4, cls=GenotypeJSONEncoder) # <-- ADD cls=...
             
+            # --- NEW ZIP FILE LOGIC ---
+            
+            # 1. Create a "virtual file" in memory
+            zip_buffer = io.BytesIO()
+
+            # 2. Create a zip file and write to the buffer
+            #    We use ZIP_DEFLATED for compression
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as zf:
+                # 3. Serialize the data to a string
+                json_string = json.dumps(download_data, indent=4, cls=GenotypeJSONEncoder)
+                
+                # 4. Write the string to a file *inside* the zip
+                file_name_in_zip = f"universe_results_{s.get('experiment_name', 'run').replace(' ', '_')}.json"
+                # We must encode the string to bytes to write it
+                zf.writestr(file_name_in_zip, json_string.encode('utf-8'))
+
+            # 5. The zip buffer is now complete. Pass its *value* to the download button.
             st.download_button(
-                label="📥 Download All Results as JSON",
-                data=json_string,
-                file_name=f"universe_results_{s.get('experiment_name', 'run').replace(' ', '_')}.json",
-                mime="application/json",
-                help="Download the settings, full generational history, metrics, chronicle events, gene archive, and final universe state as a single JSON file."
+                label="📥 Download All Results as .zip", # <-- CHANGED
+                data=zip_buffer.getvalue(), # <-- Pass the bytes from the buffer
+                file_name=f"universe_results_{s.get('experiment_name', 'run').replace(' ', '_')}.zip", # <-- CHANGED
+                mime="application/zip", # <-- CHANGED
+                help="Download the complete universe state (settings, history, gene archive) as a compressed ZIP file."
             )
+            
         except Exception as e:
             st.error(f"Could not prepare data for download: {e}")
+            st.exception(e) # Show the full traceback for debugging
+        
+
         
 if __name__ == "__main__":
     import matplotlib
