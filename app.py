@@ -2081,6 +2081,8 @@ def main():
         st.session_state.show_elite_analysis = False
     if 'show_genesis_chronicle' not in st.session_state:
         st.session_state.show_genesis_chronicle = False
+    if 'show_dashboard' not in st.session_state:   # <-- ADD THIS LINE
+        st.session_state.show_dashboard = False
     
     # --- Password Protection (Reused from GENEVO) ---
     def check_password():
@@ -4039,13 +4041,28 @@ def main():
         tab_dashboard, tab_viewer, tab_elites, tab_genesis, tab_analytics_lab = st.tabs(tab_list)
         
         with tab_dashboard:
-            st.header("Evolutionary Trajectory Dashboard")
-            st.plotly_chart(
-                create_evolution_dashboard(history_df, metrics_df),
-                width='stretch',
-                key="main_dashboard_plot_universe"
-            )
-            visualize_fitness_landscape(history_df)
+            # --- NEW LAZY-LOADING LOGIC ---
+            if st.session_state.show_dashboard:
+                st.header("Evolutionary Trajectory Dashboard")
+                st.plotly_chart(
+                    create_evolution_dashboard(history_df, metrics_df),
+                    width='stretch',
+                    key="main_dashboard_plot_universe"
+                )
+                visualize_fitness_landscape(history_df)
+
+                # --- ADD THIS HIDE BUTTON ---
+                st.markdown("---")
+                if st.button("Clear & Hide Dashboard", key="hide_dashboard"):
+                    st.session_state.show_dashboard = False
+                    st.rerun()
+            
+            # --- ADD THIS 'ELSE' BLOCK ---
+            else:
+                st.info("This tab renders the main dashboard with large plots. It is paused to save memory.")
+                if st.button("📈 Render Universe Dashboard", key="show_dashboard"):
+                    st.session_state.show_dashboard = True
+                    st.rerun()
 
         with tab_viewer:
             st.header("🔬 Specimen Viewer")
