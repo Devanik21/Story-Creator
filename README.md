@@ -467,7 +467,7 @@ The system automatically logs all parameter changes to enable audit trails.
 If you use UnIvErZe in academic research, please cite:
 
 ```bibtex
-@software{univErze2024,
+@software{univErze2025,
   author = {Devanik and {Gemini AI}},
   title = {UnIvErZe: A Digital Petri Dish for Infinite Evolution},
   year = {2024},
@@ -482,6 +482,6 @@ This project is released under the MIT License. See `LICENSE` file for details.
 
 ---
 
-**Project Status**: Active Development | **Last Updated**: November 2024
+**Project Status**: Active Development | **Last Updated**: November 2025
 
 For questions, bug reports, or collaboration inquiries, please open an issue on GitHub or contact the author directly.
