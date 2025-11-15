@@ -1,5 +1,5 @@
 """
-🧬 UNIVERSE SANDBOX AI 2.0 🧬
+🧬 UNIVERSE SANDBOX 2.0 🧬
 An Interactive Artificial Life Laboratory for Evolving
 Complex Organisms from a Primordial Soup.
 
@@ -4061,7 +4061,7 @@ def main():
     # ===============================================
     # --- MAIN PAGE DISPLAY ---
     # ===============================================
-    st.markdown('<h1 class="main-header">🌌 Universe Sandbox AI 2.0: Results</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">Universe Sandbox: Results</h1>', unsafe_allow_html=True)
     
     if not st.session_state.history:
         st.info("This universe is a formless void. Adjust the physical constants in the sidebar and press '🚀 IGNITE BIG BANG' to begin evolution.")
