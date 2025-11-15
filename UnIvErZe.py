@@ -2097,7 +2097,7 @@ def main():
     def check_password_on_change():
         # This function runs *after* the user submits a password
         try:
-            correct_pass = st.secrets["passwords"]["app_password"]
+            correct_pass = st.secrets["app_password"]
         except (KeyError, AttributeError):
             st.error("FATAL ERROR: No password found in Streamlit Secrets.")
             st.info("Please ensure you have a .streamlit/secrets.toml file with:\n\n[passwords]\napp_password = 'your_password'")
