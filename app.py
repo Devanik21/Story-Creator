@@ -2219,7 +2219,7 @@ def main():
     # request by dramatically bloating the sidebar.
     # ===============================================
     
-    st.sidebar.markdown('<h1 style="text-align: center; color: #00aaff;">🌌<br>Universe Sandbox AI 2.0</h1>', unsafe_allow_html=True)
+    st.sidebar.markdown('<h1 style="text-align: center; color: #00aaff;">🌌<br>Universe Sandbox 2.0</h1>', unsafe_allow_html=True)
     st.sidebar.markdown("---")
     
     s = copy.deepcopy(st.session_state.settings) # Use a mutable dict `s`
