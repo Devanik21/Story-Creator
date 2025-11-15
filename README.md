@@ -1,4 +1,4 @@
-# UnIvErZe: A Digital Petri Dish for Infinite Evolution
+# UnIvErZe: A Digital Universe for Infinite Evolution
 
 ## Abstract
 
