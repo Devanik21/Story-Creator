@@ -2068,7 +2068,7 @@ class RedQueenParasite:
 
 def main():
     st.set_page_config(
-        page_title="Universe Sandbox AI 2.0",
+        page_title="Universe Sandbox 2.0",
         layout="wide",
         page_icon="🌌",
         initial_sidebar_state="expanded"
