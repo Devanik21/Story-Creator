@@ -317,28 +317,40 @@ for name in ['Cryo', 'Hydro', 'Pyro', 'Geo', 'Aero', 'Bio-Steel', 'Neuro-Gel', '
 # ========================================================
 
 @dataclass
-class UniversalMatter:
+class ComponentGene:
     """
-    Replaces ComponentGene.
-    Instead of named properties, we have a continuous vector of physics.
-    Values are 0.0 to 1.0.
+    Defines a fundamental 'building block' of life.
+    This is the 'chemistry' the organism has access to.
+    Evolution can invent new components based on the CHEMICAL_BASES_REGISTRY.
     """
-    id: str = field(default_factory=lambda: f"mat_{uuid.uuid4().hex[:6]}")
+    id: str = field(default_factory=lambda: f"comp_{uuid.uuid4().hex[:6]}")
+    name: str = "PrimordialGoo"
+    base_kingdom: str = "Carbon" # NEW: Tracks its chemical origin
     
-    # The "Physics Vector" (Infinite possibilities of material properties)
-    # [0]: Density (Low=Gas, High=Solid)
-    # [1]: Conductivity (Energy transfer rate)
-    # [2]: Reactivity (Mutation/Interaction rate)
-    # [3]: Stability (Resistance to decay)
-    # [4]: Absorption (Energy gain from environment)
-    properties: np.ndarray = field(default_factory=lambda: np.random.rand(5))
+    # --- Core Properties ---
+    mass: float = 1.0           # Metabolic cost to maintain
+    structural: float = 0.1     # Contribution to physical integrity
+    energy_storage: float = 0.0 # Capacity to store energy
     
-    # Visuals are now mathematically derived from properties, not chosen
-    def get_color(self):
-        r = int(self.properties[2] * 255) # Reactivity = Red
-        g = int(self.properties[4] * 255) # Absorption = Green
-        b = int(self.properties[1] * 255) # Conductivity = Blue
-        return f"#{r:02x}{g:02x}{b:02x}"
+    # --- Environmental Interaction Properties ---
+    photosynthesis: float = 0.0 # Ability to generate energy from 'light'
+    chemosynthesis: float = 0.0 # Ability to generate energy from 'minerals'
+    thermosynthesis: float = 0.0 # Ability to generate energy from 'heat'
+    
+    # --- Specialized Functions ---
+    conductance: float = 0.0    # Ability to transport energy (like a 'wire' or 'vein')
+    compute: float = 0.0        # Ability to perform information processing (a 'neuron')
+    motility: float = 0.0       # Ability to generate thrust/movement (a 'muscle')
+    armor: float = 0.0          # Ability to resist 'damage'
+    sense_light: float = 0.0    # Ability to sense 'light'
+    sense_minerals: float = 0.0 # Ability to sense 'minerals'
+    sense_temp: float = 0.0     # Ability to sense 'temperature'
+    
+    # --- Aesthetics ---
+    color: str = "#888888"      # Visual representation
+
+    def __hash__(self):
+        return hash(self.id)
 
 
 
@@ -357,36 +369,122 @@ class GenotypeJSONEncoder(json.JSONEncoder):
         return super().default(o)
 # --- END NEW CLASS ---
 
-
+@dataclass
+class RuleGene:
+    """
+    Defines a 'developmental rule' in the Genetic Regulatory Network (GRN).
+    This is the 'grammar' of life, dictating how the organism grows.
+    'IF [Conditions] are met, THEN [Action] happens.'
+    """
+    id: str = field(default_factory=lambda: f"rule_{uuid.uuid4().hex[:6]}")
+    
+    # --- The 'IF' Part ---
+    # List of (source, target, required_value, operator)
+    conditions: List[Dict[str, Any]] = field(default_factory=list)
+    
+    # --- The 'THEN' Part ---
+    # The action to perform (e.g., 'GROW', 'DIFFERENTIATE', 'METABOLIZE')
+    action_type: str = "IDLE"
+    # The component to use/create, or the property to change
+    action_param: str = "self" 
+    action_value: float = 0.0
+    
+    probability: float = 1.0 # Chance this rule fires if conditions are met
+    priority: int = 0        # Execution order (higher fires first)
+    is_disabled: bool = False # <-- ADD THIS
 
 @dataclass
 class Genotype:
     """
-    The DNA is now a Neural Network Weight Matrix.
-    It processes 'Input Entropy' and outputs 'Action Vectors'.
+    The complete "DNA" of an organism.
+    It is a collection of available components and the rules to assemble them.
     """
     id: str = field(default_factory=lambda: f"geno_{uuid.uuid4().hex[:6]}")
+    
+    # The "Alphabet": List of components this organism can create.
+    component_genes: Dict[str, ComponentGene] = field(default_factory=dict)
+    
+    # The "Grammar": The list of developmental rules.
+    rule_genes: List[RuleGene] = field(default_factory=list)
+    
+    # --- Evolutionary Metadata (from GENEVO) ---
+    fitness: float = 0.0
+    age: int = 0
+    generation: int = 0
     lineage_id: str = ""
     parent_ids: List[str] = field(default_factory=list)
     
-    # The Brain: A matrix connecting Senses (Inputs) to Physics (Outputs)
-    # Size: (Input_Channels x Output_Channels)
-    # Inputs: Light, Neighbor_Energy, Neighbor_Density, Internal_Energy, Random_Noise
-    # Outputs: Force_X, Force_Y, Mass_Change, State_Change, Signal_Emit
-    weights: np.ndarray = field(default_factory=lambda: np.random.normal(0, 1, (5, 5)))
+    # --- Phenotypic Summary (filled after development) ---
+    cell_count: int = 0
+    complexity: float = 0.0 # e.g., number of rules + components
+    energy_production: float = 0.0
+    energy_consumption: float = 0.0
+    lifespan: int = 0
     
-    # Biases allow for "instincts" (actions without input)
-    biases: np.ndarray = field(default_factory=lambda: np.random.normal(0, 1, 5))
+    # --- Speciation (from GENEVO) ---
+    # The 'Form ID' is now the 'Kingdom' (e.g., Carbon-based, Silicon-based)
+    # This is determined by the *dominant* structural component.
+    kingdom_id: str = "Carbon" 
     
-    fitness: float = 0.0
+    # --- Meta-Evolution (Hyperparameters) ---
+    # These can be evolved if s['enable_hyperparameter_evolution'] is True
+    evolvable_mutation_rate: float = 0.2
+    evolvable_innovation_rate: float = 0.05
     
-    def mutate(self, rate=0.1, magnitude=0.1):
-        """Mutation just tweaks the numbers in the matrix."""
-        mask = np.random.random(self.weights.shape) < rate
-        self.weights[mask] += np.random.normal(0, magnitude, np.count_nonzero(mask))
+    # --- Autotelic Evolution (Evolvable Objectives) ---
+    # These can be evolved if s['enable_objective_evolution'] is True
+    objective_weights: Dict[str, float] = field(default_factory=dict)
+
+    # --- Multi-Level Selection ---
+    colony_id: Optional[str] = None
+    individual_fitness: float = 0.0 # Fitness before group-level adjustments
+
+    def __post_init__(self):
+        if not self.lineage_id:
+            self.lineage_id = f"L{random.randint(0, 999999):06d}"
+
+    def copy(self):
+        """Deep copy with new lineage"""
+        new_genotype = Genotype(
+            component_genes={cid: ComponentGene(**asdict(c)) for cid, c in self.component_genes.items()},
+            rule_genes=[RuleGene(**asdict(r)) for r in self.rule_genes],
+            fitness=self.fitness,
+            individual_fitness=self.individual_fitness,
+            age=0,
+            generation=self.generation,
+            parent_ids=[self.id],
+            kingdom_id=self.kingdom_id,
+            evolvable_mutation_rate=self.evolvable_mutation_rate,
+            evolvable_innovation_rate=self.evolvable_innovation_rate,
+            objective_weights=self.objective_weights.copy()
+        )
+        return new_genotype
+    
+    def compute_complexity(self) -> float:
+        """Kolmogorov complexity approximation"""
+        num_components = len(self.component_genes)
+        num_rules = len(self.rule_genes)
+        num_conditions = sum(len(r.conditions) for r in self.rule_genes)
+        return (num_components * 0.4) + (num_rules * 0.3) + (num_conditions * 0.3)
+
+    def update_kingdom(self):
+        """Determine the organism's kingdom based on its dominant structural component."""
+        if not self.component_genes:
+            self.kingdom_id = "Unknown"
+            return
+
+        # Find the component with the highest structural value
+        dominant_comp = max(self.component_genes.values(), key=lambda c: c.structural, default=None)
         
-        mask_b = np.random.random(self.biases.shape) < rate
-        self.biases[mask_b] += np.random.normal(0, magnitude, np.count_nonzero(mask_b))
+        if dominant_comp:
+            self.kingdom_id = dominant_comp.base_kingdom
+        else:
+            # Failsafe: if no components, or all have 0 structure
+            comp_counts = Counter(c.base_kingdom for c in self.component_genes.values())
+            if comp_counts:
+                self.kingdom_id = comp_counts.most_common(1)[0][0]
+            else:
+                self.kingdom_id = "Unclassified"
 
 # ========================================================
 #
@@ -918,58 +1016,92 @@ class Phenotype:
         
         return cost
 
-    def process_organism_physics(cell, grid, settings):
-    """
-    No defined actions. Just raw I/O processing.
-    """
-    # --- 1. GATHER RAW INPUTS (Total Entropy) ---
-    # The organism reads the universe as raw numbers.
-    inputs = np.array([
-        grid.get_cell(cell.x, cell.y).light,       # Environmental Energy
-        cell.energy,                               # Internal State
-        random.random(),                           # Cosmic Noise (Entropy)
-        cell.state_vector.get('neighbor_signal', 0), # External Communication
-        cell.component.properties[0]               # Self-Awareness of Material
-    ])
-    
-    # --- 2. THE BRAIN (Matrix Multiplication) ---
-    # Inputs * DNA = Outputs
-    # This is "thinking" without hardcoded logic.
-    raw_outputs = np.tanh(np.dot(inputs, cell.genotype.weights) + cell.genotype.biases)
-    
-    # --- 3. APPLY PHYSICS (Interpret Outputs) ---
-    # We map the 5 outputs to physical forces.
-    
-    out_force_x = raw_outputs[0] # Attempt to move or push neighbors
-    out_force_y = raw_outputs[1]
-    out_mass_delta = raw_outputs[2] # Desire to gain/lose mass
-    out_state_chg = raw_outputs[3] # Internal memory change
-    out_signal = raw_outputs[4] # Communication output
-    
-    # --- PHYSICS: MOVEMENT/FORCE ---
-    # If Force is high, try to move. 
-    if abs(out_force_x) > 0.5 or abs(out_force_y) > 0.5:
-        # (Insert physics code here to check if target square is empty and move)
-        pass 
-
-    # --- PHYSICS: EMERGENT GROWTH (The "Grow" replacement) ---
-    # If the brain outputs high positive mass_delta and has energy...
-    if out_mass_delta > 0.8 and cell.energy > settings['repro_cost']:
-        # Physics creates a clone/offspring naturally due to "pressure"
-        # spawn_new_cell(cell.x + random_dir, cell.genotype)
-        cell.energy -= settings['repro_cost']
+    def run_timestep(self):
+        """Run one 'tick' of the organism's life."""
+        if not self.is_alive: return
         
-    # --- PHYSICS: EMERGENT DEATH ---
-    # If the brain outputs negative mass_delta...
-    elif out_mass_delta < -0.8:
-        # The cell dissolves itself into energy for neighbors
-        # distribute_energy_to_neighbors()
-        # kill_cell()
-        pass
+        self.age += 1
+        self.genotype.lifespan = self.age
+        
+        energy_gain = 0.0
+        metabolic_cost = 0.0
+        
+        # --- 1. Run all cells ---
+        for (x, y), cell in list(self.cells.items()):
+            comp = cell.component
+            grid_cell = self.grid.get_cell(x, y)
+            if not grid_cell: continue # Should not happen
+            
+            # --- 1a. Energy Gain ---
+            gain = 0
+            gain += comp.photosynthesis * grid_cell.light
+            gain += comp.chemosynthesis * grid_cell.minerals
+            gain += comp.thermosynthesis * grid_cell.temperature
+            
+            # Cap gain by storage
+            gain = min(gain, comp.energy_storage if comp.energy_storage > 0 else 1.0)
+            cell.energy += gain
+            energy_gain += gain
+            
+            # --- 1b. Metabolic Cost ---
+            cost = 0
+            cost += comp.mass # Base cost to exist
+            cost += comp.compute * self.settings.get('cost_of_compute', 0.1)
+            cost += comp.motility * self.settings.get('cost_of_motility', 0.2)
+            cost += comp.conductance * self.settings.get('cost_of_conductance', 0.02)
+            cost += comp.armor * self.settings.get('cost_of_armor', 0.05)
+            
+            cell.energy -= cost
+            metabolic_cost += cost
+            # (After metabolic cost calculation, before energy distribution)
+            
+            # --- 1c. Run GRN for behavior (simplified) ---
+            # (A full sim would run the GRN here too for non-developmental actions)
 
-    # --- PHYSICS: SIGNALING ---
-    # Updates the 'atmosphere' around the cell
-    cell.state_vector['emit_signal'] = out_signal
+            # --- ADD THIS TIMER LOOP ---
+            # Update internal timers
+            if 'timers' in cell.state_vector:
+                for timer_name in list(cell.state_vector['timers'].keys()):
+                    if cell.state_vector['timers'][timer_name] > 0:
+                        cell.state_vector['timers'][timer_name] -= 1
+                    else:
+                        # Timer reached 0, remove it
+                        del cell.state_vector['timers'][timer_name]
+            # --- END OF ADDITION ---
+            
+        # --- 2. Energy Distribution (simplified) ---
+            
+            # --- 1c. Run GRN for behavior (simplified) ---
+            # (A full sim would run the GRN here too for non-developmental actions)
+            
+        # --- 2. Energy Distribution (simplified) ---
+        # Cells with high conductance share energy
+        for (x, y), cell in list(self.cells.items()):
+            if cell.component.conductance > 0.5:
+                neighbors = self.grid.get_neighbors(x, y)
+                self_neighbors = [self.cells.get((n.x, n.y)) for n in neighbors if self.cells.get((n.x, n.y)) is not None]
+                if not self_neighbors: continue
+
+                avg_energy = (cell.energy + sum(n.energy for n in self_neighbors)) / (len(self_neighbors) + 1)
+                
+                # Move towards average
+                transfer_share = (avg_energy - cell.energy) * cell.component.conductance * 0.1 # Slow diffusion
+                cell.energy += transfer_share
+                for n in self_neighbors:
+                    n.energy -= transfer_share / len(self_neighbors)
+
+        # --- 3. Prune dead cells and check for life ---
+        dead_cells = []
+        for (x,y), cell in self.cells.items():
+            if cell.energy <= 0:
+                dead_cells.append((x,y))
+
+        for (x,y) in dead_cells:
+            self.prune_cell(x,y)
+            
+        self.total_energy = sum(c.energy for c in self.cells.values())
+        if self.total_energy <= 0 or not self.cells:
+            self.is_alive = False
             
     def update_phenotype_summary(self):
         """Calculate high-level properties of the organism."""
