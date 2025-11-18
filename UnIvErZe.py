@@ -669,9 +669,11 @@ class Phenotype:
     """
     def __init__(self, genotype: Genotype, universe_grid: UniverseGrid, settings: Dict):
         self.id = f"org_{uuid.uuid4().hex[:6]}"
+        GLOBAL_PHENOTYPE_REGISTRY[self.id] = self
         self.genotype = genotype
         self.grid = universe_grid
         self.settings = settings
+        
         
         self.cells: Dict[Tuple[int, int], OrganismCell] = {}
         self.total_energy = 0.0
@@ -1341,6 +1343,7 @@ def evaluate_fitness(genotype: Genotype, grid: UniverseGrid, settings: Dict) -> 
     """
     
     # --- 1. Development ---
+    GLOBAL_PHENOTYPE_REGISTRY.clear()
     organism = Phenotype(genotype, grid, settings)
     
     if not organism.is_alive or organism.genotype.cell_count == 0:
