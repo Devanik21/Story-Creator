@@ -1561,7 +1561,7 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
 
     # --- 2. Create Action ---
     action_type = random.choice(['GROW', 'DIFFERENTIATE', 'SET_STATE', 'TRANSFER_ENERGY', 'DIE',
-                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE','EMIT_SIGNAL','ATTACK', 'STEAL', 'POISON', 'MINE_RESOURCE' # <--- ADDED THESE])
+                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE','EMIT_SIGNAL','ATTACK', 'STEAL', 'POISON', 'MINE_RESOURCE']) # <--- ADDED THESE])
     
     # Pick a random component from the genotype's "alphabet"
     if not genotype.component_genes:
