@@ -1073,11 +1073,7 @@ class Phenotype:
 
             
             # ... inside execute_action ...
-
-            # --- NEW: Get the Master Multiplier ---
-            # Default to 1.0 if not set
-            predation_mult = self.settings.get('global_predation_intensity', 1.0)
-
+                    
             elif action == "ATTACK":
                 # Murders a neighbor.
                 neighbors = self.grid.get_neighbors(cell.x, cell.y)
