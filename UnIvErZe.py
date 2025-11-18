@@ -1071,35 +1071,63 @@ class Phenotype:
                 self.prune_cell(cell.x, cell.y) # Cell suicide
 
 
-            elif action == "STEAL":
-                # Parasitic drain. Requires 'scavenge' stat.
+            
+            # ... inside execute_action ...
+
+            # --- NEW: Get the Master Multiplier ---
+            # Default to 1.0 if not set
+            predation_mult = self.settings.get('global_predation_intensity', 1.0)
+
+            elif action == "ATTACK":
                 neighbors = self.grid.get_neighbors(cell.x, cell.y)
                 targets = [n for n in neighbors if n.organism_id is not None and n.organism_id != self.id]
                 
-                if targets and cell.component.scavenge > 0:
+                # Only attack if the global setting allows it (multiplier > 0)
+                if targets and cell.component.offense > 0 and predation_mult > 0:
                     target_loc = random.choice(targets)
-                    victim_pheno, victim_cell = get_target_at(target_loc.x, target_loc.y)
+                    # Use the FIXED internal helper from previous step
+                    victim_pheno, victim_cell = self.get_target_internal(target_loc.x, target_loc.y)
+                    
+                    if victim_cell and victim_pheno:
+                        # 1. Calculate Base Damage
+                        base_damage = max(0.1, cell.component.offense * 2.0 - victim_cell.component.armor)
+                        
+                        # 2. Apply the Master Multiplier
+                        final_damage = base_damage * predation_mult 
+                        
+                        victim_cell.energy -= final_damage
+                        cost += cell.component.offense * 0.2 
+
+            elif action == "STEAL":
+                neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                targets = [n for n in neighbors if n.organism_id is not None and n.organism_id != self.id]
+                
+                if targets and cell.component.scavenge > 0 and predation_mult > 0:
+                    target_loc = random.choice(targets)
+                    victim_pheno, victim_cell = self.get_target_internal(target_loc.x, target_loc.y)
                     
                     if victim_cell:
-                        # Steal based on scavenge skill
-                        amount = min(victim_cell.energy, cell.component.scavenge * 1.5)
-                        victim_cell.energy -= amount
-                        cell.energy += amount * 0.8 # Efficiency loss
+                        # Scale the amount stolen by the multiplier
+                        base_steal = min(victim_cell.energy, cell.component.scavenge * 1.5)
+                        final_steal = base_steal * predation_mult
+                        
+                        victim_cell.energy -= final_steal
+                        cell.energy += final_steal * 0.8 
                         cost += 0.05
 
             elif action == "POISON":
-                # Chemical warfare. Damages ALL neighbors (AOE).
-                # 'value' in the rule determines range or intensity
                 potency = cell.component.toxin
-                if potency > 0:
+                if potency > 0 and predation_mult > 0:
                     neighbors = self.grid.get_neighbors(cell.x, cell.y)
                     for n in neighbors:
-                        victim_pheno, victim_cell = get_target_at(n.x, n.y)
+                        victim_pheno, victim_cell = self.get_target_internal(n.x, n.y)
                         if victim_cell:
-                            # Poison ignores armor mostly
-                            damage = potency * 0.5
-                            victim_cell.energy -= damage
-                    cost += potency * 0.3 # Cost to produce toxin
+                            # Scale poison damage by the multiplier
+                            base_damage = potency * 0.5
+                            final_damage = base_damage * predation_mult
+                            
+                            victim_cell.energy -= final_damage
+                    cost += potency * 0.3
                     
             elif action == "MINE_RESOURCE":
                 # Extract minerals permanently from the grid
