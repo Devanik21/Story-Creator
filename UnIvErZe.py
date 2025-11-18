@@ -4364,7 +4364,7 @@ def main():
                         # --- NEW: MRI SCANNER ---
                         # This replaces the old 2D plot
                         fig_mri = visualize_phenotype_mri(phenotype, vis_grid)
-                        st.plotly_chart(fig_mri, use_container_width=True, key=f"pheno_mri_{i}")
+                        st.plotly_chart(fig_mri, width='stretch', key=f"pheno_mri_{i}")
 
                         st.markdown("##### **Component Ratios**")
                         component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
@@ -4375,13 +4375,13 @@ def main():
                             fig_pie = px.pie(comp_df, values='Count', names='Component', 
                                              color='Component', color_discrete_map=color_map, hole=0.4)
                             fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=150)
-                            st.plotly_chart(fig_pie, use_container_width=True, key=f"pheno_pie_{i}")
+                            st.plotly_chart(fig_pie, width='stretch', key=f"pheno_pie_{i}")
 
                         # --- NEW: LOGIC CIRCUIT (SANKEY) ---
                         # This replaces the old 'Hairball' GRN graph
                         st.markdown("##### **Genetic Logic Circuit**")
                         fig_circuit = visualize_grn_sankey(specimen)
-                        st.plotly_chart(fig_circuit, use_container_width=True, key=f"grn_circuit_{i}")
+                        st.plotly_chart(fig_circuit, width='stretch', key=f"grn_circuit_{i}")
                         
                         # (You can keep the old Objective/GRN text blocks below this if you want, or delete them)
 
@@ -4765,7 +4765,7 @@ def main():
                                 st.markdown("##### **Phenotypic MRI Scan**")
                                 # NEW MRI PLOT
                                 fig_mri = visualize_phenotype_mri(phenotype, vis_grid)
-                                st.plotly_chart(fig_mri, use_container_width=True, key=f"elite_pheno_vis_{i}")
+                                st.plotly_chart(fig_mri, width='stretch', key=f"elite_pheno_vis_{i}")
 
                             st.markdown("---")
                             
@@ -4781,7 +4781,7 @@ def main():
                                     fig_pie = px.pie(comp_df, values='Count', names='Component', 
                                                      color='Component', color_discrete_map=color_map)
                                     fig_pie.update_layout(showlegend=True, margin=dict(l=0, r=0, t=0, b=0), height=300)
-                                    st.plotly_chart(fig_pie, use_container_width=True, key=f"elite_pie_{i}")
+                                    st.plotly_chart(fig_pie, width='stretch', key=f"elite_pie_{i}")
                                 else:
                                     st.info("No cells to analyze.")
 
@@ -4789,7 +4789,7 @@ def main():
                                 st.markdown("##### **Logic Flow (The 'Mind' of the Organism)**")
                                 # NEW SANKEY PLOT
                                 fig_circuit = visualize_grn_sankey(individual)
-                                st.plotly_chart(fig_circuit, use_container_width=True, key=f"elite_circuit_{i}")
+                                st.plotly_chart(fig_circuit, width='stretch', key=f"elite_circuit_{i}")
                 else:
                     st.warning("No population data available to analyze.")
                 
