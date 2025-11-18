@@ -4352,31 +4352,38 @@ def main():
                 st.info(f"Showing top {num_to_display} specimens from the *final* population (Generation {population[0].generation}).")
                 
                 cols = st.columns(len(top_specimens))
+                # [PASTE THIS OVER THE CONTENT OF THE LOOP in 'with tab_viewer']
                 for i, specimen in enumerate(top_specimens):
-                    with cols[i], st.spinner(f"Growing specimen {i+1}..."):
-                        # We need to re-run development to visualize it
+                    with cols[i], st.spinner(f"Scanning specimen {i+1}..."):
                         vis_grid = UniverseGrid(s)
                         phenotype = Phenotype(specimen, vis_grid, s)
 
                         st.markdown(f"**Rank {i+1} (Gen {specimen.generation})**")
                         st.metric("Fitness", f"{specimen.fitness:.4f}")
-                        st.metric("Cell Count", f"{specimen.cell_count}")
+                        
+                        # --- NEW: MRI SCANNER ---
+                        # This replaces the old 2D plot
+                        fig_mri = visualize_phenotype_mri(phenotype, vis_grid)
+                        st.plotly_chart(fig_mri, use_container_width=True, key=f"pheno_mri_{i}")
 
-                        fig = visualize_phenotype_2d(phenotype, vis_grid)
-                        st.plotly_chart(fig, width='stretch', key=f"pheno_vis_{i}")
-
-                        st.markdown("##### **Component Composition**")
+                        st.markdown("##### **Component Ratios**")
                         component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
                         if component_counts:
                             comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
                             comp_df = comp_df.rename(columns={'index': 'Component'})
                             color_map = {c.name: c.color for c in specimen.component_genes.values()}
                             fig_pie = px.pie(comp_df, values='Count', names='Component', 
-                                             color='Component', color_discrete_map=color_map)
-                            fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
-                            st.plotly_chart(fig_pie, width='stretch', key=f"pheno_pie_{i}")
-                        else:
-                            st.info("No cells to analyze.")
+                                             color='Component', color_discrete_map=color_map, hole=0.4)
+                            fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=150)
+                            st.plotly_chart(fig_pie, use_container_width=True, key=f"pheno_pie_{i}")
+
+                        # --- NEW: LOGIC CIRCUIT (SANKEY) ---
+                        # This replaces the old 'Hairball' GRN graph
+                        st.markdown("##### **Genetic Logic Circuit**")
+                        fig_circuit = visualize_grn_sankey(specimen)
+                        st.plotly_chart(fig_circuit, use_container_width=True, key=f"grn_circuit_{i}")
+                        
+                        # (You can keep the old Objective/GRN text blocks below this if you want, or delete them)
 
                         
 
@@ -4737,15 +4744,14 @@ def main():
                             seen_kingdoms.add(individual.kingdom_id)
 
                     # 3. Display the unique elites, up to the desired number of ranks.
+                    # [PASTE THIS OVER THE CONTENT OF THE LOOP in 'with tab_elites']
                     for i, individual in enumerate(elite_specimens[:num_ranks_to_display]):
                         with st.expander(f"**Rank {i+1}:** Kingdom `{individual.kingdom_id}` | Fitness: `{individual.fitness:.4f}`", expanded=(i==0)):
                             
-                            # --- Grow phenotype once for all visualizations ---
                             with st.spinner(f"Growing Rank {i+1}..."):
                                 vis_grid = UniverseGrid(s)
                                 phenotype = Phenotype(individual, vis_grid, s)
 
-                            # --- Main Info Row ---
                             col1, col2 = st.columns([1, 1])
                             with col1:
                                 st.markdown("##### **Core Metrics**")
@@ -4757,13 +4763,13 @@ def main():
                             
                             with col2:
                                 st.markdown("##### **Phenotypic MRI Scan**")
-                                # Use the new MRI visualizer here too
+                                # NEW MRI PLOT
                                 fig_mri = visualize_phenotype_mri(phenotype, vis_grid)
-                                st.plotly_chart(fig_mri, width='stretch', key=f"elite_pheno_vis_{i}")
+                                st.plotly_chart(fig_mri, use_container_width=True, key=f"elite_pheno_vis_{i}")
 
                             st.markdown("---")
                             
-                            col3, col4 = st.columns([1, 2]) # Give more space to the circuit diagram
+                            col3, col4 = st.columns([1, 2]) 
 
                             with col3:
                                 st.markdown("##### **Cellular Composition**")
@@ -4775,13 +4781,15 @@ def main():
                                     fig_pie = px.pie(comp_df, values='Count', names='Component', 
                                                      color='Component', color_discrete_map=color_map)
                                     fig_pie.update_layout(showlegend=True, margin=dict(l=0, r=0, t=0, b=0), height=300)
-                                    st.plotly_chart(fig_pie, width='stretch', key=f"elite_pie_{i}")
+                                    st.plotly_chart(fig_pie, use_container_width=True, key=f"elite_pie_{i}")
+                                else:
+                                    st.info("No cells to analyze.")
 
                             with col4:
                                 st.markdown("##### **Logic Flow (The 'Mind' of the Organism)**")
-                                # Use the new Sankey visualizer
+                                # NEW SANKEY PLOT
                                 fig_circuit = visualize_grn_sankey(individual)
-                                st.plotly_chart(fig_circuit, width='stretch', key=f"elite_circuit_{i}")
+                                st.plotly_chart(fig_circuit, use_container_width=True, key=f"elite_circuit_{i}")
                 else:
                     st.warning("No population data available to analyze.")
                 
