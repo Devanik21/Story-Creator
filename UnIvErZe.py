@@ -345,6 +345,11 @@ class ComponentGene:
     sense_light: float = 0.0    # Ability to sense 'light'
     sense_minerals: float = 0.0 # Ability to sense 'minerals'
     sense_temp: float = 0.0     # Ability to sense 'temperature'
+
+    offense: float = 0.0        # Damage dealt to enemies
+    toxin: float = 0.0          # Environment poisoning
+    scavenge: float = 0.0       # Efficiency of stealing energy
+    kinship_sensor: float = 0.0 # Ability to detect kin
     
     # --- Aesthetics ---
     color: str = "#888888"      # Visual representation
@@ -425,6 +430,8 @@ class Genotype:
     # The 'Form ID' is now the 'Kingdom' (e.g., Carbon-based, Silicon-based)
     # This is determined by the *dominant* structural component.
     kingdom_id: str = "Carbon" 
+
+    kinship_marker: float = field(default_factory=lambda: random.random())
     
     # --- Meta-Evolution (Hyperparameters) ---
     # These can be evolved if s['enable_hyperparameter_evolution'] is True
@@ -622,6 +629,38 @@ class OrganismCell:
     age: int = 0
     # --- Internal State for GRN ---
     state_vector: Dict[str, Any] = field(default_factory=dict)
+
+
+# --- GLOBAL REGISTRY FOR INTER-ORGANISM INTERACTION ---
+# Maps organism_id -> Phenotype instance. 
+# MUST be updated in the main loop when phenotypes are created.
+GLOBAL_PHENOTYPE_REGISTRY = {} 
+
+def get_target_at(x: int, y: int) -> Optional[Tuple[Any, Any]]:
+    """
+    Helper to find a victim at coordinates (x, y).
+    Returns: (Phenotype_Object, OrganismCell_Object) or None
+    """
+    # 1. Look up the organism ID from the user's UniverseGrid (needs to be globally accessible or passed)
+    # For this snippet, we assume 'st.session_state.universe_grid' is accessible or passed in context.
+    if 'universe_grid' not in st.session_state or st.session_state.universe_grid is None:
+        return None
+
+    grid_cell = st.session_state.universe_grid.get_cell(x, y)
+    if not grid_cell or grid_cell.organism_id is None:
+        return None
+
+    # 2. Retrieve the Phenotype from the global registry
+    target_phenotype = GLOBAL_PHENOTYPE_REGISTRY.get(grid_cell.organism_id)
+    if not target_phenotype:
+        return None
+
+    # 3. Retrieve the specific Cell
+    target_cell = target_phenotype.cells.get((x, y))
+    if not target_cell:
+        return None
+
+    return target_phenotype, target_cell
 
 class Phenotype:
     """
@@ -880,6 +919,36 @@ class Phenotype:
                 else:
                     value = 0.0 # No signals in, so value is 0
             # --- END OF ADDITION ---
+            # ... (Place this AFTER the 'signal_' block) ...
+
+            # --- NEW: Social Sensors (Step 3) ---
+            # ... (inside check_conditions loop) ...
+            
+            # --- NEW: SOCIAL SENSORS ---
+            elif source == 'neighbor_is_kin':
+                # Checks if average neighbor is family (1.0) or enemy (0.0)
+                score = 0.0
+                count = 0
+                for n in neighbors:
+                    if n.organism_id:
+                        # Identify kin based on ID matching (simplified)
+                        is_kin = 1.0 if n.organism_id == self.id else 0.0
+                        score += is_kin
+                        count += 1
+                value = score / max(1, count)
+
+            elif source == 'neighbor_energy_level':
+                # Sense the average energy of neighbors (to find rich victims)
+                total_e = 0.0
+                count = 0
+                for n in neighbors:
+                    if n.organism_id:
+                        # Peek at the neighbor using the helper
+                        _, t_cell = get_target_at(n.x, n.y)
+                        if t_cell:
+                            total_e += t_cell.energy
+                            count += 1
+                value = total_e / max(1, count)
             
             
             op = cond['operator']
@@ -999,6 +1068,76 @@ class Phenotype:
                 cost = cell.energy # Cell expends all remaining energy to die
                 self.prune_cell(cell.x, cell.y) # Cell suicide
                 
+            # ... (after the existing GROW, DIFFERENTIATE actions)
+
+            # --- NEW: INTERACTION ACTIONS ---
+
+
+            
+            # ... (keep existing actions)
+
+            # ... (inside execute_action, add these elif blocks) ...
+
+            elif action == "ATTACK":
+                # Murders a neighbor.
+                neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                # Target anyone who isn't ME
+                targets = [n for n in neighbors if n.organism_id is not None and n.organism_id != self.id]
+                
+                if targets and cell.component.offense > 0:
+                    target_loc = random.choice(targets)
+                    victim_pheno, victim_cell = get_target_at(target_loc.x, target_loc.y)
+                    
+                    if victim_cell and victim_pheno:
+                        # Damage calc: Offense vs Armor
+                        damage = max(0.1, cell.component.offense * 2.0 - victim_cell.component.armor)
+                        victim_cell.energy -= damage
+                        cost += cell.component.offense * 0.2 # Fatigue
+                        
+                        # Visual feedback (optional)
+                        # st.toast(f"⚔️ Combat! {self.id} hit {victim_pheno.id} for {damage:.1f} dmg")
+
+            elif action == "STEAL":
+                # Parasitic drain. Requires 'scavenge' stat.
+                neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                targets = [n for n in neighbors if n.organism_id is not None and n.organism_id != self.id]
+                
+                if targets and cell.component.scavenge > 0:
+                    target_loc = random.choice(targets)
+                    victim_pheno, victim_cell = get_target_at(target_loc.x, target_loc.y)
+                    
+                    if victim_cell:
+                        # Steal based on scavenge skill
+                        amount = min(victim_cell.energy, cell.component.scavenge * 1.5)
+                        victim_cell.energy -= amount
+                        cell.energy += amount * 0.8 # Efficiency loss
+                        cost += 0.05
+
+            elif action == "POISON":
+                # Chemical warfare. Damages ALL neighbors (AOE).
+                # 'value' in the rule determines range or intensity
+                potency = cell.component.toxin
+                if potency > 0:
+                    neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                    for n in neighbors:
+                        victim_pheno, victim_cell = get_target_at(n.x, n.y)
+                        if victim_cell:
+                            # Poison ignores armor mostly
+                            damage = potency * 0.5
+                            victim_cell.energy -= damage
+                    cost += potency * 0.3 # Cost to produce toxin
+
+            elif action == "MINE_RESOURCE":
+                # Extract minerals permanently from the grid
+                grid_cell = self.grid.get_cell(cell.x, cell.y)
+                if grid_cell.minerals > 0:
+                    rate = cell.component.mass * 0.5
+                    mined = min(grid_cell.minerals, rate)
+                    grid_cell.minerals -= mined # Deplete environment!
+                    cell.energy += mined * 5.0 # High yield
+                    cost += mined * 0.5 # Heavy labor
+
+            
             elif action == "TRANSFER_ENERGY":
                 # 'param' is direction (e.g., 'N', 'S', 'E', 'W') or 'NEIGHBORS'
                 # 'value' is amount
@@ -1009,6 +1148,8 @@ class Phenotype:
                     amount = min(value, cell.energy * 0.5) # Don't transfer more than half
                     target_cell.energy += amount
                     cost += amount # Cost is the transferred amount
+
+        
 
         except Exception as e:
             # st.error(f"Error in action {action}: {e}")
@@ -1508,7 +1649,7 @@ def innovate_component(genotype: Optional[Genotype], settings: Dict, force_base:
     # --- Biased properties ---
     props_with_bias = [
         'photosynthesis', 'chemosynthesis', 'thermosynthesis', 'conductance',
-        'compute', 'motility', 'armor', 'sense_light', 'sense_minerals', 'sense_temp'
+        'compute', 'motility', 'armor', 'sense_light', 'sense_minerals', 'sense_temp','offense', 'toxin', 'scavenge', 'kinship_sensor'
     ]
     
     for prop in props_with_bias:
