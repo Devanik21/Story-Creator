@@ -1538,7 +1538,7 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
     available_sources = st.session_state.get('evolvable_condition_sources', [
         'self_energy', 'self_age', 'env_light', 'env_minerals', 'env_temp',
         'neighbor_count_empty', 'neighbor_count_self',
-        'timer_A', 'timer_B', 'timer_C','signal_A', 'signal_B' # <-- ADD THIS
+        'timer_A', 'timer_B', 'timer_C','signal_A', 'signal_B','neighbor_is_kin', 'neighbor_energy_level' # <-- ADD THIS
     ])
     
     for _ in range(num_conditions):
@@ -1553,13 +1553,15 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
         elif source.startswith('sense_'): target = random.uniform(-0.5, 0.5)
         elif source.startswith('timer_'): target = random.randint(0, 20)
         elif source.startswith('signal_'): target = random.uniform(0.1, 1.0)
+        elif source == 'neighbor_is_kin': target = random.uniform(0.1, 0.9)
+        elif source == 'neighbor_energy_level': target = random.uniform(1.0, 10.0)
         else: target = 0.0
         
         conditions.append({'source': source, 'operator': op, 'target_value': target})
 
     # --- 2. Create Action ---
     action_type = random.choice(['GROW', 'DIFFERENTIATE', 'SET_STATE', 'TRANSFER_ENERGY', 'DIE',
-                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE','EMIT_SIGNAL'])
+                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE','EMIT_SIGNAL','ATTACK', 'STEAL', 'POISON', 'MINE_RESOURCE' # <--- ADDED THESE])
     
     # Pick a random component from the genotype's "alphabet"
     if not genotype.component_genes:
