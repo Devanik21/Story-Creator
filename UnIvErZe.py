@@ -1612,6 +1612,177 @@ def apply_physics_drift(settings: Dict):
 #
 # ========================================================
 
+# ========================================================
+#
+# PART 6: VISUALIZATION (THE "VIEWSCREEN")
+#
+# ========================================================
+
+# --- PASTE THIS NEW CODE BLOCK HERE ---
+
+def visualize_phenotype_mri(phenotype: Phenotype, grid: UniverseGrid) -> go.Figure:
+    """
+    Advanced 'MRI' Scan: Visualizes Anatomy, Energy, and Signaling in one view.
+    """
+    # Prepare data arrays
+    anatomy_map = np.full((grid.width, grid.height), np.nan)
+    energy_map = np.full((grid.width, grid.height), np.nan)
+    signal_map = np.full((grid.width, grid.height), np.nan)
+    
+    # Text labels for hover
+    hover_text = [["" for _ in range(grid.height)] for _ in range(grid.width)]
+    
+    # Map component names to numeric IDs for color mapping
+    unique_comps = sorted(list(set(c.component.name for c in phenotype.cells.values())))
+    comp_to_id = {name: i for i, name in enumerate(unique_comps)}
+    
+    for (x, y), cell in phenotype.cells.items():
+        anatomy_map[x, y] = comp_to_id[cell.component.name]
+        energy_map[x, y] = cell.energy
+        
+        # For signaling, we visualize the average intensity of outgoing signals
+        signals = cell.state_vector.get('signals_out', {})
+        if signals:
+            signal_map[x, y] = sum(signals.values()) / len(signals)
+        else:
+            signal_map[x, y] = 0.0
+
+        hover_text[x][y] = (
+            f"<b>{cell.component.name}</b><br>"
+            f"Energy: {cell.energy:.2f}<br>"
+            f"Age: {cell.age}<br>"
+            f"Signal Output: {signal_map[x, y]:.2f}"
+        )
+
+    # Create Subplots
+    fig = make_subplots(
+        rows=1, cols=3, 
+        subplot_titles=("<b>Anatomy (Structure)</b>", "<b>Metabolism (Energy)</b>", "<b>Neural Activity (Signaling)</b>"),
+        horizontal_spacing=0.05
+    )
+
+    # 1. Anatomy Plot (Categorical)
+    comp_colors = [phenotype.genotype.component_genes[name].color for name in unique_comps]
+    if not comp_colors: comp_colors = ["#888888"]
+    
+    fig.add_trace(go.Heatmap(
+        z=anatomy_map, text=hover_text, hoverinfo='text',
+        colorscale=[[i/(len(comp_colors)-1), c] for i, c in enumerate(comp_colors)] if len(comp_colors) > 1 else 'Greys',
+        showscale=False, name="Structure"
+    ), row=1, col=1)
+
+    # 2. Energy Plot (Thermodynamic)
+    fig.add_trace(go.Heatmap(
+        z=energy_map, text=hover_text, hoverinfo='text',
+        colorscale='Inferno', showscale=False, name="Energy"
+    ), row=1, col=2)
+
+    # 3. Signal Plot (Cybernetic)
+    fig.add_trace(go.Heatmap(
+        z=signal_map, text=hover_text, hoverinfo='text',
+        colorscale='Electric', showscale=False, name="Signals"
+    ), row=1, col=3)
+
+    fig.update_layout(
+        height=400, 
+        title_text=f"Phenotypic MRI Scan: {phenotype.id} (Kingdom: {phenotype.genotype.kingdom_id})",
+        plot_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=20, r=20, t=60, b=20)
+    )
+    fig.update_xaxes(showticklabels=False, showgrid=False, zeroline=False)
+    fig.update_yaxes(showticklabels=False, showgrid=False, zeroline=False, scaleanchor="x")
+    
+    return fig
+
+def visualize_grn_sankey(genotype: Genotype) -> go.Figure:
+    """
+    Replaces the hairball graphs with a Logic Flow Circuit (Sankey Diagram).
+    Visualizes: SENSORS -> LOGIC GATES -> ACTUATORS
+    """
+    labels = []
+    sources = []
+    targets = []
+    values = []
+    node_colors = []
+    
+    # Helper to manage node indices
+    node_indices = {}
+    def get_node_index(name, color):
+        if name not in node_indices:
+            node_indices[name] = len(labels)
+            labels.append(name)
+            node_colors.append(color)
+        return node_indices[name]
+
+    # Process Rules
+    for i, rule in enumerate(genotype.rule_genes):
+        # Create a "Logic Node" for the rule itself
+        rule_name = f"Rule {i}<br>({rule.action_type})"
+        rule_color = "#FFB347" if not rule.is_disabled else "#555555"
+        rule_idx = get_node_index(rule_name, rule_color)
+
+        # 1. Map Conditions (Inputs/Sensors) -> Rule
+        if not rule.conditions:
+            # Always active
+            src_idx = get_node_index("ALWAYS TRUE", "#DDDDDD")
+            sources.append(src_idx)
+            targets.append(rule_idx)
+            values.append(1.0)
+        else:
+            for cond in rule.conditions:
+                # Sensor Node
+                sensor_name = f"SENSE:<br>{cond['source']}"
+                sensor_color = "#88CCEE" # Light Blue for Sensors
+                src_idx = get_node_index(sensor_name, sensor_color)
+                
+                sources.append(src_idx)
+                targets.append(rule_idx)
+                values.append(rule.probability * 2) # Thickness based on probability
+
+        # 2. Map Rule -> Actions (Outputs/Actuators)
+        # Action Node
+        action_target = rule.action_param
+        # Try to get component color if the target is a component
+        comp = genotype.component_genes.get(action_target)
+        action_color = comp.color if comp else "#FF6B6B" # Red for generic actions
+        
+        action_name = f"ACT:<br>{action_target}"
+        
+        tgt_idx = get_node_index(action_name, action_color)
+        
+        sources.append(rule_idx)
+        targets.append(tgt_idx)
+        values.append(rule.probability * 2)
+
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=15,
+            thickness=20,
+            line=dict(color="black", width=0.5),
+            label=labels,
+            color=node_colors
+        ),
+        link=dict(
+            source=sources,
+            target=targets,
+            value=values,
+            color="rgba(150, 150, 150, 0.2)" # Semi-transparent links
+        )
+    )])
+
+    fig.update_layout(
+        title_text="<b>Genetic Logic Circuit (Sensors → Logic → Actions)</b>",
+        font_size=10,
+        height=500,
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
+    )
+    return fig
+
+# --- END OF NEW CODE BLOCK ---
+
+# ... Existing visualize_phenotype_2d function is below here ...
+
 def visualize_phenotype_2d(phenotype: Phenotype, grid: UniverseGrid) -> go.Figure:
     """
     Creates a 2D heatmap visualization of the organism's body plan.
@@ -4585,46 +4756,32 @@ def main():
                                 st.metric("Energy Cons.", f"{individual.energy_consumption:.3f}")
                             
                             with col2:
-                                st.markdown("##### **Phenotype (Body Plan)**")
-                                fig = visualize_phenotype_2d(phenotype, vis_grid)
-                                st.plotly_chart(fig, width='stretch', key=f"elite_pheno_vis_{i}")
+                                st.markdown("##### **Phenotypic MRI Scan**")
+                                # Use the new MRI visualizer here too
+                                fig_mri = visualize_phenotype_mri(phenotype, vis_grid)
+                                st.plotly_chart(fig_mri, width='stretch', key=f"elite_pheno_vis_{i}")
 
                             st.markdown("---")
                             
-                            # --- Detailed Analysis Row ---
-                            col3, col4 = st.columns(2)
+                            col3, col4 = st.columns([1, 2]) # Give more space to the circuit diagram
 
                             with col3:
-                                st.markdown("##### **Component Composition**")
+                                st.markdown("##### **Cellular Composition**")
                                 component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
                                 if component_counts:
                                     comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
                                     comp_df = comp_df.rename(columns={'index': 'Component'})
                                     color_map = {c.name: c.color for c in individual.component_genes.values()}
                                     fig_pie = px.pie(comp_df, values='Count', names='Component', 
-                                                     color='Component', color_discrete_map=color_map, title="Cell Type Distribution")
-                                    fig_pie.update_layout(showlegend=True, margin=dict(l=0, r=0, t=30, b=0), height=300)
+                                                     color='Component', color_discrete_map=color_map)
+                                    fig_pie.update_layout(showlegend=True, margin=dict(l=0, r=0, t=0, b=0), height=300)
                                     st.plotly_chart(fig_pie, width='stretch', key=f"elite_pie_{i}")
-                                else:
-                                    st.info("No cells to analyze.")
-                                    
-                                st.markdown("##### **Component Genes (The 'Alphabet')**")
-                                for comp_name, comp_gene in individual.component_genes.items():
-                                    st.code(f"[{comp_gene.color}] {comp_name} (Mass: {comp_gene.mass:.2f}, Struct: {comp_gene.structural:.2f})", language="text")
 
                             with col4:
-                                st.markdown("##### **Genetic Regulatory Network (GRN Rules)**")
-                                if individual.rule_genes:
-                                    for rule in individual.rule_genes:
-                                        cond_parts = []
-                                        for c in rule.conditions:
-                                            target_val = c['target_value']
-                                            val_str = f"{target_val:.1f}" if isinstance(target_val, (int, float)) else f"'{target_val}'"
-                                            cond_parts.append(f"{c['source']} {c['operator']} {val_str}")
-                                        cond_str = " AND ".join(cond_parts) if cond_parts else "ALWAYS"
-                                        st.code(f"IF {cond_str}\nTHEN {rule.action_type}({rule.action_param}) [P={rule.probability:.2f}, Pri={rule.priority}]", language='sql')
-                                else:
-                                    st.info("No GRN rules.")
+                                st.markdown("##### **Logic Flow (The 'Mind' of the Organism)**")
+                                # Use the new Sankey visualizer
+                                fig_circuit = visualize_grn_sankey(individual)
+                                st.plotly_chart(fig_circuit, width='stretch', key=f"elite_circuit_{i}")
                 else:
                     st.warning("No population data available to analyze.")
                 
