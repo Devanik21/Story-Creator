@@ -1087,6 +1087,9 @@ class Phenotype:
                     victim_pheno, victim_cell = self.get_target_internal(target_loc.x, target_loc.y)
                     
                     if victim_cell and victim_pheno:
+                        if 'camouflaged_until' in victim_cell.state_vector:
+                            # Attack misses!
+                            continue
                         # Check for fortification
                         defense_mult = 2.0 if victim_cell.state_vector.get('is_fortified') else 1.0
                         
@@ -1219,6 +1222,145 @@ class Phenotype:
                 
                 cost += 0.5 # Energy converted to photons
                 
+            # ... (Place this after your existing elif blocks) ...
+
+            # --- THE DIRTY DOZEN ACTIONS ---
+
+            elif action == "REPRODUCE":
+                # Asexual Reproduction: Create a genetic clone in an empty spot
+                # Cost is very high (creating life is expensive!)
+                repro_cost = 10.0 + (cell.component.mass * 2.0)
+                if cell.energy > repro_cost:
+                    empty_neighbors = [n for n in self.grid.get_neighbors(cell.x, cell.y) if n.organism_id is None]
+                    if empty_neighbors:
+                        target = random.choice(empty_neighbors)
+                        
+                        # Create a new Phenotype entry (Simplified Logic)
+                        # We technically "bud" off a new organism with a derived ID
+                        new_id = f"{self.id}_child_{random.randint(0,999)}"
+                        
+                        # Place the zygote
+                        target.organism_id = new_id
+                        target.cell_type = cell.component.name
+                        
+                        # Note: In a full simulation, you'd need to register this new ID 
+                        # into the global registry. For now, it exists physically on the grid.
+                        
+                        cell.energy -= repro_cost
+                        cost += 0.5
+
+            elif action == "SYMBIOTE":
+                # Bond with a neighbor. 'param' could be the direction or random.
+                neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                valid_targets = [n for n in neighbors if n.organism_id and n.organism_id != self.id]
+                if valid_targets:
+                    target = random.choice(valid_targets)
+                    # Mark this cell as a symbiote to that organism ID
+                    if 'symbiotes' not in cell.state_vector:
+                        cell.state_vector['symbiotes'] = []
+                    cell.state_vector['symbiotes'].append(target.organism_id)
+                    cost += 0.2 # Bonding cost
+
+            elif action == "CAMOUFLAGE":
+                # Become invisible to ATTACK actions for 'value' ticks
+                duration = int(value * 10) + 5
+                cell.state_vector['camouflaged_until'] = cell.age + duration
+                cost += 0.5 # Active camo consumes energy
+
+            elif action == "HARVEST_CORPSE":
+                # Consume the 'minerals' of the grid tile as if it were biomass
+                # (Assuming dead things decay into minerals/organic waste)
+                grid_cell = self.grid.get_cell(cell.x, cell.y)
+                if grid_cell.minerals > 0:
+                    # Highly efficient extraction (better than MINE_RESOURCE)
+                    harvested = min(grid_cell.minerals, 2.0)
+                    cell.energy += harvested * 8.0 # Huge energy gain from meat
+                    grid_cell.minerals -= harvested
+                    cost += 0.2
+
+            elif action == "MUTATE_SELF":
+                # Epigenetics: Randomly boost one of YOUR own stats temporarily
+                # Real-time adaptation!
+                stat_to_buff = random.choice(['armor', 'offense', 'photosynthesis', 'scavenge'])
+                # We modify the component *instance* for this cell only
+                # (Requires cell.component to be a unique copy, or we modify the shared gene)
+                # For safety, we'll set a temporary modifier in state_vector
+                if 'modifiers' not in cell.state_vector:
+                    cell.state_vector['modifiers'] = {}
+                cell.state_vector['modifiers'][stat_to_buff] = value
+                cost += 1.0 # Genetic editing is stressful
+
+            elif action == "SPLIT":
+                # Binary Fission: Detach this cell from the main organism
+                # It becomes a new organism (ID change)
+                grid_cell = self.grid.get_cell(cell.x, cell.y)
+                new_id = f"{self.id}_split_{random.randint(0,999)}"
+                grid_cell.organism_id = new_id
+                # Remove from current phenotype logic (it is now independent)
+                # (Implementation detail: This cell stops receiving signals from you)
+                cost += 0.5
+
+            elif action == "ABSORB":
+                # Engulfment (The "Blob" move)
+                # Instant kill if target is smaller/weaker
+                neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                targets = [n for n in neighbors if n.organism_id and n.organism_id != self.id]
+                if targets:
+                    target_loc = random.choice(targets)
+                    victim_pheno, victim_cell = get_target_at(target_loc.x, target_loc.y)
+                    if victim_cell:
+                        # Size/Mass check
+                        if cell.component.mass > (victim_cell.component.mass * 1.5):
+                            # GULP!
+                            gained_energy = victim_cell.energy + (victim_cell.component.mass * 5.0)
+                            cell.energy += gained_energy
+                            # Victim dies instantly
+                            victim_cell.energy = -100 
+                            cost += 0.5 # Digestion cost
+
+            elif action == "REGENERATE":
+                # Rapidly convert minerals into Health/Energy
+                grid_cell = self.grid.get_cell(cell.x, cell.y)
+                if grid_cell.minerals > 0.1:
+                    # Heal damage (gain energy)
+                    cell.energy += 5.0
+                    grid_cell.minerals -= 0.1
+                    cost += 0.1
+
+            elif action == "SPORE":
+                # Turn into a dormant, armored spore
+                cell.state_vector['is_spore'] = True
+                cell.state_vector['spore_duration'] = 100 # Lasts a long time
+                cost += 2.0 # High upfront cost to build the shell
+
+            elif action == "NETWORK":
+                # Connect to the "Mycelial Network"
+                cell.state_vector['network_active'] = True
+                cost += 0.1
+
+            elif action == "ADAPT":
+                # Adjust thermosynthesis to match LOCAL temperature
+                grid_cell = self.grid.get_cell(cell.x, cell.y)
+                local_temp = grid_cell.temperature
+                # If temp is high, become heat-loving. If low, become cold-loving.
+                # We store this as a temporary override
+                cell.state_vector['temp_adaptation'] = local_temp
+                cost += 0.5
+
+            elif action == "RADIATE":
+                # Emit damaging radiation (Heat/Toxin mix)
+                neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                for n in neighbors:
+                    victim_pheno, victim_cell = get_target_at(n.x, n.y)
+                    if victim_cell:
+                        # Radiation ignores armor!
+                        damage = 2.0
+                        victim_cell.energy -= damage
+                    # Also irradiate the land (reduce resources)
+                    n.minerals *= 0.9
+                cost += 1.5
+
+            
             elif action == "TRANSFER_ENERGY":
                 # 'param' is direction (e.g., 'N', 'S', 'E', 'W') or 'NEIGHBORS'
                 # 'value' is amount
@@ -1247,29 +1389,58 @@ class Phenotype:
         
         energy_gain = 0.0
         metabolic_cost = 0.0
-
-            # --- 1. Run all cells ---
+        
+        # --- NEW: Initialize Network Variables ---
+        network_energy_pool = 0.0
+        network_cell_count = 0
+        
+        # --- 1. Run all cells ---
         for (x, y), cell in list(self.cells.items()):
             
-            # --- HIBERNATION LOGIC ---
-            # Check if hibernating first
+            # ==================================================
+            # --- NEW LOGIC START: The Dirty Dozen Handlers ---
+            # ==================================================
+
+            # 1. SPORE CHECK (Must be FIRST)
+            # Spores are dormant. They pay tiny rent and do nothing else.
+            if cell.state_vector.get('is_spore'):
+                cell.energy -= 0.001 # Tiny upkeep to prevent infinite life
+                # Wake up if energy is high (photosynthesis still works?) or random chance
+                if cell.energy > 50 or random.random() < 0.001:
+                    cell.state_vector['is_spore'] = False # Wake up!
+                else:
+                    continue # SKIP everything else (metabolism, actions) for this cell!
+
+            # 2. HIBERNATE CHECK
             hibernation_timer = cell.state_vector.get('is_hibernating', 0)
             if hibernation_timer > 0:
-                # If hibernating, skip metabolism and actions!
                 cell.state_vector['is_hibernating'] -= 1
-                # Tiny maintenance cost only
-                cell.energy -= 0.01 
-                continue # Skip the rest of the loop for this cell
+                cell.energy -= 0.01 # Tiny sleep cost
+                continue # Skip actions
             
-            # --- FORTIFY RESET ---
-            # Fortification only lasts 1 turn. Reset it at start of tick.
+            # 3. FORTIFY RESET
+            # Armor only lasts 1 tick, so we reset it here.
             if cell.state_vector.get('is_fortified'):
                 cell.state_vector['is_fortified'] = False 
 
+            # 4. CAMOUFLAGE EXPIRY
+            if 'camouflaged_until' in cell.state_vector:
+                if self.age > cell.state_vector['camouflaged_until']:
+                    del cell.state_vector['camouflaged_until'] # Invisibility wears off
+
+            # 5. NETWORK COLLECTION
+            # If this cell is part of the hive mind, add its energy to the pile
+            if cell.state_vector.get('network_active'):
+                network_energy_pool += cell.energy
+                network_cell_count += 1
+
+            # ==================================================
+            # --- NEW LOGIC END --------------------------------
+            # ==================================================
 
             comp = cell.component
             grid_cell = self.grid.get_cell(x, y)
-            if not grid_cell: continue # Should not happen
+            if not grid_cell: continue 
             
             # --- 1a. Energy Gain ---
             gain = 0
@@ -1292,29 +1463,25 @@ class Phenotype:
             
             cell.energy -= cost
             metabolic_cost += cost
-            # (After metabolic cost calculation, before energy distribution)
             
-            # --- 1c. Run GRN for behavior (simplified) ---
-            # (A full sim would run the GRN here too for non-developmental actions)
-
-            # --- ADD THIS TIMER LOOP ---
-            # Update internal timers
+            # --- 1c. Run GRN for behavior (Timers) ---
             if 'timers' in cell.state_vector:
                 for timer_name in list(cell.state_vector['timers'].keys()):
                     if cell.state_vector['timers'][timer_name] > 0:
                         cell.state_vector['timers'][timer_name] -= 1
                     else:
-                        # Timer reached 0, remove it
                         del cell.state_vector['timers'][timer_name]
-            # --- END OF ADDITION ---
-            
-        # --- 2. Energy Distribution (simplified) ---
-            
-            # --- 1c. Run GRN for behavior (simplified) ---
-            # (A full sim would run the GRN here too for non-developmental actions)
-            
-        # --- 2. Energy Distribution (simplified) ---
-        # Cells with high conductance share energy
+
+        # --- NEW: NETWORK REDISTRIBUTION (Socialism) ---
+        # Distribute the pooled energy equally among network members
+        if network_cell_count > 1:
+            average_energy = network_energy_pool / network_cell_count
+            for (x, y), cell in self.cells.items():
+                if cell.state_vector.get('network_active'):
+                    # Everyone gets the average (sharing the wealth)
+                    cell.energy = average_energy
+
+        # --- 2. Existing Energy Distribution (Conductance) ---
         for (x, y), cell in list(self.cells.items()):
             if cell.component.conductance > 0.5:
                 neighbors = self.grid.get_neighbors(x, y)
@@ -1324,12 +1491,12 @@ class Phenotype:
                 avg_energy = (cell.energy + sum(n.energy for n in self_neighbors)) / (len(self_neighbors) + 1)
                 
                 # Move towards average
-                transfer_share = (avg_energy - cell.energy) * cell.component.conductance * 0.1 # Slow diffusion
+                transfer_share = (avg_energy - cell.energy) * cell.component.conductance * 0.1 
                 cell.energy += transfer_share
                 for n in self_neighbors:
                     n.energy -= transfer_share / len(self_neighbors)
 
-        # --- 3. Prune dead cells and check for life ---
+        # --- 3. Prune dead cells ---
         dead_cells = []
         for (x,y), cell in self.cells.items():
             if cell.energy <= 0:
@@ -1657,7 +1824,12 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
 
     # --- 2. Create Action ---
     action_type = random.choice(['GROW', 'DIFFERENTIATE', 'SET_STATE', 'TRANSFER_ENERGY', 'DIE',
-                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE','EMIT_SIGNAL','ATTACK', 'STEAL', 'POISON', 'MINE_RESOURCE','MOVE', 'FORTIFY', 'HIBERNATE', 'DETONATE', 'TERRAFORM', 'EMIT_LIGHT']) # <--- ADDED THESE])
+                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE','EMIT_SIGNAL','ATTACK', 'STEAL', 'POISON', 'MINE_RESOURCE','MOVE', 'FORTIFY', 'HIBERNATE', 'DETONATE', 'TERRAFORM', 'EMIT_LIGHT'
+                                # --- THE DIRTY DOZEN (New 12) ---
+            'REPRODUCE', 'SYMBIOTE', 'CAMOUFLAGE', 'HARVEST_CORPSE', 
+            'MUTATE_SELF', 'SPLIT', 'ABSORB', 'REGENERATE', 
+            'SPORE', 'NETWORK', 'ADAPT', 'RADIATE'
+                                ]) # <--- ADDED THESE])
     
     # Pick a random component from the genotype's "alphabet"
     if not genotype.component_genes:
