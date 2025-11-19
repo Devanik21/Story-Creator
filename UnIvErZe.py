@@ -1084,22 +1084,29 @@ class Phenotype:
                 
                 if targets and cell.component.offense > 0:
                     target_loc = random.choice(targets)
-                    victim_pheno, victim_cell = self.get_target_internal(target_loc.x, target_loc.y)
+                    victim_pheno, victim_cell = get_target_at(target_loc.x, target_loc.y)
                     
                     if victim_cell and victim_pheno:      
+                        # --- FIX STARTS HERE ---
+                        # 1. Check Camouflage
                         if 'camouflaged_until' in victim_cell.state_vector:
-                            continue
+                            # Attack misses! We simply do nothing here.
+                            pass 
+                        else:
+                            # 2. If NOT camouflaged, proceed with attack
                             
-                            # Attack misses!
+                            # Check for fortification
+                            defense_mult = 2.0 if victim_cell.state_vector.get('is_fortified') else 1.0
                             
-                        # Check for fortification
-                        defense_mult = 2.0 if victim_cell.state_vector.get('is_fortified') else 1.0
-                        
-                        # Damage calc: Offense vs (Armor * Defense Multiplier)
-                        defense_val = victim_cell.component.armor * defense_mult
-                        damage = max(0.1, cell.component.offense * 2.0 - defense_val)
-                        
-                        victim_cell.energy -= damage
+                            # Damage calc: Offense vs (Armor * Defense Multiplier)
+                            defense_val = victim_cell.component.armor * defense_mult
+                            damage = max(0.1, cell.component.offense * 2.0 - defense_val)
+                            
+                            victim_cell.energy -= damage
+                            
+                            # Optional: Add fatigue cost for successful hit
+                            cost += cell.component.offense * 0.2 
+                        # --- FIX ENDS HERE ---
                         
                         # Visual feedback (optional)
                         # st.toast(f"⚔️ Combat! {self.id} hit {victim_pheno.id} for {damage:.1f} dmg")
