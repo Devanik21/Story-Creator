@@ -1087,9 +1087,11 @@ class Phenotype:
                     victim_pheno, victim_cell = self.get_target_internal(target_loc.x, target_loc.y)
                     
                     if victim_cell and victim_pheno:
+                        
                         if 'camouflaged_until' in victim_cell.state_vector:
-                            # Attack misses!
                             continue
+                            # Attack misses!
+                            
                         # Check for fortification
                         defense_mult = 2.0 if victim_cell.state_vector.get('is_fortified') else 1.0
                         
