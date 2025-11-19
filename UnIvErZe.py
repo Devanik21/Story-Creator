@@ -1557,7 +1557,7 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
 
     # --- 2. Create Action ---
     action_type = random.choice(['GROW', 'DIFFERENTIATE', 'SET_STATE', 'TRANSFER_ENERGY', 'DIE',
-                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE','EMIT_SIGNAL','ATTACK', 'STEAL', 'POISON', 'MINE_RESOURCE']) # <--- ADDED THESE])
+                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE','EMIT_SIGNAL','ATTACK', 'STEAL', 'POISON', 'MINE_RESOURCE','MOVE', 'FORTIFY', 'HIBERNATE', 'DETONATE', 'TERRAFORM', 'EMIT_LIGHT']) # <--- ADDED THESE])
     
     # Pick a random component from the genotype's "alphabet"
     if not genotype.component_genes:
@@ -2940,14 +2940,14 @@ def main():
         # Read the synced value back into your settings
         s['num_generations'] = st.session_state.generation_simulator_sync_key
         # Read the synced value back into your settings
-        s['selection_pressure'] = st.slider("Selection Pressure", 0.1, 0.9, s.get('selection_pressure', 0.4), 0.05)
-        s['mutation_rate'] = st.slider("Base Mutation Rate (μ)", 0.01, 0.9, s.get('mutation_rate', 0.2), 0.01)
-        s['crossover_rate'] = st.slider("Crossover Rate", 0.0, 1.0, s.get('crossover_rate', 0.7), 0.05)
-        s['innovation_rate'] = st.slider("Rule Innovation Rate (σ)", 0.01, 0.5, s.get('innovation_rate', 0.05), 0.01, help="Rate of creating new GRN rules.")
-        s['component_innovation_rate'] = st.slider("Component Innovation Rate (α)", 0.0, 0.1, s.get('component_innovation_rate', 0.01), 0.001, help="Rate of inventing new chemical components.")
+        s['selection_pressure'] = st.slider("Selection Pressure", 0.1, 2.9, s.get('selection_pressure', 0.4), 0.05)
+        s['mutation_rate'] = st.slider("Base Mutation Rate (μ)", 0.01, 2.9, s.get('mutation_rate', 0.2), 0.01)
+        s['crossover_rate'] = st.slider("Crossover Rate", 0.0, 3.0, s.get('crossover_rate', 0.7), 0.05)
+        s['innovation_rate'] = st.slider("Rule Innovation Rate (σ)", 0.01, 3.5, s.get('innovation_rate', 0.05), 0.01, help="Rate of creating new GRN rules.")
+        s['component_innovation_rate'] = st.slider("Component Innovation Rate (α)", 0.0, 3.1, s.get('component_innovation_rate', 0.01), 0.001, help="Rate of inventing new chemical components.")
         # --- NEW 2.0 ---
-        s['meta_innovation_rate'] = st.slider("Meta-Innovation Rate (Sensor)", 0.0, 0.01, s.get('meta_innovation_rate', 0.005), 0.0001, help="Rate of inventing new *types* of senses.")
-        s['max_rule_conditions'] = st.slider("Max Rule Conditions", 1, 5, s.get('max_rule_conditions', 3), 1)
+        s['meta_innovation_rate'] = st.slider("Meta-Innovation Rate (Sensor)", 0.0, 1.01, s.get('meta_innovation_rate', 0.005), 0.0001, help="Rate of inventing new *types* of senses.")
+        s['max_rule_conditions'] = st.slider("Max Rule Conditions", 1, 50, s.get('max_rule_conditions', 3), 1)
 
     with st.sidebar.expander("Speciation & Ecosystem Dynamics", expanded=False):
         s['enable_speciation'] = st.checkbox("Enable Speciation", s.get('enable_speciation', True), help="Group similar organisms into 'species' to protect innovation.")
