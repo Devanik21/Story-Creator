@@ -1087,10 +1087,14 @@ class Phenotype:
                     victim_pheno, victim_cell = self.get_target_internal(target_loc.x, target_loc.y)
                     
                     if victim_cell and victim_pheno:
-                        # Damage calc: Offense vs Armor
-                        damage = max(0.1, cell.component.offense * 2.0 - victim_cell.component.armor)
+                        # Check for fortification
+                        defense_mult = 2.0 if victim_cell.state_vector.get('is_fortified') else 1.0
+                        
+                        # Damage calc: Offense vs (Armor * Defense Multiplier)
+                        defense_val = victim_cell.component.armor * defense_mult
+                        damage = max(0.1, cell.component.offense * 2.0 - defense_val)
+                        
                         victim_cell.energy -= damage
-                        cost += cell.component.offense * 0.2 # Fatigue
                         
                         # Visual feedback (optional)
                         # st.toast(f"⚔️ Combat! {self.id} hit {victim_pheno.id} for {damage:.1f} dmg")
@@ -1136,6 +1140,85 @@ class Phenotype:
                     cost += mined * 0.5 # Heavy labor
 
             
+            # ... [Previous actions like POISON, MINE_RESOURCE, etc.] ...
+
+            # --- NEW COMPLEX BEHAVIORS ---
+
+            elif action == "MOVE":
+                # Locomotion: Jumps to an empty spot
+                empty_neighbors = [n for n in self.grid.get_neighbors(cell.x, cell.y) if n.organism_id is None]
+                if empty_neighbors and cell.component.motility > 0: # Need motility to move!
+                    target = random.choice(empty_neighbors)
+                    
+                    # Cost increases with mass (heavy things are hard to move)
+                    move_cost = 0.1 + (cell.component.mass * 0.2)
+                    if cell.energy > move_cost:
+                        # 1. Remove from old spot
+                        old_grid_cell = self.grid.get_cell(cell.x, cell.y)
+                        old_grid_cell.organism_id = None
+                        old_grid_cell.cell_type = None
+                        del self.cells[(cell.x, cell.y)] # Remove from organism dict
+                        
+                        # 2. Move to new spot
+                        cell.x, cell.y = target.x, target.y
+                        self.cells[(cell.x, cell.y)] = cell # Re-add to organism dict
+                        
+                        # 3. Update grid
+                        target.organism_id = self.id
+                        target.cell_type = cell.component.name
+                        
+                        cost += move_cost
+
+            elif action == "FORTIFY":
+                # Temporary Armor Boost
+                cell.state_vector['is_fortified'] = True
+                cost += 0.1 # Small energy cost to brace for impact
+
+            elif action == "HIBERNATE":
+                # Enter Stasis: 'value' determines duration in ticks
+                duration = max(5, int(value * 10))
+                cell.state_vector['is_hibernating'] = duration
+                cost += 0.05 # Small cost to initiate sleep
+
+            elif action == "DETONATE":
+                # Self-Destruct: Massive Area of Effect Damage
+                # Damage scales with cell's stored energy
+                explosion_power = cell.energy * 2.0
+                neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                
+                for n in neighbors:
+                    # Use the global helper to find victims
+                    victim_pheno, victim_cell = get_target_at(n.x, n.y) 
+                    if victim_cell:
+                        # Explosions ignore armor!
+                        victim_cell.energy -= explosion_power
+                
+                # The cell dies instantly
+                cost += cell.energy 
+                self.prune_cell(cell.x, cell.y)
+
+            elif action == "TERRAFORM":
+                # Change local temperature (Heating/Cooling)
+                # param can be 'HEAT' or 'COOL' (randomly assigned in innovate or generic)
+                # Here we'll use the rule's value: Positive = Heat, Negative = Cool
+                change = value if value < 5 else 5.0 # Cap the change
+                grid_cell = self.grid.get_cell(cell.x, cell.y)
+                
+                # Modify the actual grid temperature
+                grid_cell.temperature += change
+                cost += abs(change) * 0.1 # Energy cost proportional to heat change
+
+            elif action == "EMIT_LIGHT":
+                # Bioluminescence: Convert Energy to Light for neighbors
+                grid_cell = self.grid.get_cell(cell.x, cell.y)
+                # Increase light in this cell and neighbors
+                grid_cell.light += 1.0
+                neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                for n in neighbors:
+                    n.light += 0.5
+                
+                cost += 0.5 # Energy converted to photons
+                
             elif action == "TRANSFER_ENERGY":
                 # 'param' is direction (e.g., 'N', 'S', 'E', 'W') or 'NEIGHBORS'
                 # 'value' is amount
@@ -1167,6 +1250,26 @@ class Phenotype:
         
         # --- 1. Run all cells ---
         for (x, y), cell in list(self.cells.items()):
+
+            # --- 1. Run all cells ---
+        for (x, y), cell in list(self.cells.items()):
+            
+            # --- HIBERNATION LOGIC ---
+            # Check if hibernating first
+            hibernation_timer = cell.state_vector.get('is_hibernating', 0)
+            if hibernation_timer > 0:
+                # If hibernating, skip metabolism and actions!
+                cell.state_vector['is_hibernating'] -= 1
+                # Tiny maintenance cost only
+                cell.energy -= 0.01 
+                continue # Skip the rest of the loop for this cell
+            
+            # --- FORTIFY RESET ---
+            # Fortification only lasts 1 turn. Reset it at start of tick.
+            if cell.state_vector.get('is_fortified'):
+                cell.state_vector['is_fortified'] = False 
+
+
             comp = cell.component
             grid_cell = self.grid.get_cell(x, y)
             if not grid_cell: continue # Should not happen
