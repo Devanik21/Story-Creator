@@ -1247,9 +1247,6 @@ class Phenotype:
         
         energy_gain = 0.0
         metabolic_cost = 0.0
-        
-        # --- 1. Run all cells ---
-        for (x, y), cell in list(self.cells.items()):
 
             # --- 1. Run all cells ---
         for (x, y), cell in list(self.cells.items()):
