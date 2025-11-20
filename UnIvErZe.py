@@ -56,6 +56,9 @@ import copy # Added for deep copying presets
 import zipfile  # <-- ADD THIS
 import io       # <-- ADD THIS
 import base64  # <--- ADD THIS
+import matplotlib
+matplotlib.use('Agg') # Set backend to non-interactive for Streamlit
+import matplotlib.pyplot as plt
 # =G=E=N=E=V=O= =2=.=0= =N=E=W= =F=E=A=T=U=R=E=S=T=A=R=T=S= =H=E=R=E=
 #
 # NEW FEATURE: CHEMICAL BASE REGISTRY
@@ -1650,8 +1653,25 @@ class Phenotype:
                 
                 if targets:
                     target_grid = random.choice(targets)
-                    # Logic to swap positions would go here
-                    # (Simplified cost for now)
+                    
+                    # --- SWAP LOGIC ---
+                    # 1. Store references
+                    my_grid = self.grid.get_cell(cell.x, cell.y)
+                    
+                    # 2. Swap Grid Data
+                    # (We swap the IDs and Types on the map instantly)
+                    my_grid.organism_id, target_grid.organism_id = target_grid.organism_id, my_grid.organism_id
+                    my_grid.cell_type, target_grid.cell_type = target_grid.cell_type, my_grid.cell_type
+                    
+                    # 3. Update My Internal Coordinates
+                    # I am now where the target was
+                    del self.cells[(cell.x, cell.y)]
+                    cell.x, cell.y = target_grid.x, target_grid.y
+                    self.cells[(cell.x, cell.y)] = cell
+                    
+                    # Note: The victim's internal (x,y) will be wrong until their next update, 
+                    # but since we act on GridCells, this is acceptable for this physics engine.
+                    
                     cost += 0.8
 
             
@@ -6084,10 +6104,7 @@ def main():
 
         
 if __name__ == "__main__":
-    import matplotlib
-    # Set a non-interactive backend for Streamlit
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
+
 
     # Override the toast and innovation functions to log events for the chronicle
     original_toast = st.toast
