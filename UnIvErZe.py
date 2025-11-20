@@ -1380,36 +1380,13 @@ class Phenotype:
                     n.minerals *= 0.9
                 cost += 1.5
 
-            
-            elif action == "CONSTRUCT_WALL":
-                    # (CORAL/BEAVER LOGIC) Builds a permanent non-living barrier.
-                    # Good for protecting the colony core from predators.
-                    empty_neighbors = [n for n in self.grid.get_neighbors(cell.x, cell.y) if n.organism_id is None]
-                    if empty_neighbors:
-                        target = random.choice(empty_neighbors)
-                        target.organism_id = "WALL" # Special ID that blocks movement
-                        target.cell_type = "Bio-Wall"
-                        cost += 2.0 # Building is expensive
 
-                elif action == "SPIN_WEB":
-                    # (SPIDER LOGIC) Traps a tile.
-                    # Enemies entering this tile lose Motility or Energy (logic handled in MOVE/ATTACK).
-                    # For now, we mark the grid cell.
-                    grid_cell = self.grid.get_cell(cell.x, cell.y)
-                    if not hasattr(grid_cell, 'traps'): grid_cell.traps = 0
-                    grid_cell.traps += 1 # Intensity of the web
-                    cost += 0.5
 
-                elif action == "CULTIVATE":
-                    # (FARMING LOGIC) Increases resource regeneration on this tile.
-                    # The organism spends energy to "fertilize" the land for future use.
-                    grid_cell = self.grid.get_cell(cell.x, cell.y)
-                    grid_cell.minerals += 2.0 # Fertilize
-                    cost += 1.0
             # ============================================================
             # --- THE BIOLOGICAL DOZEN (Real-Life Complexity) ---
             # Enabled via Sidebar Toggle
             # ============================================================
+            
             elif self.settings.get('enable_real_life_behaviors', False):
 
                 if action == "ANCHOR":
@@ -1535,6 +1512,33 @@ class Phenotype:
                     cell.state_vector['hyper_active'] = True
                     cost += 2.0 # High metabolic burn
 
+                elif action == "CONSTRUCT_WALL":
+                    # (CORAL/BEAVER LOGIC) Builds a permanent non-living barrier.
+                    # Good for protecting the colony core from predators.
+                    empty_neighbors = [n for n in self.grid.get_neighbors(cell.x, cell.y) if n.organism_id is None]
+                    if empty_neighbors:
+                        target = random.choice(empty_neighbors)
+                        target.organism_id = "WALL" # Special ID that blocks movement
+                        target.cell_type = "Bio-Wall"
+                        cost += 2.0 # Building is expensive
+
+                elif action == "SPIN_WEB":
+                    # (SPIDER LOGIC) Traps a tile.
+                    # Enemies entering this tile lose Motility or Energy (logic handled in MOVE/ATTACK).
+                    # For now, we mark the grid cell.
+                    grid_cell = self.grid.get_cell(cell.x, cell.y)
+                    if not hasattr(grid_cell, 'traps'): grid_cell.traps = 0
+                    grid_cell.traps += 1 # Intensity of the web
+                    cost += 0.5
+
+                elif action == "CULTIVATE":
+                    # (FARMING LOGIC) Increases resource regeneration on this tile.
+                    # The organism spends energy to "fertilize" the land for future use.
+                    grid_cell = self.grid.get_cell(cell.x, cell.y)
+                    grid_cell.minerals += 2.0 # Fertilize
+                    cost += 1.0
+
+                
                 elif action == "DORMANCY":
                     # (SEED LOGIC) Distinct from Hibernate. Triggered by DRYNESS (low water).
                     # Become indestructible but zero metabolism until water returns.
@@ -1543,6 +1547,7 @@ class Phenotype:
                         cell.state_vector['is_dormant_seed'] = True
                     cost += 0.1
 
+            
             
             elif action == "TRANSFER_ENERGY":
                 # 'param' is direction (e.g., 'N', 'S', 'E', 'W') or 'NEIGHBORS'
