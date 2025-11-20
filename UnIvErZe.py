@@ -2032,7 +2032,9 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
             'LAY_PHEROMONE', 'CANNIBALIZE', 'CRYPSIS', 'TROPHALLAXIS',
             'APOPTOSIS', 'SWARM_CALL', 'HYPERTROPHY', 'DORMANCY',
             # --- THE ARCHITECTS ---
-            'CONSTRUCT_WALL', 'SPIN_WEB', 'CULTIVATE'
+            'CONSTRUCT_WALL', 
+            'SPIN_WEB', 
+            'CULTIVATE'
         ])
     
     # 3. Pick the action
