@@ -2737,6 +2737,18 @@ def main():
         st.session_state.dashboard_visible = False
     if 'analytics_lab_visible' not in st.session_state: # <-- ADD THIS LINE
         st.session_state.analytics_lab_visible = False
+
+    # --- LAZY LOADING STATES FOR GENESIS CHRONICLE ---
+    if 'show_genesis_history' not in st.session_state:
+        st.session_state.show_genesis_history = False
+    if 'show_genesis_gallery' not in st.session_state:
+        st.session_state.show_genesis_gallery = False
+    if 'show_genesis_epochs' not in st.session_state:
+        st.session_state.show_genesis_epochs = False
+    if 'show_genesis_dynasty' not in st.session_state:
+        st.session_state.show_genesis_dynasty = False
+    if 'show_genesis_pantheon' not in st.session_state:
+        st.session_state.show_genesis_pantheon = False
     
     # --- Password Protection (Reused from GENEVO) ---
     # --- Password Protection (Using Streamlit Secrets) ---
@@ -5237,70 +5249,84 @@ def main():
                 if st.button("🧬 Render Elite Analysis", key="show_elite"):
                     st.session_state.show_elite_analysis = True
                     st.rerun()
-
-        with tab_genesis:
+with tab_genesis:
             st.header("🌌 The Genesis Chronicle")
-            st.markdown("This is the historical record of your universe, chronicling the pivotal moments of creation, innovation, and cosmic change. These events are the sparks that drive 'truly infinite' evolution.")
+            st.markdown("This is the historical record of your universe, chronicling the pivotal moments of creation, innovation, and cosmic change.")
 
             events = st.session_state.get('genesis_events', [])
-            if not events:
-                st.info("No significant evolutionary events have been recorded yet. Run a simulation with innovation and cataclysms enabled.")
+            
+            # --- SECTION 1: RECORDED HISTORY ---
+            st.markdown("---")
+            st.subheader(f"📜 Recorded History ({len(events)} Events)")
+            
+            if not st.session_state.show_genesis_history:
+                st.info("Browse the full log of every major event, evolutionary leap, and cataclysm.")
+                if st.button(f"📜 Load Recorded History ({len(events)} events)", key="load_gen_history"):
+                    st.session_state.show_genesis_history = True
+                    st.rerun()
             else:
-                # --- Event Filters ---
-                st.markdown("---")
-                event_types = sorted(list(set(e['type'] for e in events)))
-                
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    st.markdown("#### Filter Events")
-                    gen_range = st.slider(
-                        "Filter by Generation",
-                        min_value=0,
-                        max_value=history_df['generation'].max(),
-                        value=(0, history_df['generation'].max())
-                    )
-                    selected_types = st.multiselect(
-                        "Filter by Event Type",
-                        options=event_types,
-                        default=event_types
-                    )
-
-                # --- Filtered Event Log ---
-                filtered_events = [
-                    e for e in events 
-                    if gen_range[0] <= e['generation'] <= gen_range[1] and e['type'] in selected_types
-                ]
-
-                with col2:
-                    st.markdown(f"#### Recorded History ({len(filtered_events)} events)")
-                    log_container = st.container(height=400)
-                    for event in sorted(filtered_events, key=lambda x: x['generation']):
-                        log_container.markdown(f"""
-                        <div style="border-left: 3px solid #00aaff; padding-left: 10px; margin-bottom: 15px;">
-                            <small>Generation {event['generation']}</small><br>
-                            <strong>{event['icon']} {event['title']}</strong>
-                            <p style="font-size: 0.9em; color: #ccc;">{event['description']}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-
-                # --- Gallery of Innovation ---
-                st.markdown("---")
-                st.markdown("### 🏆 Gallery of Innovation")
-                st.markdown("A showcase of the most novel organisms that emerged directly after key evolutionary leaps.")
-
-                # innovation_events = [e for e in filtered_events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis']]
-                innovation_events = [e for e in filtered_events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis', 'Genesis', 'Complexity Leap', 'Major Transition', 'Cognitive Leap']]
-                if not innovation_events:
-                    st.info("No innovation events found in the selected range.")
+                if not events:
+                    st.info("No significant evolutionary events have been recorded yet. Run a simulation with innovation and cataclysms enabled.")
                 else:
-                    # Find the best organism in the generation immediately following an innovation
+                    # --- Event Filters ---
+                    event_types = sorted(list(set(e['type'] for e in events)))
+                    
+                    col1, col2 = st.columns([1, 3])
+                    with col1:
+                        st.markdown("#### Filter Events")
+                        gen_range = st.slider(
+                            "Filter by Generation",
+                            min_value=0,
+                            max_value=history_df['generation'].max(),
+                            value=(0, history_df['generation'].max()),
+                            key="gen_filter_slider"
+                        )
+                        selected_types = st.multiselect(
+                            "Filter by Event Type",
+                            options=event_types,
+                            default=event_types,
+                            key="event_type_multiselect"
+                        )
+
+                    # --- Filtered Event Log ---
+                    filtered_events = [
+                        e for e in events 
+                        if gen_range[0] <= e['generation'] <= gen_range[1] and e['type'] in selected_types
+                    ]
+
+                    with col2:
+                        st.markdown(f"**Showing {len(filtered_events)} events**")
+                        log_container = st.container(height=400)
+                        for event in sorted(filtered_events, key=lambda x: x['generation']):
+                            log_container.markdown(f"""
+                            <div style="border-left: 3px solid #00aaff; padding-left: 10px; margin-bottom: 15px;">
+                                <small>Generation {event['generation']}</small><br>
+                                <strong>{event['icon']} {event['title']}</strong>
+                                <p style="font-size: 0.9em; color: #ccc;">{event['description']}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                
+                if st.button("❌ Hide History", key="hide_gen_history"):
+                    st.session_state.show_genesis_history = False
+                    st.rerun()
+
+            # --- SECTION 2: GALLERY OF INNOVATION ---
+            st.markdown("---")
+            st.subheader("🏆 Gallery of Innovation")
+            
+            if not st.session_state.show_genesis_gallery:
+                st.info("Visualize the specific organisms that invented new body parts, senses, or strategies.")
+                if st.button("🏆 Load Gallery of Innovation", key="load_gen_gallery"):
+                    st.session_state.show_genesis_gallery = True
+                    st.rerun()
+            else:
+                innovation_events = [e for e in events if e['type'] in ['Component Innovation', 'Sense Innovation', 'Endosymbiosis', 'Genesis', 'Complexity Leap', 'Major Transition', 'Cognitive Leap']]
+                
+                if not innovation_events:
+                    st.info("No innovation events found to display.")
+                else:
+                    # Logic to find the historical specimens
                     gallery_specimens = []
-                    generations_to_check = sorted(list(set(e['generation'] + 1 for e in innovation_events)))
-                    
-                    # --- REVISED LOGIC: Find the actual historical specimen ---
-                    # This is more complex because we need to find the specific organism in the gene_archive
-                    
-                    # Create a lookup for lineage_id -> genotype from the final population for efficiency
                     lineage_lookup = {p.lineage_id: p for p in population}
 
                     for event in innovation_events:
@@ -5311,11 +5337,8 @@ def main():
                             best_organism_info = next_gen_df.loc[best_in_gen_idx]
                             best_lineage_id = best_organism_info['lineage_id']
                             
-                            # Find the descendant of this organism in the final population
                             specimen = lineage_lookup.get(best_lineage_id)
-                            
                             if specimen and not any(s['specimen'].id == specimen.id for s in gallery_specimens):
-                                # Store the specimen AND the context of its innovation
                                 gallery_specimens.append({
                                     'specimen': specimen,
                                     'innovation_title': event['title'],
@@ -5325,35 +5348,32 @@ def main():
                     if not gallery_specimens:
                         st.warning("Could not find representative specimens for the selected innovations.")
                     else:
-                        # --- NEW: More detailed gallery layout ---
-                        for i, item in enumerate(gallery_specimens[:3]): # Show top 3 for more detail
+                        for i, item in enumerate(gallery_specimens[:3]): 
                             specimen = item['specimen']
                             st.markdown(f"#### 🏅 Specimen from Gen {item['innovation_gen']} (Post-'*{item['innovation_title']}*')")
                             
                             with st.spinner(f"Growing and analyzing specimen {i+1}..."):
-                                # Grow the phenotype once for all plots
                                     vis_grid = UniverseGrid(s)
                                     phenotype = Phenotype(specimen, vis_grid, s)
 
                             col1, col2, col3 = st.columns(3)
-
                             with col1:
                                 st.markdown("**Phenotype (Body Plan)**")
                                 fig_pheno = visualize_phenotype_2d(phenotype, vis_grid)
                                 fig_pheno.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0))
                                 st.plotly_chart(fig_pheno, width='stretch', key=f"gallery_pheno_{i}")
                                 
-                                st.markdown("**Component Composition**")
                                 component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
                                 if component_counts:
                                     comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
                                     comp_df = comp_df.rename(columns={'index': 'Component'})
                                     color_map = {c.name: c.color for c in specimen.component_genes.values()}
                                     fig_pie = px.pie(comp_df, values='Count', names='Component', color='Component', color_discrete_map=color_map)
-                                    fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
+                                    fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=150)
                                     st.plotly_chart(fig_pie, width='stretch', key=f"gallery_pyie_{i}")
+
                             with col2:
-                                st.markdown("**Internal Energy Distribution**")
+                                st.markdown("**Internal Energy**")
                                 energy_data = np.full((vis_grid.width, vis_grid.height), np.nan)
                                 for (x, y), cell in phenotype.cells.items():
                                     energy_data[x, y] = cell.energy
@@ -5361,9 +5381,8 @@ def main():
                                 fig_energy.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0), coloraxis_showscale=False)
                                 fig_energy.update_xaxes(showticklabels=False).update_yaxes(showticklabels=False)
                                 st.plotly_chart(fig_energy, width='stretch', key=f"gallery_energye_{i}")
-
                             with col3:
-                                st.markdown("**Cellular Age Map**")
+                                st.markdown("**Age Map**")
                                 age_data = np.full((vis_grid.width, vis_grid.height), np.nan)
                                 for (x, y), cell in phenotype.cells.items():
                                     age_data[x, y] = cell.age
@@ -5372,17 +5391,25 @@ def main():
                                 fig_age.update_xaxes(showticklabels=False).update_yaxes(showticklabels=False)
                                 st.plotly_chart(fig_age, width='stretch', key=f"galleriey_age_{i}")
                             st.markdown("---")
-                
-                # --- NEW: Epochs & Phylogeny Section ---
-                st.markdown("---")
-                st.markdown("### 📖 Epochs & Phylogeny")
-                st.markdown("A macro-level analysis of your universe's history, identifying distinct eras and visualizing the evolutionary tree of its kingdoms.")
 
+                if st.button("❌ Hide Gallery", key="hide_gen_gallery"):
+                    st.session_state.show_genesis_gallery = False
+                    st.rerun()
+
+            # --- SECTION 3: EPOCHS & PHYLOGENY ---
+            st.markdown("---")
+            st.subheader("📖 Epochs & Phylogeny")
+
+            if not st.session_state.show_genesis_epochs:
+                st.info("Analyze historical eras and view the evolutionary tree of life.")
+                if st.button("📖 Load Epochs & Phylogeny", key="load_gen_epochs"):
+                    st.session_state.show_genesis_epochs = True
+                    st.rerun()
+            else:
                 col1, col2 = st.columns([2, 1])
 
                 with col1:
                     st.markdown("#### The Great Epochs of History")
-                    # Identify break points for epochs
                     break_points = {0, history_df['generation'].max()}
                     major_events = [e for e in events if e['type'] in ['Cataclysm', 'Genesis', 'Succession']]
                     for event in major_events:
@@ -5396,117 +5423,90 @@ def main():
                         for i in range(len(sorted_breaks) - 1):
                             start_gen = sorted_breaks[i]
                             end_gen = sorted_breaks[i+1]
-                            
                             epoch_df = history_df[(history_df['generation'] >= start_gen) & (history_df['generation'] <= end_gen)]
                             if epoch_df.empty: continue
 
-                            # Determine epoch name from the event that started it
                             start_event = next((e for e in major_events if e['generation'] == start_gen), None)
                             epoch_name = f"Epoch {i+1}"
                             if i == 0 and not start_event: epoch_name = "The Primordial Era"
                             elif start_event: epoch_name = f"The {start_event['title']} Era"
 
                             with st.expander(f"**{epoch_name}** (Generations {start_gen} - {end_gen})"):
-                                # --- NEW: More complex and shocking details ---
                                 c1, c2, c3 = st.columns(3)
-                                
-                                # 1. Core Metrics
                                 with c1:
-                                    st.markdown("##### Core Metrics")
                                     dominant_kingdom = epoch_df['kingdom_id'].mode()[0] if not epoch_df['kingdom_id'].mode().empty else "N/A"
-                                    mean_fitness = epoch_df['fitness'].mean()
-                                    peak_complexity = epoch_df['complexity'].max()
                                     st.metric("Dominant Kingdom", dominant_kingdom)
-                                    st.metric("Mean Fitness", f"{mean_fitness:.3f}")
-                                    st.metric("Peak Complexity", f"{peak_complexity:.2f}")
-
-                                # 2. Evolutionary Dynamics
+                                    st.metric("Mean Fitness", f"{epoch_df['fitness'].mean():.3f}")
                                 with c2:
-                                    st.markdown("##### Dynamics")
-                                    start_fitness = history_df[history_df['generation'] == start_gen]['fitness'].mean()
-                                    end_fitness = history_df[history_df['generation'] == end_gen]['fitness'].mean()
-                                    velocity = (end_fitness - start_fitness) / max(1, end_gen - start_gen)
-                                    st.metric("Evolutionary Velocity", f"{velocity*100:.2f} ΔF/100gen")
-
-                                    apex_organism_idx = epoch_df['fitness'].idxmax()
-                                    apex_organism = epoch_df.loc[apex_organism_idx]
-                                    st.markdown(f"**Apex Predator:** A `{apex_organism['kingdom_id']}` organism reached a peak fitness of **{apex_organism['fitness']:.3f}** with complexity **{apex_organism['complexity']:.1f}**.")
-
-                                # 3. Innovations and Extinctions
+                                    st.metric("Peak Complexity", f"{epoch_df['complexity'].max():.2f}")
+                                    apex_organism = epoch_df.loc[epoch_df['fitness'].idxmax()]
+                                    st.caption(f"Apex: {apex_organism['kingdom_id']}")
                                 with c3:
-                                    st.markdown("##### Historical Events")
                                     epoch_events = [e for e in events if start_gen <= e['generation'] < end_gen]
-                                    innovations = [e['title'] for e in epoch_events if 'Innovation' in e['type']]
-                                    if innovations:
-                                        st.markdown("**Key Innovations:**")
-                                        for innov in innovations[:3]:
-                                            st.markdown(f"- `{innov.replace('New Component: ', '').replace('New Sense: ', '')}`")
-                                    
-                                    kingdoms_at_start = set(history_df[history_df['generation'] == start_gen]['kingdom_id'].unique())
-                                    kingdoms_at_end = set(history_df[history_df['generation'] == end_gen]['kingdom_id'].unique())
-                                    extinct_kingdoms = kingdoms_at_start - kingdoms_at_end
-                                    if extinct_kingdoms:
-                                        st.markdown("**Extinctions:**")
-                                        for kingdom in extinct_kingdoms:
-                                            st.markdown(f"- The **{kingdom}** kingdom perished.")
+                                    st.caption(f"{len(epoch_events)} events recorded.")
 
                 with col2:
-                    st.markdown("#### The Tree of Life (Phylogeny)")
+                    st.markdown("#### The Tree of Life")
                     phylogeny_graph = nx.DiGraph()
-                    # Find the first occurrence of each kingdom
                     first_occurrence = history_df.loc[history_df.groupby('kingdom_id')['generation'].idxmin()]
                     
                     for _, row in first_occurrence.iterrows():
                         kingdom = row['kingdom_id']
                         gen = row['generation']
                         phylogeny_graph.add_node(kingdom, label=f"{kingdom}\n(Gen {gen})")
-
-                        # Find parent lineage
                         parent_ids_list = history_df.loc[history_df['lineage_id'] == row['lineage_id'], 'parent_ids'].iloc[0]
                         
-                        # --- FIX: Check if parent_ids_list is a valid, non-empty list ---
-                        # It might be NaN (a float) if pandas auto-converted empty lists.
                         if isinstance(parent_ids_list, list) and len(parent_ids_list) > 0:
-                            # It's a valid list, take the first parent
                             first_parent_id = parent_ids_list[0]
                             parent_df = history_df[history_df['lineage_id'] == first_parent_id]
-                            
                             if not parent_df.empty:
                                 parent_kingdom = parent_df.iloc[0]['kingdom_id']
                                 if parent_kingdom != kingdom and parent_kingdom in phylogeny_graph.nodes():
                                     phylogeny_graph.add_edge(parent_kingdom, kingdom)
 
                     if not phylogeny_graph.nodes():
-                        st.info("No kingdom data to build a tree of life.")
+                        st.info("No kingdom data to build a tree.")
                     else:
                         fig_tree, ax_tree = plt.subplots(figsize=(5, 4))
                         pos = nx.spring_layout(phylogeny_graph, seed=42, k=0.9)
                         labels = nx.get_node_attributes(phylogeny_graph, 'label')
                         nx.draw(phylogeny_graph, pos, labels=labels, with_labels=True, node_size=3000, node_color='#00aaff', font_size=8, font_color='white', arrowsize=20, ax=ax_tree)
-                        ax_tree.set_title("Kingdom Phylogeny")
                         st.pyplot(fig_tree)
                         plt.clf()
-                
-                # --- NEW: Dynastic Histories Section ---
-                st.markdown("---")
-                st.markdown("### 👑 Dynastic Histories")
-                st.markdown("Trace the complete story of the most influential lineages in your universe. Select a dynasty to view its rise, its peak, and its eventual fate.")
 
-                # Identify major lineages (e.g., from apex predators of each epoch)
+                if st.button("❌ Hide Epochs", key="hide_gen_epochs"):
+                    st.session_state.show_genesis_epochs = False
+                    st.rerun()
+
+            # --- SECTION 4: DYNASTIC HISTORIES ---
+            st.markdown("---")
+            st.subheader("👑 Dynastic Histories")
+
+            if not st.session_state.show_genesis_dynasty:
+                st.info("Trace the rise and fall of specific dominant lineages.")
+                if st.button("👑 Load Dynastic Histories", key="load_gen_dynasty"):
+                    st.session_state.show_genesis_dynasty = True
+                    st.rerun()
+            else:
+                # Identify major lineages
+                break_points = {0, history_df['generation'].max()}
+                major_events = [e for e in events if e['type'] in ['Cataclysm', 'Genesis', 'Succession']]
+                for event in major_events: break_points.add(event['generation'])
+                sorted_breaks = sorted(list(break_points))
+
                 major_lineages = {}
                 if len(sorted_breaks) > 1:
                     for i in range(len(sorted_breaks) - 1):
                         start_gen, end_gen = sorted_breaks[i], sorted_breaks[i+1]
                         epoch_df = history_df[(history_df['generation'] >= start_gen) & (history_df['generation'] <= end_gen)]
                         if not epoch_df.empty:
-                            apex_organism_idx = epoch_df['fitness'].idxmax()
-                            apex_organism = epoch_df.loc[apex_organism_idx]
+                            apex_organism = epoch_df.loc[epoch_df['fitness'].idxmax()]
                             lineage_id = apex_organism['lineage_id']
                             if lineage_id not in major_lineages:
                                 major_lineages[lineage_id] = f"Apex of Epoch {i+1} (Gen {apex_organism['generation']})"
 
                 if not major_lineages:
-                    st.info("No major dynasties have been identified yet. Run a longer simulation to establish dominant lineages.")
+                    st.info("No major dynasties have been identified yet.")
                 else:
                     lineage_options = list(major_lineages.keys())
                     selected_lineage_id = st.selectbox(
@@ -5519,114 +5519,44 @@ def main():
                         lineage_df = history_df[history_df['lineage_id'] == selected_lineage_id].sort_values('generation')
                         universe_avg_df = history_df.groupby('generation')[['fitness', 'complexity']].mean().reset_index()
 
-                        # --- 1. Summary Stats ---
                         founder = lineage_df.iloc[0]
                         peak = lineage_df.loc[lineage_df['fitness'].idxmax()]
                         survived_gens = lineage_df['generation'].nunique()
 
                         c1, c2, c3, c4 = st.columns(4)
-                        c1.metric("Founded in Generation", f"{founder['generation']}")
-                        c2.metric("Founder's Kingdom", founder['kingdom_id'])
+                        c1.metric("Founded", f"Gen {founder['generation']}")
+                        c2.metric("Kingdom", founder['kingdom_id'])
                         c3.metric("Peak Fitness", f"{peak['fitness']:.3f}")
-                        c4.metric("Generations Survived", f"{survived_gens}")
+                        c4.metric("Duration", f"{survived_gens} Gens")
 
-                        # --- 2. Performance Chart ---
                         fig_lineage = go.Figure()
-                        fig_lineage.add_trace(go.Scatter(x=lineage_df['generation'], y=lineage_df['fitness'], mode='lines', name=f'Lineage {selected_lineage_id} Fitness', line=dict(color='cyan', width=3)))
-                        fig_lineage.add_trace(go.Scatter(x=universe_avg_df['generation'], y=universe_avg_df['fitness'], mode='lines', name='Universe Avg. Fitness', line=dict(color='gray', dash='dot')))
-                        fig_lineage.update_layout(title=f"Fitness Trajectory of Dynasty {selected_lineage_id}", height=300, margin=dict(l=0, r=0, t=40, b=0))
+                        fig_lineage.add_trace(go.Scatter(x=lineage_df['generation'], y=lineage_df['fitness'], mode='lines', name=f'Lineage Fitness', line=dict(color='cyan', width=3)))
+                        fig_lineage.add_trace(go.Scatter(x=universe_avg_df['generation'], y=universe_avg_df['fitness'], mode='lines', name='Avg Fitness', line=dict(color='gray', dash='dot')))
+                        fig_lineage.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
                         st.plotly_chart(fig_lineage, width='stretch', key=f"dynasty_perf_{selected_lineage_id}")
-
-                        # --- NEW: More Complex Details ---
-                        sub_col1, sub_col2 = st.columns(2)
-
-                        with sub_col1:
-                            # --- Dynastic Event Log ---
-                            st.markdown("##### Dynastic Event Log")
-                            dynasty_events = [e for e in events if founder['generation'] <= e['generation'] <= lineage_df.iloc[-1]['generation']]
-                            if not dynasty_events:
-                                st.info("This dynasty's lifespan was uneventful.")
-                            else:
-                                event_log_container = st.container(height=200)
-                                for event in sorted(dynasty_events, key=lambda x: x['generation']):
-                                    event_log_container.markdown(f"**Gen {event['generation']}:** {event['icon']} {event['title']}")
-
-                            # --- Legacy of Innovation ---
-                            st.markdown("##### Legacy of Innovation")
-                            innovations = [e for e in dynasty_events if 'Innovation' in e['type'] and e.get('lineage_id') == selected_lineage_id]
-                            if not innovations:
-                                st.info("This dynasty was a follower, not an innovator.")
-                            else:
-                                for innov in innovations:
-                                    st.markdown(f"💡 Invented **{innov['title'].split(': ')[1]}** in Gen {innov['generation']}.")
-
-                        with sub_col2:
-                            # --- Evolved Strategy Profile ---
-                            st.markdown("##### Apex Strategy Profile (GRN Analysis)")
-                            apex_specimen = max((g for g in st.session_state.get('gene_archive', []) if g.lineage_id == peak['lineage_id']), key=lambda g: g.fitness, default=None)
-                            if apex_specimen:
-                                rule_actions = Counter(r.action_type for r in apex_specimen.rule_genes)
-                                action_df = pd.DataFrame.from_dict(rule_actions, orient='index', columns=['Count']).reset_index()
-                                fig_strategy = px.bar(action_df, x='index', y='Count', title="GRN Action Type Frequency", labels={'index': 'Action Type'})
-                                fig_strategy.update_layout(height=300, margin=dict(l=0, r=0, t=40, b=0))
-                                st.plotly_chart(fig_strategy, width='stretch', key=f"dynasty_strat_{selected_lineage_id}")
-
-                        # --- 3. Gallery of Ancestors ---
-                        st.markdown("##### Gallery of Ancestors")
-                        
-                        # --- REVISED LOGIC: Find the actual historical organisms ---
-                        # We need to find the organism from the specific generation in the history.
-                        # The 'id' of a genotype is unique, but lineage_id is not. We need a better key.
-                        # For this fix, we'll find the organism in the gene_archive that matches the generation and lineage.
-                        
-                        last_known_member = lineage_df.iloc[-1]
-                        ancestors_to_find = {
-                            'Founder': (founder['generation'], founder['lineage_id']),
-                            'Apex': (peak['generation'], peak['lineage_id']),
-                            'Last Known': (last_known_member['generation'], last_known_member['lineage_id'])
-                        }
-                        
-                        ancestor_specimens = {}
-                        # Search the entire gene archive for these specific ancestors
-                        gene_archive = st.session_state.get('gene_archive', [])
-                        for role, (gen, l_id) in ancestors_to_find.items():
-                            # Find the best-fitness organism of that lineage from that specific generation in the archive
-                            candidate = max(
-                                (g for g in gene_archive if g.generation == gen and g.lineage_id == l_id),
-                                key=lambda g: g.fitness, default=None)
-                            if candidate:
-                                ancestor_specimens[role] = candidate
-
-                        if not ancestor_specimens:
-                            st.warning("Could not retrieve ancestor data from the gene archive for this dynasty.")
-                        else:
-                            cols = st.columns(len(ancestor_specimens))
-                            for i, (role, specimen) in enumerate(ancestor_specimens.items()):
-                                with cols[i]:
-                                    st.markdown(f"**The {role}** (Gen {specimen.generation})")
-                                    st.metric("Fitness", f"{specimen.fitness:.4f}")
-                                    with st.spinner(f"Growing {role}..."):
-                                        vis_grid = UniverseGrid(s)
-                                        phenotype = Phenotype(specimen, vis_grid, s)
-                                        fig = visualize_phenotype_2d(phenotype, vis_grid)
-                                        fig.update_layout(height=250, title=None, margin=dict(l=0, r=0, t=0, b=0))
-                                        st.plotly_chart(fig, width='stretch', key=f"dynasty_vis_{selected_lineage_id}_{i}")
                 
-                # --- NEW: Pantheon of Genes Section ---
-                st.markdown("---")
-                st.markdown("### 🏛️ The Pantheon of Genes")
-                st.markdown("A hall of fame for the most impactful genetic 'ideas' of your universe. This analyzes the entire fossil record to identify the components and rule strategies that defined success.")
+                if st.button("❌ Hide Dynasties", key="hide_gen_dynasty"):
+                    st.session_state.show_genesis_dynasty = False
+                    st.rerun()
 
+            # --- SECTION 5: PANTHEON OF GENES ---
+            st.markdown("---")
+            st.subheader("🏛️ The Pantheon of Genes")
+
+            if not st.session_state.show_genesis_pantheon:
+                st.info("Analyze the 'fossil record' to find the best components and strategies.")
+                if st.button("🏛️ Load Pantheon of Genes", key="load_gen_pantheon"):
+                    st.session_state.show_genesis_pantheon = True
+                    st.rerun()
+            else:
                 gene_archive = st.session_state.get('gene_archive', [])
                 if not gene_archive:
-                    st.info("The gene archive is empty. Run a simulation to populate the fossil record.")
+                    st.info("The gene archive is empty.")
                 else:
                     pantheon_col1, pantheon_col2 = st.columns(2)
 
                     with pantheon_col1:
                         st.markdown("#### The Component Pantheon")
-                        
-                        # --- Analysis ---
                         all_components = {}
                         for genotype in gene_archive:
                             for comp_name, comp_gene in genotype.component_genes.items():
@@ -5643,66 +5573,49 @@ def main():
                                 all_components[comp_name]['usage_count'] += 1
                                 all_components[comp_name]['prevalence_history'][genotype.generation] += 1
 
-                        # Calculate scores
                         scored_components = []
                         for name, data in all_components.items():
                             avg_fitness = data['fitness_sum'] / data['usage_count'] if data['usage_count'] > 0 else 0
                             longevity = history_df['generation'].max() - data['first_gen']
                             final_prevalence = sum(1 for g in population if name in g.component_genes) if population else 0
-                            
                             score = (avg_fitness * 100) + (longevity * 0.1) + (final_prevalence * 1)
                             data['score'] = score
                             scored_components.append(data)
 
-                        # Display top components
                         for i, comp_data in enumerate(sorted(scored_components, key=lambda x: x['score'], reverse=True)[:5]):
                             comp_gene = comp_data['gene']
                             with st.expander(f"**{i+1}. {comp_gene.name}** (Score: {comp_data['score']:.0f})", expanded=(i<2)):
-                                st.markdown(f"Invented in **Gen {comp_data['first_gen']}** by Dynasty `{comp_data['inventor_lineage']}`")
-                                st.code(f"[{comp_gene.color}] Base: {comp_gene.base_kingdom}, Mass: {comp_gene.mass:.2f}, Struct: {comp_gene.structural:.2f}, E.Store: {comp_gene.energy_storage:.2f}", language="text")
-                                
-                                # Prevalence plot
+                                st.markdown(f"Gen {comp_data['first_gen']} | {comp_gene.base_kingdom}")
                                 history = comp_data['prevalence_history']
                                 prevalence_df = pd.DataFrame(list(history.items()), columns=['generation', 'count']).sort_values('generation')
-                                fig_prevalence = px.area(prevalence_df, x='generation', y='count', title="Prevalence Over Time")
-                                fig_prevalence.update_layout(height=200, margin=dict(l=0, r=0, t=30, b=0))
-                                st.plotly_chart(fig_prevalence, width='stretch', key=f"pantheon_prevalence_{comp_gene.id}")
+                                fig_prevalence = px.area(prevalence_df, x='generation', y='count')
+                                fig_prevalence.update_layout(height=150, margin=dict(l=0, r=0, t=0, b=0))
+                                st.plotly_chart(fig_prevalence, width='stretch', key=f"pantheon_prev_{comp_gene.id}")
 
                     with pantheon_col2:
-                        st.markdown("#### The Lawgivers: Elite Genetic Strategies")
-                        
-                        # Find elite specimens
+                        st.markdown("#### Elite Genetic Strategies")
                         elites = []
                         if population:
                             sorted_pop = sorted(population, key=lambda x: x.fitness, reverse=True)
-                            seen_kingdoms = set()
+                            seen_k = set()
                             for org in sorted_pop:
-                                if org.kingdom_id not in seen_kingdoms:
+                                if org.kingdom_id not in seen_k:
                                     elites.append(org)
-                                    seen_kingdoms.add(org.kingdom_id)
+                                    seen_k.add(org.kingdom_id)
                         
-                        if not elites:
-                            st.info("No elite organisms found to analyze.")
-                        else:
-                            # Analyze rule actions and conditions
+                        if elites:
                             elite_actions = Counter()
-                            elite_conditions = Counter()
                             for elite in elites:
                                 elite_actions.update(r.action_type for r in elite.rule_genes)
-                                for r in elite.rule_genes:
-                                    elite_conditions.update(c['source'] for c in r.conditions)
 
                             action_df = pd.DataFrame(elite_actions.items(), columns=['Action', 'Count']).sort_values('Count', ascending=False)
-                            cond_df = pd.DataFrame(elite_conditions.items(), columns=['Condition', 'Count']).sort_values('Count', ascending=False)
-
-                            fig_actions = px.bar(action_df, x='Action', y='Count', title="Elite Strategic Blueprint (GRN Actions)")
-                            fig_actions.update_layout(height=250, margin=dict(l=0, r=0, t=40, b=0))
+                            fig_actions = px.bar(action_df, x='Action', y='Count')
+                            fig_actions.update_layout(height=300, margin=dict(l=0, r=0, t=30, b=0))
                             st.plotly_chart(fig_actions, width='stretch', key="pantheon_elite_actions")
 
-                            fig_conds = px.bar(cond_df, x='Condition', y='Count', title="Elite Sensory Profile (GRN Conditions)")
-                            fig_conds.update_layout(height=250, margin=dict(l=0, r=0, t=40, b=0))
-                            st.plotly_chart(fig_conds, width='stretch', key="pantheon_elite_conditions")
-
+                if st.button("❌ Hide Pantheon", key="hide_gen_pantheon"):
+                    st.session_state.show_genesis_pantheon = False
+                    st.rerun()
 
         with tab_analytics_lab:
             # --- NEW LAZY-LOADING LOGIC ---
