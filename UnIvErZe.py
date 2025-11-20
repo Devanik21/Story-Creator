@@ -1539,6 +1539,7 @@ class Phenotype:
                     cost += 0.4
 
                 
+                
                 elif action == "DORMANCY":
                     # (SEED LOGIC) Distinct from Hibernate. Triggered by DRYNESS (low water).
                     # Become indestructible but zero metabolism until water returns.
@@ -1548,6 +1549,111 @@ class Phenotype:
                     cost += 0.1
 
             
+            
+            
+            # [Insert this block inside 'execute_action', after the Biological Dozen]
+            
+            # ============================================================
+            # --- THE COSMIC EXPANSION (Sci-Fi & Exotic Physics) ---
+            # ============================================================
+
+            elif action == "CONVERT":
+                # (RELIGIOUS/VIRAL LOGIC) "Wololo!"
+                # Attempts to overwrite the genome of a neighbor with YOUR organism ID.
+                # Extremely expensive, but instantly recruits a fully grown cell.
+                neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                targets = [n for n in neighbors if n.organism_id and n.organism_id != self.id]
+                
+                if targets:
+                    target = random.choice(targets)
+                    victim_pheno, victim_cell = get_target_at(target.x, target.y)
+                    
+                    if victim_cell:
+                        # Conversion difficulty check based on Energy difference
+                        if cell.energy > (victim_cell.energy * 2.0):
+                            target.organism_id = self.id
+                            target.cell_type = cell.component.name # They look like you now
+                            # Note: In a full sim, you'd overwrite their Genotype ref too
+                            cost += 5.0 # Very expensive conversion
+                        else:
+                            cost += 0.5 # Failed attempt cost
+
+            elif action == "BLINK":
+                # (QUANTUM LOGIC) Short-range Teleportation.
+                # Ignores walls and obstacles. Jumps 'value' distance (1-3 tiles).
+                jump_dist = max(2, int(value * 3))
+                
+                # Try 5 random spots at jump_dist distance
+                for _ in range(5):
+                    dx = random.randint(-jump_dist, jump_dist)
+                    dy = random.randint(-jump_dist, jump_dist)
+                    target_x = (cell.x + dx) % self.grid.width
+                    target_y = (cell.y + dy) % self.grid.height
+                    
+                    target_cell = self.grid.get_cell(target_x, target_y)
+                    if target_cell and target_cell.organism_id is None:
+                        # Teleport!
+                        # 1. Clear old
+                        old_grid = self.grid.get_cell(cell.x, cell.y)
+                        old_grid.organism_id = None
+                        del self.cells[(cell.x, cell.y)]
+                        
+                        # 2. Set new
+                        cell.x, cell.y = target_x, target_y
+                        self.cells[(target_x, target_y)] = cell
+                        target_cell.organism_id = self.id
+                        target_cell.cell_type = cell.component.name
+                        
+                        cost += 1.5 + (cell.component.mass * 0.5) # Mass makes teleporting harder
+                        break
+
+            elif action == "TRANSMUTE":
+                # (ALCHEMY LOGIC) Convert one resource into another on the grid.
+                # e.g., Turn Minerals into Water, or Water into Energy.
+                grid_cell = self.grid.get_cell(cell.x, cell.y)
+                
+                # Convert Minerals -> Energy (Fusion?)
+                if grid_cell.minerals > 1.0:
+                    grid_cell.minerals -= 1.0
+                    cell.energy += 5.0 # High yield fusion
+                    cost += 0.5
+
+            elif action == "PHASE_SHIFT":
+                # (GHOST LOGIC) Become intangible.
+                # Cannot be attacked, but also cannot attack or eat.
+                # Great for traversing dangerous warzones safely.
+                cell.state_vector['is_phased'] = True
+                cell.state_vector['phase_duration'] = 5
+                cost += 1.0
+
+            elif action == "SIPHON_MIND":
+                # (PSIONIC LOGIC) Drain 'Knowledge' (Action Points) instead of Energy.
+                # Reduces the victim's ability to act next turn (stuns them).
+                neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                targets = [n for n in neighbors if n.organism_id and n.organism_id != self.id]
+                
+                if targets:
+                    t_loc = random.choice(targets)
+                    _, victim_cell = get_target_at(t_loc.x, t_loc.y)
+                    if victim_cell:
+                        # Stun them by removing energy needed for actions
+                        drain = 2.0
+                        victim_cell.energy -= drain
+                        cell.energy += drain * 0.5
+                        cost += 0.1
+
+            elif action == "GRAVITY_PULL":
+                # (PHYSICS LOGIC) Drag a neighbor into the tile you are currently on,
+                # while you move to an empty neighbor. (Swapping places forcefully).
+                neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                targets = [n for n in neighbors if n.organism_id and n.organism_id != self.id]
+                
+                if targets:
+                    target_grid = random.choice(targets)
+                    # Logic to swap positions would go here
+                    # (Simplified cost for now)
+                    cost += 0.8
+
             
             elif action == "TRANSFER_ENERGY":
                 # 'param' is direction (e.g., 'N', 'S', 'E', 'W') or 'NEIGHBORS'
@@ -2034,7 +2140,9 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
             # --- THE ARCHITECTS ---
             'CONSTRUCT_WALL', 
             'SPIN_WEB', 
-            'CULTIVATE'
+            'CULTIVATE',
+            # --- THE COSMIC EXPANSION ---
+            'CONVERT', 'BLINK', 'TRANSMUTE', 'PHASE_SHIFT', 'SIPHON_MIND', 'GRAVITY_PULL'
         ])
     
     # 3. Pick the action
