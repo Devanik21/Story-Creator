@@ -1520,7 +1520,7 @@ class Phenotype:
                         target = random.choice(empty_neighbors)
                         target.organism_id = "WALL" # Special ID that blocks movement
                         target.cell_type = "Bio-Wall"
-                        cost += 1.0 # Building is expensive
+                        cost += 0.5 # Building is expensive
 
                 elif action == "SPIN_WEB":
                     # (SPIDER LOGIC) Traps a tile.
