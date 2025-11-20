@@ -1529,7 +1529,7 @@ class Phenotype:
                     grid_cell = self.grid.get_cell(cell.x, cell.y)
                     if not hasattr(grid_cell, 'traps'): grid_cell.traps = 0
                     grid_cell.traps += 1 # Intensity of the web
-                    cost += 0.2
+                    cost += 0.4
 
                 elif action == "CULTIVATE":
                     # (FARMING LOGIC) Increases resource regeneration on this tile.
