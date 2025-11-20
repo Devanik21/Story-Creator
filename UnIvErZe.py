@@ -1095,9 +1095,14 @@ class Phenotype:
                     victim_pheno, victim_cell = get_target_at(target_loc.x, target_loc.y)
                     
                     if victim_cell and victim_pheno:      
-                        # 1. Check Camouflage (Already Correct)
-                        if 'camouflaged_until' in victim_cell.state_vector:
+                        # 1. Check Intangibility (Phase Shift) - NEW FIX
+                        if victim_cell.state_vector.get('is_phased', False):
+                            pass # Attack passes through the ghost!
+                        
+                        # 2. Check Camouflage
+                        elif 'camouflaged_until' in victim_cell.state_vector:
                             pass # Attack misses!
+                        
                         else:
                             # --- FIX 2: MUTATE_SELF (ARMOR) ---
                             # Check if victim has a buff
@@ -1510,10 +1515,18 @@ class Phenotype:
 
                 elif action == "HYPERTROPHY":
                     # (MUSCLE LOGIC) Temporarily increase Mass and Offense at cost of Energy.
-                    cell.component.mass *= 1.5
-                    cell.component.offense *= 1.5
+                    # FIX: Do not modify cell.component directly (it's shared DNA).
+                    # Use the 'modifiers' dictionary instead.
+                    if 'modifiers' not in cell.state_vector:
+                        cell.state_vector['modifiers'] = {}
+                    
+                    # Apply a 50% boost to stats via modifiers
+                    cell.state_vector['modifiers']['mass'] = cell.component.mass * 0.5
+                    cell.state_vector['modifiers']['offense'] = cell.component.offense * 0.5
+                    
                     cell.state_vector['hyper_active'] = True
-                    cost += 2.0 # High metabolic burn
+                    cell.state_vector['hyper_cooldown'] = 5 # Lasts 5 ticks
+                    cost += 2.0
 
                 elif action == "CONSTRUCT_WALL":
                     # (CORAL/BEAVER LOGIC) Builds a permanent non-living barrier.
@@ -1665,14 +1678,39 @@ class Phenotype:
                     
                     # 3. Update My Internal Coordinates
                     # I am now where the target was
+                    # 3. Update My Internal Coordinates
+                    # I am now where the target was
                     del self.cells[(cell.x, cell.y)]
+                    
+                    # Capture the OLD coordinates (where the victim is going)
+                    victim_dest_x, victim_dest_y = cell.x, cell.y
+                    
+                    # Move ME to the target
                     cell.x, cell.y = target_grid.x, target_grid.y
                     self.cells[(cell.x, cell.y)] = cell
                     
-                    # Note: The victim's internal (x,y) will be wrong until their next update, 
-                    # but since we act on GridCells, this is acceptable for this physics engine.
+                    # 4. FIX: Force-Update the Victim's Internal Coordinates
+                    # We find the victim using the global registry because it's not part of 'self'
+                    victim_pheno_ref, victim_cell_ref = get_target_at(target_grid.x, target_grid.y)
                     
+                    # The victim is currently sitting at (target_grid.x, target_grid.y) in the GRID,
+                    # but we just swapped the GridCell IDs. We need to update the Victim's internal map.
+                    if victim_pheno_ref and victim_cell_ref:
+                        # Remove victim from its old key in its own dictionary
+                        if (victim_cell_ref.x, victim_cell_ref.y) in victim_pheno_ref.cells:
+                            del victim_pheno_ref.cells[(victim_cell_ref.x, victim_cell_ref.y)]
+                        
+                        # Update victim position to where I used to be
+                        victim_cell_ref.x = victim_dest_x
+                        victim_cell_ref.y = victim_dest_y
+                        
+                        # Re-add victim to its own dictionary at new key
+                        victim_pheno_ref.cells[(victim_dest_x, victim_dest_y)] = victim_cell_ref
+
                     cost += 0.8
+                    
+                    # Note: The victim's internal (x,y) will be wrong until their next update, 
+
 
             
             elif action == "TRANSFER_ENERGY":
@@ -1731,6 +1769,24 @@ class Phenotype:
                 cell.state_vector['is_hibernating'] -= 1
                 cell.energy -= 0.01 # Tiny sleep cost
                 continue # Skip actions
+
+
+            # --- FIX: Update Phase Shift Timer ---
+            if cell.state_vector.get('is_phased'):
+                cell.state_vector['phase_duration'] -= 1
+                if cell.state_vector['phase_duration'] <= 0:
+                    del cell.state_vector['is_phased'] # Become tangible again
+            
+            # --- FIX: Update Hypertrophy Timer ---
+            if cell.state_vector.get('hyper_active'):
+                cell.state_vector['hyper_cooldown'] -= 1
+                cell.energy -= 0.5 # Extra burn for sustaining muscle mode
+                if cell.state_vector['hyper_cooldown'] <= 0:
+                    del cell.state_vector['hyper_active']
+                    # Remove the stat buffs
+                    if 'modifiers' in cell.state_vector:
+                        cell.state_vector['modifiers'].pop('mass', None)
+                        cell.state_vector['modifiers'].pop('offense', None)
             
             # 3. FORTIFY RESET
             # Armor only lasts 1 tick, so we reset it here.
