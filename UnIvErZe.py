@@ -5249,7 +5249,9 @@ def main():
                 if st.button("🧬 Render Elite Analysis", key="show_elite"):
                     st.session_state.show_elite_analysis = True
                     st.rerun()
-with tab_genesis:
+
+
+        with tab_genesis:
             st.header("🌌 The Genesis Chronicle")
             st.markdown("This is the historical record of your universe, chronicling the pivotal moments of creation, innovation, and cosmic change.")
 
@@ -5616,7 +5618,7 @@ with tab_genesis:
                 if st.button("❌ Hide Pantheon", key="hide_gen_pantheon"):
                     st.session_state.show_genesis_pantheon = False
                     st.rerun()
-
+                    
         with tab_analytics_lab:
             # --- NEW LAZY-LOADING LOGIC ---
             if st.session_state.analytics_lab_visible:
