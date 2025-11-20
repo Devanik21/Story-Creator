@@ -2748,17 +2748,25 @@ def main():
 
     
     set_app_background("Gemini_Generated_Image_g2z8wdg2z8wdg2z8.png")
-    # --- CUSTOM CSS: TRANSPARENT SIDEBAR ---
+    
+    # --- CUSTOM CSS: TRANSPARENT SIDEBAR & HEADER ---
     st.markdown("""
     <style>
+        /* Make the sidebar transparent */
         [data-testid="stSidebar"] {
             background-color: transparent !important;
         }
         [data-testid="stSidebar"] > div:first-child {
             background-color: transparent !important;
         }
+        
+        /* Make the top header transparent (removes the black bar) */
+        [data-testid="stHeader"] {
+            background: transparent !important;
+        }
     </style>
     """, unsafe_allow_html=True)
+    
 
     if 'password_attempts' not in st.session_state:
         st.session_state.password_attempts = 0
