@@ -1381,6 +1381,31 @@ class Phenotype:
                 cost += 1.5
 
             
+            elif action == "CONSTRUCT_WALL":
+                    # (CORAL/BEAVER LOGIC) Builds a permanent non-living barrier.
+                    # Good for protecting the colony core from predators.
+                    empty_neighbors = [n for n in self.grid.get_neighbors(cell.x, cell.y) if n.organism_id is None]
+                    if empty_neighbors:
+                        target = random.choice(empty_neighbors)
+                        target.organism_id = "WALL" # Special ID that blocks movement
+                        target.cell_type = "Bio-Wall"
+                        cost += 2.0 # Building is expensive
+
+                elif action == "SPIN_WEB":
+                    # (SPIDER LOGIC) Traps a tile.
+                    # Enemies entering this tile lose Motility or Energy (logic handled in MOVE/ATTACK).
+                    # For now, we mark the grid cell.
+                    grid_cell = self.grid.get_cell(cell.x, cell.y)
+                    if not hasattr(grid_cell, 'traps'): grid_cell.traps = 0
+                    grid_cell.traps += 1 # Intensity of the web
+                    cost += 0.5
+
+                elif action == "CULTIVATE":
+                    # (FARMING LOGIC) Increases resource regeneration on this tile.
+                    # The organism spends energy to "fertilize" the land for future use.
+                    grid_cell = self.grid.get_cell(cell.x, cell.y)
+                    grid_cell.minerals += 2.0 # Fertilize
+                    cost += 1.0
             # ============================================================
             # --- THE BIOLOGICAL DOZEN (Real-Life Complexity) ---
             # Enabled via Sidebar Toggle
@@ -2000,7 +2025,9 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
         possible_actions.extend([
             'ANCHOR', 'GRAFT', 'SECRET_ANTIBIOTIC', 'SCAVENGE_DNA', 
             'LAY_PHEROMONE', 'CANNIBALIZE', 'CRYPSIS', 'TROPHALLAXIS',
-            'APOPTOSIS', 'SWARM_CALL', 'HYPERTROPHY', 'DORMANCY'
+            'APOPTOSIS', 'SWARM_CALL', 'HYPERTROPHY', 'DORMANCY',
+            # --- THE ARCHITECTS ---
+            'CONSTRUCT_WALL', 'SPIN_WEB', 'CULTIVATE'
         ])
     
     # 3. Pick the action
