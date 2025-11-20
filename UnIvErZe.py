@@ -5089,28 +5089,57 @@ def main():
                                     st.markdown("**13. Hierarchical (Control Flow)**")
                                     try:
                                         fig, ax = plt.subplots(figsize=(5, 4))
-                                        plot_complex_network(G, nx.nx_pydot.graphviz_layout(G, prog='dot'), ax)
+                                        # Attempt to use Graphviz 'dot'
+                                        pos_13 = nx.nx_pydot.graphviz_layout(G, prog='dot')
+                                        plot_complex_network(G, pos_13, ax)
                                         st.pyplot(fig)
                                         plt.close(fig)
-                                    except: st.caption("Graphviz/Pydot not available.")
+                                    except Exception as e:
+                                        # Fallback: Use Shell Layout which simulates hierarchy/layers
+                                        st.caption(f"Graphviz system binary not accessible. Using High-Fidelity Fallback (Shell).")
+                                        fig, ax = plt.subplots(figsize=(5, 4))
+                                        # Use the shell logic from plot 11 as a good hierarchical proxy
+                                        comp_nodes = [n for n, d in G.nodes(data=True) if d.get('type') == 'component']
+                                        act_nodes = [n for n, d in G.nodes(data=True) if d.get('type') == 'action']
+                                        other_nodes = [n for n, d in G.nodes(data=True) if d.get('type') not in ['component', 'action']]
+                                        plot_complex_network(G, nx.shell_layout(G, nlist=[comp_nodes, act_nodes + other_nodes]), ax)
+                                        st.pyplot(fig)
+                                        plt.close(fig)
 
                                     # 14. Hierarchical Radial (TWOPI)
                                     st.markdown("**14. Hierarchical (Radial Blast)**")
                                     try:
                                         fig, ax = plt.subplots(figsize=(5, 4))
-                                        plot_complex_network(G, nx.nx_pydot.graphviz_layout(G, prog='twopi'), ax)
+                                        # Attempt to use Graphviz 'twopi'
+                                        pos_14 = nx.nx_pydot.graphviz_layout(G, prog='twopi')
+                                        plot_complex_network(G, pos_14, ax)
                                         st.pyplot(fig)
                                         plt.close(fig)
-                                    except: st.caption("Graphviz/Pydot not available.")
+                                    except Exception as e:
+                                        # Fallback: Kamada-Kawai is excellent for radial/symmetric structures
+                                        st.caption("Graphviz system binary not accessible. Using High-Fidelity Fallback (Kamada-Kawai).")
+                                        fig, ax = plt.subplots(figsize=(5, 4))
+                                        plot_complex_network(G, nx.kamada_kawai_layout(G), ax)
+                                        st.pyplot(fig)
+                                        plt.close(fig)
 
                                     # 15. Force-Directed (NEATO)
                                     st.markdown("**15. Force-Directed (NEATO)**")
                                     try:
                                         fig, ax = plt.subplots(figsize=(5, 4))
-                                        plot_complex_network(G, nx.nx_pydot.graphviz_layout(G, prog='neato'), ax)
+                                        # Attempt to use Graphviz 'neato'
+                                        pos_15 = nx.nx_pydot.graphviz_layout(G, prog='neato')
+                                        plot_complex_network(G, pos_15, ax)
                                         st.pyplot(fig)
                                         plt.close(fig)
-                                    except: st.caption("Graphviz/Pydot not available.")
+                                    except Exception as e:
+                                        # Fallback: Spring layout is the native force-directed equivalent
+                                        st.caption("Graphviz system binary not accessible. Using High-Fidelity Fallback (Spring).")
+                                        fig, ax = plt.subplots(figsize=(5, 4))
+                                        # Use a specific seed to make it look distinct from Plot 1
+                                        plot_complex_network(G, nx.spring_layout(G, k=1.5, seed=123), ax)
+                                        st.pyplot(fig)
+                                        plt.close(fig)
 
                                     # 16. Spring Alternate Seed
                                     st.markdown("**16. Spring (Alternate Reality)**")
