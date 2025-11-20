@@ -1381,6 +1381,144 @@ class Phenotype:
                 cost += 1.5
 
             
+            # ============================================================
+            # --- THE BIOLOGICAL DOZEN (Real-Life Complexity) ---
+            # Enabled via Sidebar Toggle
+            # ============================================================
+            elif self.settings.get('enable_real_life_behaviors', False):
+
+                if action == "ANCHOR":
+                    # (PLANT LOGIC) Roots the cell. Cannot move, but doubles mineral intake.
+                    cell.state_vector['is_anchored'] = True
+                    # Remove motility (roots don't walk)
+                    cell.component.motility = 0 
+                    cost += 0.5 # Effort to dig in
+
+                elif action == "GRAFT":
+                    # (TISSUE LOGIC) Fuses with a neighbor of a DIFFERENT species to share resources.
+                    # Real-life example: Trees grafting roots, or corals fusing.
+                    neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                    targets = [n for n in neighbors if n.organism_id and n.organism_id != self.id]
+                    if targets:
+                        target = random.choice(targets)
+                        # Create a permanent resource bridge
+                        if 'grafted_to' not in cell.state_vector:
+                            cell.state_vector['grafted_to'] = []
+                        cell.state_vector['grafted_to'].append(target.organism_id)
+                        cost += 1.0
+
+                elif action == "SECRET_ANTIBIOTIC":
+                    # (BACTERIAL LOGIC) Kills non-kin neighbors without direct combat stats.
+                    # Uses 'toxin' stat to determine strength.
+                    neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                    for n in neighbors:
+                        if n.organism_id and n.organism_id != self.id:
+                            victim_pheno, victim_cell = get_target_at(n.x, n.y)
+                            if victim_cell:
+                                # Antibiotics bypass armor but act slowly
+                                damage = cell.component.toxin * 0.8
+                                victim_cell.energy -= damage
+                    cost += 0.4
+
+                elif action == "SCAVENGE_DNA":
+                    # (BACTERIAL LOGIC - Horizontal Gene Transfer)
+                    # If a neighbor dies, steal a random rule from them!
+                    neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                    # (Simplified: Needs a dead neighbor check, here we steal from living)
+                    targets = [n for n in neighbors if n.organism_id and n.organism_id != self.id]
+                    if targets and random.random() < 0.1: # Rare event
+                        t_loc = random.choice(targets)
+                        victim_pheno, _ = get_target_at(t_loc.x, t_loc.y)
+                        if victim_pheno and victim_pheno.genotype.rule_genes:
+                            stolen_rule = random.choice(victim_pheno.genotype.rule_genes)
+                            # Add to OWN genotype (Lamarkian evolution!)
+                            if stolen_rule not in self.genotype.rule_genes:
+                                self.genotype.rule_genes.append(stolen_rule)
+                                cost += 2.0 # Genetic engineering is expensive
+
+                elif action == "LAY_PHEROMONE":
+                    # (INSECT LOGIC) Leave a trail on the grid cell itself.
+                    # Others can sense this via 'sense_pheromone' (needs innovation).
+                    grid_cell = self.grid.get_cell(cell.x, cell.y)
+                    # We abstract pheromones as a temporary property of the grid cell
+                    if not hasattr(grid_cell, 'pheromones'): grid_cell.pheromones = {}
+                    # Pheromone ID is based on species
+                    grid_cell.pheromones[self.genotype.lineage_id] = value # Intensity
+                    cost += 0.1
+
+                elif action == "CANNIBALIZE":
+                    # (DESPERATION LOGIC) Eat your own children/kin to survive starvation.
+                    if cell.energy < 5.0: # Only if starving
+                        neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                        kin = [n for n in neighbors if n.organism_id == self.id]
+                        if kin:
+                            victim_loc = random.choice(kin)
+                            # Eat them
+                            self.prune_cell(victim_loc.x, victim_loc.y)
+                            cell.energy += 10.0 # Big boost
+                            cost += 0.0
+
+                elif action == "CRYPSIS":
+                    # (OCTOPUS LOGIC) Change color/component to match environment.
+                    # Temporary stealth bonus.
+                    cell.state_vector['is_hidden'] = True
+                    cost += 0.2
+
+                elif action == "TROPHALLAXIS":
+                    # (ANT/BEE LOGIC) Regurgitate food to specific neighbor type.
+                    # E.g., Workers feeding Queens.
+                    neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                    kin_neighbors = []
+                    for n in neighbors:
+                        if n.organism_id == self.id:
+                            _, t_cell = get_target_at(n.x, n.y)
+                            if t_cell: kin_neighbors.append(t_cell)
+                    
+                    if kin_neighbors:
+                        # Find the hungriest neighbor
+                        target = min(kin_neighbors, key=lambda c: c.energy)
+                        amount = 5.0
+                        if cell.energy > amount:
+                            cell.energy -= amount
+                            target.energy += amount * 0.9 # 10% loss
+                            cost += 0.1
+
+                elif action == "APOPTOSIS":
+                    # (IMMUNE LOGIC) Altruistic suicide to seal a breach.
+                    # Hardens the grid tile so enemies can't move there for a while.
+                    grid_cell = self.grid.get_cell(cell.x, cell.y)
+                    grid_cell.organism_id = "BLOCKED" # Special blocker ID
+                    # (You would need logic in MOVE to respect "BLOCKED")
+                    self.prune_cell(cell.x, cell.y)
+                    cost += 0.0
+
+                elif action == "SWARM_CALL":
+                    # (BIRD/FISH LOGIC) Pulls kin closer.
+                    # Effectively moves neighbors TOWARDS this cell.
+                    # (Complex geometry, simplified here as boosting neighbor motility)
+                    neighbors = self.grid.get_neighbors(cell.x, cell.y)
+                    for n in neighbors:
+                        if n.organism_id == self.id:
+                             _, t_cell = get_target_at(n.x, n.y)
+                             if t_cell: t_cell.energy += 0.5 # Simulating excitement/boost
+                    cost += 1.0
+
+                elif action == "HYPERTROPHY":
+                    # (MUSCLE LOGIC) Temporarily increase Mass and Offense at cost of Energy.
+                    cell.component.mass *= 1.5
+                    cell.component.offense *= 1.5
+                    cell.state_vector['hyper_active'] = True
+                    cost += 2.0 # High metabolic burn
+
+                elif action == "DORMANCY":
+                    # (SEED LOGIC) Distinct from Hibernate. Triggered by DRYNESS (low water).
+                    # Become indestructible but zero metabolism until water returns.
+                    grid_cell = self.grid.get_cell(cell.x, cell.y)
+                    if grid_cell.water < 0.2:
+                        cell.state_vector['is_dormant_seed'] = True
+                    cost += 0.1
+
+            
             elif action == "TRANSFER_ENERGY":
                 # 'param' is direction (e.g., 'N', 'S', 'E', 'W') or 'NEIGHBORS'
                 # 'value' is amount
@@ -1843,13 +1981,30 @@ def innovate_rule(genotype: Genotype, settings: Dict) -> RuleGene:
         conditions.append({'source': source, 'operator': op, 'target_value': target})
 
     # --- 2. Create Action ---
-    action_type = random.choice(['GROW', 'DIFFERENTIATE', 'SET_STATE', 'TRANSFER_ENERGY', 'DIE',
-                                'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE','EMIT_SIGNAL','ATTACK', 'STEAL', 'POISON', 'MINE_RESOURCE','MOVE', 'FORTIFY', 'HIBERNATE', 'DETONATE', 'TERRAFORM', 'EMIT_LIGHT'
-                                # --- THE DIRTY DOZEN (New 12) ---
-            'REPRODUCE', 'SYMBIOTE', 'CAMOUFLAGE', 'HARVEST_CORPSE', 
-            'MUTATE_SELF', 'SPLIT', 'ABSORB', 'REGENERATE', 
-            'SPORE', 'NETWORK', 'ADAPT', 'RADIATE'
-                                ]) # <--- ADDED THESE])
+    # 1. Define your BASE actions (Standard + Your Dirty Dozen)
+    possible_actions = [
+        # Standard Actions
+        'GROW', 'DIFFERENTIATE', 'SET_STATE', 'TRANSFER_ENERGY', 'DIE',
+        'SET_TIMER', 'MODIFY_TIMER','ENABLE_RULE', 'DISABLE_RULE','EMIT_SIGNAL',
+        'ATTACK', 'STEAL', 'POISON', 'MINE_RESOURCE','MOVE', 'FORTIFY', 
+        'HIBERNATE', 'DETONATE', 'TERRAFORM', 'EMIT_LIGHT',
+        
+        # --- THE DIRTY DOZEN (Keep these!) ---
+        'REPRODUCE', 'SYMBIOTE', 'CAMOUFLAGE', 'HARVEST_CORPSE', 
+        'MUTATE_SELF', 'SPLIT', 'ABSORB', 'REGENERATE', 
+        'SPORE', 'NETWORK', 'ADAPT', 'RADIATE'
+    ]
+
+    # 2. Add the NEW "Biological Dozen" ONLY if the sidebar toggle is ON
+    if settings.get('enable_real_life_behaviors', False):
+        possible_actions.extend([
+            'ANCHOR', 'GRAFT', 'SECRET_ANTIBIOTIC', 'SCAVENGE_DNA', 
+            'LAY_PHEROMONE', 'CANNIBALIZE', 'CRYPSIS', 'TROPHALLAXIS',
+            'APOPTOSIS', 'SWARM_CALL', 'HYPERTROPHY', 'DORMANCY'
+        ])
+    
+    # 3. Pick the action
+    action_type = random.choice(possible_actions)
     
     # Pick a random component from the genotype's "alphabet"
     if not genotype.component_genes:
@@ -3306,6 +3461,13 @@ def main():
         # --- NEW 2.0 ---
         s['meta_innovation_rate'] = st.slider("Meta-Innovation Rate (Sensor)", 0.0, 1.01, s.get('meta_innovation_rate', 0.005), 0.0001, help="Rate of inventing new *types* of senses.")
         s['max_rule_conditions'] = st.slider("Max Rule Conditions", 1, 50, s.get('max_rule_conditions', 3), 1)
+
+    with st.sidebar.expander("🧬 Bio-Mimicry & Real-Life Complexity", expanded=False):
+        s['enable_real_life_behaviors'] = st.checkbox(
+            "Enable Complex 'Real-Life' Behaviors",
+            s.get('enable_real_life_behaviors', False),
+            help="Unlocks 12 advanced biological actions based on real-world nature (e.g., Rooting, Antibiotics, Pheromones)."
+    )
 
     with st.sidebar.expander("Speciation & Ecosystem Dynamics", expanded=False):
         s['enable_speciation'] = st.checkbox("Enable Speciation", s.get('enable_speciation', True), help="Group similar organisms into 'species' to protect innovation.")
