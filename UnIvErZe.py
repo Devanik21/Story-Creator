@@ -1079,33 +1079,44 @@ class Phenotype:
             elif action == "ATTACK":
                 # Murders a neighbor.
                 neighbors = self.grid.get_neighbors(cell.x, cell.y)
-                # Target anyone who isn't ME
                 targets = [n for n in neighbors if n.organism_id is not None and n.organism_id != self.id]
                 
-                if targets and cell.component.offense > 0:
+                # --- FIX 1: MUTATE_SELF (OFFENSE) ---
+                # Check if attacker has a buff
+                attacker_offense = cell.component.offense
+                if 'modifiers' in cell.state_vector and 'offense' in cell.state_vector['modifiers']:
+                    attacker_offense += cell.state_vector['modifiers']['offense']
+
+                if targets and attacker_offense > 0:
                     target_loc = random.choice(targets)
                     victim_pheno, victim_cell = get_target_at(target_loc.x, target_loc.y)
                     
                     if victim_cell and victim_pheno:      
-                        # --- FIX STARTS HERE ---
-                        # 1. Check Camouflage
+                        # 1. Check Camouflage (Already Correct)
                         if 'camouflaged_until' in victim_cell.state_vector:
-                            # Attack misses! We simply do nothing here.
-                            pass 
+                            pass # Attack misses!
                         else:
-                            # 2. If NOT camouflaged, proceed with attack
-                            
-                            # Check for fortification
+                            # --- FIX 2: MUTATE_SELF (ARMOR) ---
+                            # Check if victim has a buff
+                            victim_armor = victim_cell.component.armor
+                            if 'modifiers' in victim_cell.state_vector and 'armor' in victim_cell.state_vector['modifiers']:
+                                victim_armor += victim_cell.state_vector['modifiers']['armor']
+
+                            # --- FIX 3: SPORE DEFENSE ---
+                            # Spores should be very hard to kill
+                            spore_mult = 5.0 if victim_cell.state_vector.get('is_spore') else 1.0
+
+                            # Check for fortification (Already Correct)
                             defense_mult = 2.0 if victim_cell.state_vector.get('is_fortified') else 1.0
                             
-                            # Damage calc: Offense vs (Armor * Defense Multiplier)
-                            defense_val = victim_cell.component.armor * defense_mult
-                            damage = max(0.1, cell.component.offense * 2.0 - defense_val)
+                            # Final Calculation
+                            total_defense = victim_armor * defense_mult * spore_mult
+                            damage = max(0.1, attacker_offense * 2.0 - total_defense)
                             
                             victim_cell.energy -= damage
                             
-                            # Optional: Add fatigue cost for successful hit
-                            cost += cell.component.offense * 0.2 
+                            # Cost uses base offense to prevent cheating the energy system
+                            cost += cell.component.offense * 0.2
                         # --- FIX ENDS HERE ---
                         
                         # Visual feedback (optional)
