@@ -55,7 +55,7 @@ import colorsys
 import copy # Added for deep copying presets
 import zipfile  # <-- ADD THIS
 import io       # <-- ADD THIS
-
+import base64  # <--- ADD THIS
 # =G=E=N=E=V=O= =2=.=0= =N=E=W= =F=E=A=T=U=R=E=S=T=A=R=T=S= =H=E=R=E=
 #
 # NEW FEATURE: CHEMICAL BASE REGISTRY
@@ -2702,6 +2702,31 @@ def deserialize_population(pop_data_list: List[Dict]) -> List[Genotype]:
         reconstructed_pop.append(deserialize_genotype(geno_dict))
     return [g for g in reconstructed_pop if g.fitness != -1] # Filter out any broken ones
 
+
+def set_app_background(image_file):
+    """Sets the background of the Streamlit app to a local image file."""
+    if not os.path.exists(image_file):
+        # Fail silently or show a warning if you prefer, so the app still runs
+        st.warning(f"⚠️ Background image not found: '{image_file}'. Using default theme.")
+        return
+
+    with open(image_file, "rb") as f:
+        img_bytes = f.read()
+    
+    base64_img = base64.b64encode(img_bytes).decode()
+    
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background-image: url("data:image/jpeg;base64,{base64_img}");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
 # ========================================================
 #
 # PART 7: THE STREAMLIT APP (THE "GOD-PANEL")
@@ -2720,6 +2745,9 @@ def main():
         page_icon="🌌",
         initial_sidebar_state="expanded"
     )
+
+    
+    set_app_background("Gemini_Generated_Image_g2z8wdg2z8wdg2z8.png")
 
     if 'password_attempts' not in st.session_state:
         st.session_state.password_attempts = 0
