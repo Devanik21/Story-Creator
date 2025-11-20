@@ -1520,7 +1520,7 @@ class Phenotype:
                         target = random.choice(empty_neighbors)
                         target.organism_id = "WALL" # Special ID that blocks movement
                         target.cell_type = "Bio-Wall"
-                        cost += 2.0 # Building is expensive
+                        cost += 1.0 # Building is expensive
 
                 elif action == "SPIN_WEB":
                     # (SPIDER LOGIC) Traps a tile.
@@ -1529,14 +1529,14 @@ class Phenotype:
                     grid_cell = self.grid.get_cell(cell.x, cell.y)
                     if not hasattr(grid_cell, 'traps'): grid_cell.traps = 0
                     grid_cell.traps += 1 # Intensity of the web
-                    cost += 0.5
+                    cost += 0.2
 
                 elif action == "CULTIVATE":
                     # (FARMING LOGIC) Increases resource regeneration on this tile.
                     # The organism spends energy to "fertilize" the land for future use.
                     grid_cell = self.grid.get_cell(cell.x, cell.y)
                     grid_cell.minerals += 2.0 # Fertilize
-                    cost += 1.0
+                    cost += 0.4
 
                 
                 elif action == "DORMANCY":
