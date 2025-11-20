@@ -4784,77 +4784,84 @@ def main():
                 st.info(f"Showing top {num_to_display} specimens from the *final* population (Generation {population[0].generation}).")
                 
                 cols = st.columns(len(top_specimens))
+                # [PASTE THIS OVER THE CONTENT OF THE LOOP in 'with tab_viewer']
                 for i, specimen in enumerate(top_specimens):
-                    with cols[i]:
-                        st.markdown(f"**Rank {i+1}** (Gen {specimen.generation})")
-                        st.caption(f"Fitness: {specimen.fitness:.4f}")
+                    with cols[i], st.spinner(f"Scanning specimen {i+1}..."):
+                        vis_grid = UniverseGrid(s)
+                        phenotype = Phenotype(specimen, vis_grid, s)
+
+                        st.markdown(f"**Rank {i+1} (Gen {specimen.generation})**")
+                        st.metric("Fitness", f"{specimen.fitness:.4f}")
                         
-                        # --- LAZY LOADING TOGGLE ---
-                        if st.toggle(f"🔬 Scan Specimen {i+1}", key=f"lazy_load_spec_{i}"):
+                        # --- NEW: MRI SCANNER ---
+                        # This replaces the old 2D plot
+                        fig_mri = visualize_phenotype_mri(phenotype, vis_grid)
+                        st.plotly_chart(fig_mri, width='stretch', key=f"pheno_mri_{i}")
+
+                        st.markdown("##### **Component Ratios**")
+                        component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
+                        if component_counts:
+                            comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
+                            comp_df = comp_df.rename(columns={'index': 'Component'})
+                            color_map = {c.name: c.color for c in specimen.component_genes.values()}
+                            fig_pie = px.pie(comp_df, values='Count', names='Component', 
+                                             color='Component', color_discrete_map=color_map, hole=0.4)
+                            fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=150)
+                            st.plotly_chart(fig_pie, width='stretch', key=f"pheno_pie_{i}")
+
+                        # --- NEW: LOGIC CIRCUIT (SANKEY) ---
+                        # This replaces the old 'Hairball' GRN graph
+                        st.markdown("##### **Genetic Logic Circuit**")
+                        fig_circuit = visualize_grn_sankey(specimen)
+                        st.plotly_chart(fig_circuit, width='stretch', key=f"grn_circuit_{i}")
+                        
+                        # (You can keep the old Objective/GRN text blocks below this if you want, or delete them)
+
+                        
+
+                        st.markdown("##### **Evolved Objectives**")
+                        if specimen.objective_weights:
+                            obj_df = pd.DataFrame.from_dict(specimen.objective_weights, orient='index', columns=['Weight']).reset_index()
+                            obj_df = obj_df.rename(columns={'index': 'Objective'})
+                            fig_bar = px.bar(obj_df, x='Objective', y='Weight', color='Objective')
+                            fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
+                            st.plotly_chart(fig_bar, width='stretch', key=f"pheno_bar_{i}")
+                        else:
+                            st.info("Global objectives are in use.")
+
+                        
+                        st.markdown("##### **Genetic Regulatory Network (GRN)**")
+                        G = nx.DiGraph()
+                        for comp_name, comp_gene in specimen.component_genes.items():
+                            G.add_node(comp_name, type='component', color=comp_gene.color)
+                        for rule in specimen.rule_genes:
+                            action_node = f"{rule.action_type}\n({rule.action_param})"
+                            G.add_node(action_node, type='action', color='#FFB347') # Orange for actions
                             
-                            with st.spinner(f"Scanning Rank {i+1}..."):
-                                vis_grid = UniverseGrid(s)
-                                phenotype = Phenotype(specimen, vis_grid, s)
+                            # Find source
+                            source_node = list(specimen.component_genes.keys())[0] # Simplified
+                            if rule.conditions:
+                                # Try to find a 'self_type' condition
+                                type_cond = next((c for c in rule.conditions if c['source'] == 'self_type'), None)
+                                if type_cond and type_cond['target_value'] in G.nodes():
+                                    source_node = type_cond['target_value']
+                                    
+                            G.add_edge(source_node, action_node, label=f"P={rule.probability:.1f}")
+                            if rule.action_param in G.nodes():
+                                G.add_edge(action_node, rule.action_param)
 
-                                # --- NEW: MRI SCANNER ---
-                                fig_mri = visualize_phenotype_mri(phenotype, vis_grid)
-                                st.plotly_chart(fig_mri, width='stretch', key=f"pheno_mri_{i}")
-
-                                st.markdown("##### **Component Ratios**")
-                                component_counts = Counter(cell.component.name for cell in phenotype.cells.values())
-                                if component_counts:
-                                    comp_df = pd.DataFrame.from_dict(component_counts, orient='index', columns=['Count']).reset_index()
-                                    comp_df = comp_df.rename(columns={'index': 'Component'})
-                                    color_map = {c.name: c.color for c in specimen.component_genes.values()}
-                                    fig_pie = px.pie(comp_df, values='Count', names='Component', 
-                                                    color='Component', color_discrete_map=color_map, hole=0.4)
-                                    fig_pie.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=150)
-                                    st.plotly_chart(fig_pie, width='stretch', key=f"pheno_pie_{i}")
-
-                                # --- NEW: LOGIC CIRCUIT (SANKEY) ---
-                                st.markdown("##### **Genetic Logic Circuit**")
-                                fig_circuit = visualize_grn_sankey(specimen)
-                                st.plotly_chart(fig_circuit, width='stretch', key=f"grn_circuit_{i}")
-
-                                st.markdown("##### **Evolved Objectives**")
-                                if specimen.objective_weights:
-                                    obj_df = pd.DataFrame.from_dict(specimen.objective_weights, orient='index', columns=['Weight']).reset_index()
-                                    obj_df = obj_df.rename(columns={'index': 'Objective'})
-                                    fig_bar = px.bar(obj_df, x='Objective', y='Weight', color='Objective')
-                                    fig_bar.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), height=200)
-                                    st.plotly_chart(fig_bar, width='stretch', key=f"pheno_bar_{i}")
-                                else:
-                                    st.info("Global objectives are in use.")
-                                
-                                # Draw standard NetworkX GRN (Simplified fallback)
-                                st.markdown("##### **Genetic Regulatory Network (GRN)**")
-                                G = nx.DiGraph()
-                                for comp_name, comp_gene in specimen.component_genes.items():
-                                    G.add_node(comp_name, type='component', color=comp_gene.color)
-                                for rule in specimen.rule_genes:
-                                    action_node = f"{rule.action_type}\n({rule.action_param})"
-                                    G.add_node(action_node, type='action', color='#FFB347') 
-                                    source_node = list(specimen.component_genes.keys())[0]
-                                    if rule.conditions:
-                                        type_cond = next((c for c in rule.conditions if c['source'] == 'self_type'), None)
-                                        if type_cond and type_cond['target_value'] in G.nodes():
-                                            source_node = type_cond['target_value']
-                                    G.add_edge(source_node, action_node)
-                                    if rule.action_param in G.nodes():
-                                        G.add_edge(action_node, rule.action_param)
-
-                                if G.nodes:
-                                    try:
-                                        fig_grn, ax = plt.subplots(figsize=(4, 3))
-                                        pos = nx.spring_layout(G, k=0.9, seed=42)
-                                        node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
-                                        nx.draw(G, pos, ax=ax, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
-                                        labels = {n: n.split('\n')[0] for n in G.nodes()}
-                                        nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
-                                        st.pyplot(fig_grn)
-                                        plt.clf()
-                                    except Exception as e:
-                                        st.warning(f"Could not draw GRN: {e}")
+                        if G.nodes:
+                            try:
+                                fig_grn, ax = plt.subplots(figsize=(4, 3))
+                                pos = nx.spring_layout(G, k=0.9, seed=42)
+                                node_colors = [data.get('color', '#888888') for _, data in G.nodes(data=True)]
+                                nx.draw(G, pos, ax=ax, with_labels=False, node_size=500, node_color=node_colors, font_size=6, width=0.5, arrowsize=8)
+                                labels = {n: n.split('\n')[0] for n in G.nodes()} # Short labels
+                                nx.draw_networkx_labels(G, pos, labels=labels, font_size=7, ax=ax)
+                                st.pyplot(fig_grn)
+                                plt.clf()
+                            except Exception as e:
+                                st.warning(f"Could not draw GRN: {e}")
                         else:
                             st.info("No GRN to display.")
 
