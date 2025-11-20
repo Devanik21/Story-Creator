@@ -2748,6 +2748,17 @@ def main():
 
     
     set_app_background("Gemini_Generated_Image_g2z8wdg2z8wdg2z8.png")
+    # --- CUSTOM CSS: TRANSPARENT SIDEBAR ---
+    st.markdown("""
+    <style>
+        [data-testid="stSidebar"] {
+            background-color: transparent !important;
+        }
+        [data-testid="stSidebar"] > div:first-child {
+            background-color: transparent !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
     if 'password_attempts' not in st.session_state:
         st.session_state.password_attempts = 0
