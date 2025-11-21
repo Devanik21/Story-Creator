@@ -3131,7 +3131,7 @@ def main():
     )
 
     
-    set_app_background("galaxy-night-view.jpg") 
+    set_app_background("Gemini_Generated_Image_6zf6sd6zf6sd6zf6.jpeg") 
     
     # --- CUSTOM CSS: TRANSPARENT SIDEBAR & HEADER ---
     st.markdown("""
