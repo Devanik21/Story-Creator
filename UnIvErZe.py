@@ -3131,7 +3131,7 @@ def main():
     )
 
     
-    set_app_background("Gemini_Generated_Image_y99xn8y99xn8y99x.png")
+    set_app_background("mercury-sky-night-background-asset-game-2d-futuristic-generative-ai.jpg")
     
     # --- CUSTOM CSS: TRANSPARENT SIDEBAR & HEADER ---
     st.markdown("""
