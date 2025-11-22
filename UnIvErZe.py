@@ -5362,236 +5362,149 @@ def main():
                                 if not G.nodes:
                                     st.warning("Empty Graph.")
                                 else:
-                                    # --- HELPER: Smart Plotting Function ---
+                                    # --- HELPER: Smart Plotting Function (DARK MODE UPDATED) ---
                                     import math
+                                    import matplotlib.patheffects as path_effects
                                     
                                     def shorten_label(text, max_len=15):
                                         """Smartly truncates biological names for readability."""
                                         s_text = str(text)
-                                        # Remove common prefixes to save space
                                         for prefix in ['Proto-', 'Neuro-', 'Causal-', 'Pseudo-', 'Spectral-', 'Quantum-']:
                                             if s_text.startswith(prefix):
                                                 s_text = s_text.replace(prefix, "")
-                                        
-                                        # Truncate if still too long
                                         if len(s_text) > max_len:
-                                            # Keep start and end (e.g. "Carbon-Sha...168")
                                             return s_text[:8] + ".." + s_text[-3:]
                                         return s_text
 
-                                    def plot_complex_network(graph, layout_pos, ax):
-                                        # 1. Dynamic Styling
-                                        d = dict(graph.degree)
-                                        # Scale nodes: Hubs get bigger, leaves get smaller
-                                        node_sizes = [v * 80 + 150 for v in d.values()]
-                                        node_colors = [data.get('color', '#888888') for _, data in graph.nodes(data=True)]
+                                    def plot_complex_network(graph, layout_pos, ax, title_text=""):
+                                        # --- 1. Dark Theme Setup ---
+                                        bg_color = '#0E1117' # Streamlit Dark Blue-Gray
+                                        ax.set_facecolor(bg_color)
+                                        ax.figure.set_facecolor(bg_color)
                                         
-                                        # 2. Draw Edges (Curved & Transparent)
-                                        nx.draw_networkx_edges(
+                                        # --- 2. Node Processing ---
+                                        d = dict(graph.degree)
+                                        # Normalize sizes: min 80, max 600 based on degree
+                                        node_sizes = [min(600, max(80, v * 120)) for v in d.values()]
+                                        
+                                        # --- 3. Draw "Glow" (Large transparent nodes behind) ---
+                                        # This creates the "neon" effect
+                                        nx.draw_networkx_nodes(
                                             graph, layout_pos, ax=ax, 
-                                            node_size=node_sizes, 
-                                            arrowstyle='-|>', arrowsize=10, 
-                                            edge_color='#555555', width=1.0, alpha=0.4, # High transparency helps overlap
-                                            connectionstyle="arc3,rad=0.15"
+                                            node_size=[s * 2.2 for s in node_sizes], 
+                                            node_color='#ffffff', 
+                                            alpha=0.08 # Very faint glow
                                         )
                                         
-                                        # 3. Draw Nodes (High Contrast Borders)
+                                        # --- 4. Draw Edges (Curved & Colored by Type) ---
+                                        # Separation of edge types for color coding
+                                        sense_edges = [(u, v) for u, v, data in graph.edges(data=True) if data.get('type') == 'sense']
+                                        act_edges = [(u, v) for u, v, data in graph.edges(data=True) if data.get('type') == 'act']
+                                        other_edges = [(u, v) for u, v, data in graph.edges(data=True) if data.get('type') not in ['sense', 'act']]
+
+                                        # Input (Sense): Cyan/Electric Blue
+                                        nx.draw_networkx_edges(
+                                            graph, layout_pos, ax=ax, edgelist=sense_edges,
+                                            edge_color='#00d4ff', alpha=0.5, width=0.8,
+                                            arrowstyle='-|>', arrowsize=10, connectionstyle="arc3,rad=0.15"
+                                        )
+                                        # Output (Action): Orange/Gold
+                                        nx.draw_networkx_edges(
+                                            graph, layout_pos, ax=ax, edgelist=act_edges,
+                                            edge_color='#ffaa00', alpha=0.5, width=1.0,
+                                            arrowstyle='-|>', arrowsize=12, connectionstyle="arc3,rad=0.15"
+                                        )
+                                        # Abstract: Faint Gray
+                                        nx.draw_networkx_edges(
+                                            graph, layout_pos, ax=ax, edgelist=other_edges,
+                                            edge_color='#555555', alpha=0.3, width=0.5,
+                                            connectionstyle="arc3,rad=0.1"
+                                        )
+                                        
+                                        # --- 5. Draw Core Nodes ---
+                                        node_colors = []
+                                        for n, data in graph.nodes(data=True):
+                                            if data.get('type') == 'action':
+                                                node_colors.append('#ffaa00') # Gold Logic Gates
+                                            elif data.get('type') == 'abstract':
+                                                node_colors.append('#bd00ff') # Purple Abstract
+                                            else:
+                                                node_colors.append(data.get('color', '#888888')) # Gene Color
+
                                         nx.draw_networkx_nodes(
                                             graph, layout_pos, ax=ax, 
                                             node_size=node_sizes, 
                                             node_color=node_colors, 
-                                            edgecolors='white', linewidths=1.0
+                                            edgecolors='#ffffff', linewidths=0.8 # Crisp white border
                                         )
                                         
-                                        # 4. Draw Smart Labels
+                                        # --- 6. Labels with Halo (For readability) ---
                                         labels = {}
                                         for n, data in graph.nodes(data=True):
                                             if data.get('type') == 'action':
-                                                # Actions: "GROW\n(Target)" -> "GROW\n(Targ..)"
-                                                raw_label = data.get('label', n)
-                                                action, param = raw_label.split('\n')
-                                                labels[n] = f"{action}\n{shorten_label(param.strip('()'), 8)}"
+                                                # Cleaner action labels
+                                                raw = data.get('label', n)
+                                                try:
+                                                    act, param = raw.split('\n')
+                                                    labels[n] = f"{act}\n[{shorten_label(param.strip('()'), 8)}]"
+                                                except: labels[n] = raw
                                             else:
-                                                # Components: Shorten drastically
                                                 labels[n] = shorten_label(n)
                                                 
-                                        nx.draw_networkx_labels(
+                                        text_items = nx.draw_networkx_labels(
                                             graph, layout_pos, ax=ax, labels=labels,
-                                            font_size=5, font_family='sans-serif', font_weight='bold',
-                                            bbox=dict(facecolor='white', edgecolor='none', alpha=0.6, boxstyle='round,pad=0.1')
+                                            font_size=6, font_family='monospace', font_weight='bold',
+                                            font_color='#eeeeee'
                                         )
+                                        # Add black outline to text
+                                        for _, t in text_items.items():
+                                            t.set_path_effects([path_effects.withStroke(linewidth=2, foreground=bg_color)])
+                                            
+                                        # Styled Title
+                                        ax.set_title(title_text, color='#666666', fontsize=8, loc='left', pad=2, fontname='monospace')
                                         ax.axis('off')
 
-                                    # --- RENDER PLOTS ---
-                                    # Calculate dynamic spacing factor (k)
-                                    # More nodes = spread them out more (higher k usually tightens, but here we normalize figure size)
+                                    # --- RENDER PLOTS LOOP ---
                                     n_nodes = len(G.nodes())
-                                    optimal_k = 5.0 / math.sqrt(n_nodes) if n_nodes > 0 else 1.0
+                                    # K-factor adjusts spacing: fewer nodes = spread out more
+                                    optimal_k = 4.0 / math.sqrt(n_nodes) if n_nodes > 0 else 1.0
                                     
-                                    # 1. Spring (Default)
-                                    st.markdown("**1. Default Spring**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5)) # Wider canvas
-                                        plot_complex_network(G, nx.spring_layout(G, seed=42, k=optimal_k), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception as e: st.caption(f"Error: {e}")
+                                    # Define the 16 layouts with metadata
+                                    layouts = [
+                                        ("1. Default Spring (Physics)", nx.spring_layout(G, seed=42, k=optimal_k)),
+                                        ("2. Kamada-Kawai (Energy)", nx.kamada_kawai_layout(G)),
+                                        ("3. Circular (Ring)", nx.circular_layout(G)),
+                                        ("4. Random (Entropy Control)", nx.random_layout(G, seed=42)),
+                                        ("5. Spectral (Eigenvectors)", nx.spectral_layout(G)),
+                                        ("6. Shell (Concentric)", nx.shell_layout(G)),
+                                        ("7. Spiral (Sequence)", nx.spiral_layout(G)),
+                                        ("8. Planar (Topology Test)", nx.planar_layout(G) if nx.check_planarity(G)[0] else nx.spring_layout(G, seed=1)), # Fallback if not planar
+                                        ("9. Dense Core (High Gravity)", nx.spring_layout(G, k=optimal_k*0.3, seed=42)),
+                                        ("10. Expanded Void (Low Gravity)", nx.spring_layout(G, k=optimal_k*2.5, seed=42)),
+                                        ("11. Dual-Shell (Logic Separation)", nx.shell_layout(G, nlist=[[n for n,d in G.nodes(data=True) if d.get('type')=='component'], [n for n in G.nodes() if n not in [n for n,d in G.nodes(data=True) if d.get('type')=='component']]])),
+                                        ("12. Settled State (Iterative)", nx.spring_layout(G, iterations=400, seed=42, k=optimal_k)),
+                                        # Graphviz Layouts (Fallback to spring if Graphviz not installed)
+                                        ("13. Hierarchical Flow (Top-Down)", nx.nx_pydot.graphviz_layout(G, prog='dot') if hasattr(nx, 'nx_pydot') else nx.spring_layout(G, seed=2)),
+                                        ("14. Radial Burst (Twopi)", nx.nx_pydot.graphviz_layout(G, prog='twopi') if hasattr(nx, 'nx_pydot') else nx.kamada_kawai_layout(G)),
+                                        ("15. Organic Force (Neato)", nx.nx_pydot.graphviz_layout(G, prog='neato') if hasattr(nx, 'nx_pydot') else nx.spring_layout(G, seed=3, k=optimal_k)),
+                                        ("16. Alternate Dimension (Seed 99)", nx.spring_layout(G, seed=99, k=optimal_k))
+                                    ]
 
-                                    # 2. Kamada-Kawai
-                                    st.markdown("**2. Kamada-Kawai (Clean Hierarchy)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.kamada_kawai_layout(G), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except: st.caption("Layout failed.")
-
-                                    # 3. Circular
-                                    st.markdown("**3. Circular (Connectivity)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.circular_layout(G), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception as e: st.caption(f"Error: {e}")
-
-                                    # 4. Random
-                                    st.markdown("**4. Random (Control)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.random_layout(G, seed=42), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception as e: st.caption(f"Error: {e}")
-
-                                    # 5. Spectral
-                                    st.markdown("**5. Spectral (Math Clusters)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.spectral_layout(G), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except: st.caption("Layout failed.")
-
-                                    # 6. Shell
-                                    st.markdown("**6. Shell (Rings)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.shell_layout(G), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception as e: st.caption(f"Error: {e}")
-                                    
-                                    # 7. Spiral
-                                    st.markdown("**7. Spiral (Sequence)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.spiral_layout(G), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception as e: st.caption(f"Error: {e}")
-
-                                    # 8. Planar
-                                    st.markdown("**8. Planar (Complexity Test)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.planar_layout(G), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except: st.caption("Graph is non-planar (Too Complex).")
-
-                                    # 9. Tight Spring
-                                    st.markdown("**9. Tight Spring (Clusters)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.spring_layout(G, k=optimal_k*0.5, seed=42), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception as e: st.caption(f"Error: {e}")
-
-                                    # 10. Loose Spring
-                                    st.markdown("**10. Loose Spring (Untangled)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.spring_layout(G, k=optimal_k*2.0, seed=42), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception as e: st.caption(f"Error: {e}")
-
-                                    # 11. Dual-Shell
-                                    st.markdown("**11. Dual-Shell (Logic Separation)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        comp_nodes = [n for n, d in G.nodes(data=True) if d.get('type') == 'component']
-                                        act_nodes = [n for n, d in G.nodes(data=True) if d.get('type') == 'action']
-                                        other_nodes = [n for n, d in G.nodes(data=True) if d.get('type') not in ['component', 'action']]
-                                        plot_complex_network(G, nx.shell_layout(G, nlist=[comp_nodes, act_nodes + other_nodes]), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception as e: st.caption(f"Error: {e}")
-
-                                    # 12. Settled Spring
-                                    st.markdown("**12. Settled Spring (Stable)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.spring_layout(G, iterations=300, seed=42, k=optimal_k), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception as e: st.caption(f"Error: {e}")
-
-                                    # 13. Hierarchical Top-Down
-                                    st.markdown("**13. Hierarchical (Flow)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        pos_13 = nx.nx_pydot.graphviz_layout(G, prog='dot')
-                                        plot_complex_network(G, pos_13, ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception:
-                                        st.caption("Using Fallback (Shell)")
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.shell_layout(G), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-
-                                    # 14. Hierarchical Radial
-                                    st.markdown("**14. Hierarchical (Radial)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        pos_14 = nx.nx_pydot.graphviz_layout(G, prog='twopi')
-                                        plot_complex_network(G, pos_14, ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception:
-                                        st.caption("Using Fallback (Kamada-Kawai)")
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.kamada_kawai_layout(G), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-
-                                    # 15. Force-Directed (NEATO)
-                                    st.markdown("**15. Force-Directed (NEATO)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        pos_15 = nx.nx_pydot.graphviz_layout(G, prog='neato')
-                                        plot_complex_network(G, pos_15, ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception:
-                                        st.caption("Using Fallback (Spring)")
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.spring_layout(G, seed=123, k=optimal_k), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-
-                                    # 16. Spring Alternate
-                                    st.markdown("**16. Spring (Alt Reality)**")
-                                    try:
-                                        fig, ax = plt.subplots(figsize=(6, 5))
-                                        plot_complex_network(G, nx.spring_layout(G, seed=99, k=optimal_k), ax)
-                                        st.pyplot(fig)
-                                        plt.close(fig)
-                                    except Exception as e: st.caption(f"Error: {e}")
+                                    # Render grid of 4x4
+                                    for idx, (title, pos) in enumerate(layouts):
+                                        # Create new columns every 2 plots for better sizing
+                                        if idx % 2 == 0:
+                                            cols = st.columns(2)
+                                        
+                                        with cols[idx % 2]:
+                                            try:
+                                                # Dark figure background
+                                                fig, ax = plt.subplots(figsize=(6, 5), facecolor='#0E1117') 
+                                                plot_complex_network(G, pos, ax, title)
+                                                st.pyplot(fig)
+                                                plt.close(fig)
+                                            except Exception as e:
+                                                st.caption(f"Error rendering {title}: {e}")
 
                                 if st.button("❌ Close Encyclopedia", key=f"btn_hide_net_{i}"):
                                     st.session_state.loaded_specimen_networks.remove(i)
