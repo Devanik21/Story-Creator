@@ -59,6 +59,7 @@ import base64  # <--- ADD THIS
 import matplotlib
 matplotlib.use('Agg') # Set backend to non-interactive for Streamlit
 import matplotlib.pyplot as plt
+import math
 # =G=E=N=E=V=O= =2=.=0= =N=E=W= =F=E=A=T=U=R=E=S=T=A=R=T=S= =H=E=R=E=
 #
 # NEW FEATURE: CHEMICAL BASE REGISTRY
@@ -5379,47 +5380,90 @@ def main():
                                             return s_text[:8] + ".." + s_text[-3:]
                                         return s_text
 
+                                    # --- HELPER: Smart Plotting Function (Sci-Fi Edition) ---
+                                    
+                                    
+                                    def shorten_label(text, max_len=15):
+                                        """Smartly truncates biological names for readability."""
+                                        s_text = str(text)
+                                        # Remove common prefixes to save space
+                                        for prefix in ['Proto-', 'Neuro-', 'Causal-', 'Pseudo-', 'Spectral-', 'Quantum-']:
+                                            if s_text.startswith(prefix):
+                                                s_text = s_text.replace(prefix, "")
+                                        
+                                        # Truncate if still too long
+                                        if len(s_text) > max_len:
+                                            return s_text[:8] + ".." + s_text[-3:]
+                                        return s_text
+
                                     def plot_complex_network(graph, layout_pos, ax):
+                                        # --- 0. Deep Space Background ---
+                                        # Set the plot background to void black
+                                        ax.set_facecolor('#050508') 
+                                        ax.figure.set_facecolor('#050508')
+                                        
                                         # 1. Dynamic Styling
                                         d = dict(graph.degree)
-                                        # Scale nodes: Hubs get bigger, leaves get smaller
-                                        node_sizes = [v * 80 + 150 for v in d.values()]
+                                        # Scale nodes: Hubs get bigger
+                                        node_sizes = [v * 80 + 120 for v in d.values()]
+                                        # Use the gene's color, but default to a steel grey if missing
                                         node_colors = [data.get('color', '#888888') for _, data in graph.nodes(data=True)]
                                         
-                                        # 2. Draw Edges (Curved & Transparent)
+                                        # 2. Draw Edges (The "Neural Web")
+                                        # We use a bright Neon Cyan for edges with low alpha. 
+                                        # Overlapping edges will naturally create "hotspots" of brightness.
                                         nx.draw_networkx_edges(
                                             graph, layout_pos, ax=ax, 
                                             node_size=node_sizes, 
-                                            arrowstyle='-|>', arrowsize=10, 
-                                            edge_color='#555555', width=1.0, alpha=0.4, # High transparency helps overlap
-                                            connectionstyle="arc3,rad=0.15"
+                                            arrowstyle='-|>', arrowsize=8, 
+                                            edge_color='#00FFC8', # Neon Cyan
+                                            width=0.8, 
+                                            alpha=0.15, # Very ghost-like transparency
+                                            connectionstyle="arc3,rad=0.2" # Curved edges look more organic
                                         )
                                         
-                                        # 3. Draw Nodes (High Contrast Borders)
+                                        # 3. Draw Nodes (The "Glowing Cores")
+                                        # Layer A: Outer Glow (Larger, transparent)
+                                        # (We manually extract x,y coords from layout_pos for scatter)
+                                        xs = [layout_pos[n][0] for n in graph.nodes()]
+                                        ys = [layout_pos[n][1] for n in graph.nodes()]
+                                        ax.scatter(xs, ys, s=[s*2.5 for s in node_sizes], c=node_colors, alpha=0.15, edgecolors='none', zorder=1)
+                                        
+                                        # Layer B: Inner Core (Solid)
                                         nx.draw_networkx_nodes(
                                             graph, layout_pos, ax=ax, 
                                             node_size=node_sizes, 
                                             node_color=node_colors, 
-                                            edgecolors='white', linewidths=1.0
+                                            edgecolors='white', linewidths=0.5, # Thin white crisp border
+                                            alpha=0.9,
+                                            zorder=2
                                         )
                                         
-                                        # 4. Draw Smart Labels
+                                        # 4. Draw Smart Labels (HUD Style)
                                         labels = {}
                                         for n, data in graph.nodes(data=True):
                                             if data.get('type') == 'action':
-                                                # Actions: "GROW\n(Target)" -> "GROW\n(Targ..)"
+                                                # Actions: "GROW\n(Target)"
                                                 raw_label = data.get('label', n)
-                                                action, param = raw_label.split('\n')
-                                                labels[n] = f"{action}\n{shorten_label(param.strip('()'), 8)}"
+                                                try:
+                                                    action, param = raw_label.split('\n')
+                                                    labels[n] = f"{action}\n{shorten_label(param.strip('()'), 8)}"
+                                                except:
+                                                    labels[n] = shorten_label(n)
                                             else:
-                                                # Components: Shorten drastically
+                                                # Components
                                                 labels[n] = shorten_label(n)
                                                 
-                                        nx.draw_networkx_labels(
+                                        text_items = nx.draw_networkx_labels(
                                             graph, layout_pos, ax=ax, labels=labels,
-                                            font_size=5, font_family='sans-serif', font_weight='bold',
-                                            bbox=dict(facecolor='white', edgecolor='none', alpha=0.6, boxstyle='round,pad=0.1')
+                                            font_size=6, font_family='monospace', font_weight='normal',
+                                            font_color='#EEEEEE' # White text
                                         )
+                                        
+                                        # Add a semi-transparent dark background to text for readability
+                                        for _, t in text_items.items():
+                                            t.set_bbox(dict(facecolor='#000000', edgecolor='none', alpha=0.6, boxstyle='round,pad=0.2'))
+
                                         ax.axis('off')
 
                                     # --- RENDER PLOTS ---
