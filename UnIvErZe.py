@@ -5383,6 +5383,9 @@ def main():
                                     # --- HELPER: Smart Plotting Function (Sci-Fi Edition) ---
                                     
                                     
+                                    # --- HELPER: Smart Plotting Function (Fixed & Crash-Proof) ---
+                                    
+                                    
                                     def shorten_label(text, max_len=15):
                                         """Smartly truncates biological names for readability."""
                                         s_text = str(text)
@@ -5409,9 +5412,7 @@ def main():
                                         # Use the gene's color, but default to a steel grey if missing
                                         node_colors = [data.get('color', '#888888') for _, data in graph.nodes(data=True)]
                                         
-                                        # 2. Draw Edges (The "Neural Web")
-                                        # We use a bright Neon Cyan for edges with low alpha. 
-                                        # Overlapping edges will naturally create "hotspots" of brightness.
+                                        # 2. Draw Edges (The "Neural Web") - Drawn FIRST (Bottom Layer)
                                         nx.draw_networkx_edges(
                                             graph, layout_pos, ax=ax, 
                                             node_size=node_sizes, 
@@ -5419,27 +5420,28 @@ def main():
                                             edge_color='#00FFC8', # Neon Cyan
                                             width=0.8, 
                                             alpha=0.15, # Very ghost-like transparency
-                                            connectionstyle="arc3,rad=0.2" # Curved edges look more organic
+                                            connectionstyle="arc3,rad=0.2"
                                         )
                                         
-                                        # 3. Draw Nodes (The "Glowing Cores")
+                                        # 3. Draw Nodes (The "Glowing Cores") - Drawn SECOND
                                         # Layer A: Outer Glow (Larger, transparent)
-                                        # (We manually extract x,y coords from layout_pos for scatter)
                                         xs = [layout_pos[n][0] for n in graph.nodes()]
                                         ys = [layout_pos[n][1] for n in graph.nodes()]
-                                        ax.scatter(xs, ys, s=[s*2.5 for s in node_sizes], c=node_colors, alpha=0.15, edgecolors='none', order=1)
                                         
-                                        # Layer B: Inner Core (Solid)
+                                        # Note: Removed 'zorder' arg to prevent PathCollection errors.
+                                        # Drawing order ensures layering.
+                                        ax.scatter(xs, ys, s=[s*2.5 for s in node_sizes], c=node_colors, alpha=0.15, edgecolors='none')
+                                        
+                                        # Layer B: Inner Core (Solid) - Drawn THIRD
                                         nx.draw_networkx_nodes(
                                             graph, layout_pos, ax=ax, 
                                             node_size=node_sizes, 
                                             node_color=node_colors, 
                                             edgecolors='white', linewidths=0.5, # Thin white crisp border
-                                            alpha=0.9,
-                                            order=2
+                                            alpha=0.9
                                         )
                                         
-                                        # 4. Draw Smart Labels (HUD Style)
+                                        # 4. Draw Smart Labels (HUD Style) - Drawn LAST (Top Layer)
                                         labels = {}
                                         for n, data in graph.nodes(data=True):
                                             if data.get('type') == 'action':
