@@ -5363,9 +5363,6 @@ def main():
                                 if not G.nodes:
                                     st.warning("Empty Graph.")
                                 else:
-                                    # --- HELPER: Smart Plotting Function ---
-                                    import math
-                                    
                                     # --- HELPER: Smart Plotting Function (Sci-Fi HUD Edition) ---
                                     import math
                                     
