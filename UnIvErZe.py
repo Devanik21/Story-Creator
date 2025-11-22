@@ -59,7 +59,6 @@ import base64  # <--- ADD THIS
 import matplotlib
 matplotlib.use('Agg') # Set backend to non-interactive for Streamlit
 import matplotlib.pyplot as plt
-import math
 # =G=E=N=E=V=O= =2=.=0= =N=E=W= =F=E=A=T=U=R=E=S=T=A=R=T=S= =H=E=R=E=
 #
 # NEW FEATURE: CHEMICAL BASE REGISTRY
@@ -5363,132 +5362,64 @@ def main():
                                 if not G.nodes:
                                     st.warning("Empty Graph.")
                                 else:
-                                    # --- HELPER: Smart Plotting Function (Sci-Fi HUD Edition) ---
+                                    # --- HELPER: Smart Plotting Function ---
                                     import math
                                     
-                                    def shorten_label(text, max_len=12):
-                                        """Aggressively shortens text for cleaner HUD visuals."""
+                                    def shorten_label(text, max_len=15):
+                                        """Smartly truncates biological names for readability."""
                                         s_text = str(text)
-                                        # Strip biological prefixes
-                                        for prefix in ['Proto-', 'Neuro-', 'Causal-', 'Pseudo-', 'Spectral-', 'Quantum-', 'Hyper-', 'Meta-', 'Astro-', 'Cryo-', 'Pyro-', 'Geo-', 'Aero-', 'Bio-', 'Xeno-']:
+                                        # Remove common prefixes to save space
+                                        for prefix in ['Proto-', 'Neuro-', 'Causal-', 'Pseudo-', 'Spectral-', 'Quantum-']:
                                             if s_text.startswith(prefix):
                                                 s_text = s_text.replace(prefix, "")
                                         
-                                        # Remove IDs (e.g., "_123")
-                                        if "_" in s_text:
-                                            s_text = s_text.split("_")[0]
-
+                                        # Truncate if still too long
                                         if len(s_text) > max_len:
-                                            return s_text[:max_len-2] + ".."
+                                            # Keep start and end (e.g. "Carbon-Sha...168")
+                                            return s_text[:8] + ".." + s_text[-3:]
                                         return s_text
 
                                     def plot_complex_network(graph, layout_pos, ax):
-                                        # --- 1. The Void (Background) ---
-                                        ax.set_facecolor('#050508') 
-                                        ax.figure.set_facecolor('#050508')
+                                        # 1. Dynamic Styling
+                                        d = dict(graph.degree)
+                                        # Scale nodes: Hubs get bigger, leaves get smaller
+                                        node_sizes = [v * 80 + 150 for v in d.values()]
+                                        node_colors = [data.get('color', '#888888') for _, data in graph.nodes(data=True)]
                                         
-                                        # Analyze Graph Structure
-                                        degrees = dict(graph.degree)
-                                        if not degrees: return
-                                        max_degree = max(degrees.values())
-                                        avg_degree = sum(degrees.values()) / len(degrees)
-                                        
-                                        # Separate Edges by Logic Type
-                                        # Sense = Blue (Input), Act = Gold (Output), Other = Grey
-                                        sense_edges = [(u, v) for u, v, d in graph.edges(data=True) if d.get('type') == 'sense']
-                                        act_edges = [(u, v) for u, v, d in graph.edges(data=True) if d.get('type') == 'act']
-                                        other_edges = [(u, v) for u, v, d in graph.edges(data=True) if d.get('type') not in ['sense', 'act']]
-
-                                        # --- 2. Draw The Neural Web (Edges) ---
-                                        
-                                        # A. Sensory Inputs (Faint, Blue Streams)
+                                        # 2. Draw Edges (Curved & Transparent)
                                         nx.draw_networkx_edges(
-                                            graph, layout_pos, ax=ax, edgelist=sense_edges,
-                                            edge_color='#00A8FF', width=0.6, alpha=0.3, 
-                                            arrowstyle='-', connectionstyle="arc3,rad=0.1"
+                                            graph, layout_pos, ax=ax, 
+                                            node_size=node_sizes, 
+                                            arrowstyle='-|>', arrowsize=10, 
+                                            edge_color='#555555', width=1.0, alpha=0.4, # High transparency helps overlap
+                                            connectionstyle="arc3,rad=0.15"
                                         )
                                         
-                                        # B. Action Outputs (Bright, Gold Execution Lines)
-                                        # These are the critical decisions, so they are brighter
-                                        nx.draw_networkx_edges(
-                                            graph, layout_pos, ax=ax, edgelist=act_edges,
-                                            edge_color='#FFD700', width=1.5, alpha=0.8, 
-                                            arrowstyle='-|>', arrowsize=12, connectionstyle="arc3,rad=0.1"
-                                        )
-                                        
-                                        # C. Structural Links (Ghostly Grey)
-                                        nx.draw_networkx_edges(
-                                            graph, layout_pos, ax=ax, edgelist=other_edges,
-                                            edge_color='#444444', width=0.5, alpha=0.2
-                                        )
-
-                                        # --- 3. Draw The Cores (Nodes) ---
-                                        
-                                        # Separate Hubs (Important) from Leaves (Tiny)
-                                        # Threshold: Connected to more than just 1 or 2 things
-                                        hub_threshold = max(2, avg_degree)
-                                        hubs = [n for n, d in degrees.items() if d >= hub_threshold]
-                                        leaves = [n for n, d in degrees.items() if d < hub_threshold]
-                                        
-                                        node_colors = {n: data.get('color', '#888888') for n, data in graph.nodes(data=True)}
-
-                                        # Draw Leaves (Tiny dots, no border)
+                                        # 3. Draw Nodes (High Contrast Borders)
                                         nx.draw_networkx_nodes(
-                                            graph, layout_pos, ax=ax, nodelist=leaves,
-                                            node_size=[degrees[n] * 10 + 20 for n in leaves],
-                                            node_color=[node_colors[n] for n in leaves],
-                                            alpha=0.6, linewidths=0
+                                            graph, layout_pos, ax=ax, 
+                                            node_size=node_sizes, 
+                                            node_color=node_colors, 
+                                            edgecolors='white', linewidths=1.0
                                         )
-
-                                        # Draw Hubs (The "Stars")
-                                        if hubs:
-                                            hub_sizes = [degrees[n] * 60 + 100 for n in hubs]
-                                            hub_cols = [node_colors[n] for n in hubs]
-                                            
-                                            # Outer Glow (Halo)
-                                            ax.scatter(
-                                                [layout_pos[n][0] for n in hubs], 
-                                                [layout_pos[n][1] for n in hubs], 
-                                                s=[s * 4 for s in hub_sizes], 
-                                                c=hub_cols, alpha=0.1, edgecolors='none', zorder=1
-                                            )
-                                            
-                                            # Solid Core
-                                            nx.draw_networkx_nodes(
-                                                graph, layout_pos, ax=ax, nodelist=hubs,
-                                                node_size=hub_sizes,
-                                                node_color=hub_cols,
-                                                edgecolors='white', linewidths=1.5, alpha=1.0
-                                            )
-
-                                        # --- 4. The HUD (Smart Labels) ---
-                                        # Only label the Hubs to prevent "Messy Hairball" text
+                                        
+                                        # 4. Draw Smart Labels
                                         labels = {}
-                                        for n in hubs:
-                                            data = graph.nodes[n]
+                                        for n, data in graph.nodes(data=True):
                                             if data.get('type') == 'action':
-                                                # Action Node: Format as "ACTION [Target]"
-                                                raw = data.get('label', n)
-                                                try:
-                                                    act, param = raw.split('\n')
-                                                    clean_param = shorten_label(param.strip('()'), 8).upper()
-                                                    labels[n] = f"{act}\n[{clean_param}]"
-                                                except: labels[n] = raw
+                                                # Actions: "GROW\n(Target)" -> "GROW\n(Targ..)"
+                                                raw_label = data.get('label', n)
+                                                action, param = raw_label.split('\n')
+                                                labels[n] = f"{action}\n{shorten_label(param.strip('()'), 8)}"
                                             else:
-                                                # Component Node: Just the clean name
-                                                labels[n] = shorten_label(n, 10)
-                                        
-                                        # Draw Labels with Tactical Background
-                                        text_items = nx.draw_networkx_labels(
+                                                # Components: Shorten drastically
+                                                labels[n] = shorten_label(n)
+                                                
+                                        nx.draw_networkx_labels(
                                             graph, layout_pos, ax=ax, labels=labels,
-                                            font_size=6, font_family='monospace', font_weight='bold',
-                                            font_color='#FFFFFF'
+                                            font_size=5, font_family='sans-serif', font_weight='bold',
+                                            bbox=dict(facecolor='white', edgecolor='none', alpha=0.6, boxstyle='round,pad=0.1')
                                         )
-                                        
-                                        # Add dark box behind text for perfect contrast
-                                        for t in text_items.values():
-                                            t.set_bbox(dict(facecolor='black', edgecolor='#666666', alpha=0.8, boxstyle='round,pad=0.3'))
-
                                         ax.axis('off')
 
                                     # --- RENDER PLOTS ---
