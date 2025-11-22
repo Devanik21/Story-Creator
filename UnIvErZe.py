@@ -5466,11 +5466,15 @@ def main():
                                     ]
 
                                     # Render grid
+                                    # Render grid
                                     for idx, (title, pos) in enumerate(layouts):
+                                        # Create new columns every 2 plots for better sizing
                                         if idx % 2 == 0:
-                                            cols = st.columns(2)
-                                        with cols[idx % 2]:
+                                            plot_cols = st.columns(2) # <--- FIXED: Renamed to 'plot_cols'
+                                        
+                                        with plot_cols[idx % 2]:      # <--- FIXED: Use 'plot_cols' here
                                             try:
+                                                # Dark figure background
                                                 fig, ax = plt.subplots(figsize=(6, 5), facecolor='#0E1117') 
                                                 plot_complex_network(G, pos, ax, title)
                                                 st.pyplot(fig)
