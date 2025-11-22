@@ -5427,7 +5427,7 @@ def main():
                                         # (We manually extract x,y coords from layout_pos for scatter)
                                         xs = [layout_pos[n][0] for n in graph.nodes()]
                                         ys = [layout_pos[n][1] for n in graph.nodes()]
-                                        ax.scatter(xs, ys, s=[s*2.5 for s in node_sizes], c=node_colors, alpha=0.15, edgecolors='none', zorder=1)
+                                        ax.scatter(xs, ys, s=[s*2.5 for s in node_sizes], c=node_colors, alpha=0.15, edgecolors='none', order=1)
                                         
                                         # Layer B: Inner Core (Solid)
                                         nx.draw_networkx_nodes(
@@ -5436,7 +5436,7 @@ def main():
                                             node_color=node_colors, 
                                             edgecolors='white', linewidths=0.5, # Thin white crisp border
                                             alpha=0.9,
-                                            zorder=2
+                                            order=2
                                         )
                                         
                                         # 4. Draw Smart Labels (HUD Style)
